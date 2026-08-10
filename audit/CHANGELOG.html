@@ -1137,6 +1137,44 @@
     </div>
   </section>
 
+  <section class="stage">
+    <h2>阶段二十四 · 修复四项真机 bug（收藏写入 / 忽略同步 / 图库黑底 / 关于与闪烁）· v1.0.8</h2>
+    <div class="meta">触发：KPW3 实机复测反馈 4 个 bug——①「关于美术馆」点击后无文本弹窗且上半屏点击闪烁；② 长按「收藏图片」报「无法写入收藏」；③ 全屏视图忽略后「图库（忽略）」看不到；④ 全屏视图下打开图库整屏变黑。逐一定位根因后修复。</div>
+    <div class="card">
+      <p><b>① 收藏「无法写入收藏」（Bug②）</b></p>
+      <ul>
+        <li><span class="tag fix">修</span>根因：<code>addFavorite</code> 仅对末级 <code>artgallery/favorites</code> 调 <code>lfs.mkdir</code>，而 <code>lfs.mkdir</code> <b>不递归建父目录</b>；首次收藏时父目录 <code>artgallery</code> 尚不存在 → mkdir 静默失败 → 字节副本 <code>io.open</code> 写不进 → 弹「无法写入收藏」。</li>
+        <li><span class="tag add">新</span>新增递归建目录助手 <code>_mkdirs(path)</code>（等价 <code>mkdir -p</code>，按 <code>/</code> 分段逐层创建），<code>addFavorite</code> 写盘前先 <code>_mkdirs(dir)</code> 确保父链存在。KOReader 无内置 <code>util.makeDirs</code>，故自实现、零依赖。</li>
+      </ul>
+      <p><b>② 全屏忽略未同步到「图库（忽略）」（Bug③）</b></p>
+      <ul>
+        <li><span class="tag fix">修</span>根因：图库态忽略走 <code>on_ignore</code>（写 <code>artgallery_hidden</code> + 重开画廊，重开时重新扫描 → 忽略池正确）；而<strong>全屏单图态</strong>忽略走 <code>_hideCurrentImage → on_hide</code>，只写持久化设置并从<strong>工作列表</strong>移除，<strong>未同步进 <code>ignored_metas</code> / <code>ignored_list</code> 内存池</strong>——「图库（忽略）」直接读这两个池，故看不到。</li>
+        <li><span class="tag mod">改</span><code>_hideCurrentImage</code> 在 <code>on_hide</code> 后<strong>镜像图库态的分区迁移</strong>：从 <code>shown_metas</code>/<code>shown_list</code> 按引用移除该 meta（避免「全部」视图 shown∪ignored 合并重复计数），追加进 <code>ignored_metas</code>/<code>ignored_list</code>（去重保护），再 <code>_invalidateGalleryCaches()</code>。之后打开画廊即可在「图库（忽略）」看到。</li>
+        <li><span class="tag mod">改</span><code>_invalidateGalleryCaches</code> 追加重置 <code>self._derived_ok = nil</code>，否则 <code>_ensureDerived</code> 早返回会复用过期 <code>_render_of</code> / <code>_ignored_set</code> 映射导致串图。</li>
+      </ul>
+      <p><b>③ 全屏进图库整屏变黑（Bug④）</b></p>
+      <ul>
+        <li><span class="tag fix">修</span>根因：<code>update()</code> 图片层背景 <code>background = self._fullscreen and BLACK or WHITE</code>；从全屏视图打开图库时 <code>_fullscreen</code> 仍为真 → 画廊整屏黑底（墨水屏不可见）。</li>
+        <li><span class="tag mod">改</span>背景判定改为 <code>(self._fullscreen and not self._gallery_mode) and BLACK or WHITE</code>——<strong>画廊模式恒为白底</strong>（网格缩略图本就应为白卡），单图全屏维持黑底铺满、抽屉维持白卡。</li>
+      </ul>
+      <p><b>④ 关于弹窗 + 上半屏闪烁（Bug①）</b></p>
+      <ul>
+        <li><span class="tag ok">核</span>关于回调经核验确实被执行：<code>TouchMenu:onMenuSelect</code> 在 tap 时即运行 <code>callback</code>（<code>help_text</code> 仅在长按/禁用时弹，不拦截 tap），且 crash.log 无关于堆栈 → <code>TextViewer</code> 已构造并 <code>show</code>，弹窗逻辑本身正确。移除关于项冗余 <code>help_text</code>（其说明文本已并入关于长文，避免长按弹出冗余帮助造成歧义）。</li>
+        <li><span class="tag fix">修</span>上半屏闪烁根因：全屏<strong>沉浸态</strong>（<code>_chrome_hidden</code>）下，点屏幕顶部 1/8 仍触发 <code>on_show_menu</code> 唤起顶部菜单 → 整屏刷新闪烁，与沉浸式「上部点击应失效」的设计意图相悖。</li>
+        <li><span class="tag mod">改</span><code>onTap</code> 顶部菜单唤起条件加门控 <code>not (self._fullscreen and self._chrome_hidden)</code>：仅抽屉态与全屏显 chrome 态保留原「点顶部开菜单」行为；沉浸态上部点击失效（仅供双击缩放），消除闪烁。其余点击路径不受影响。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 静态类顺序检查：未检测到 method 早于类名声明</span>
+      <span class="chip ok">✓ 代理加载测试：<code>LOAD_OK</code></span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.8</code></span>
+      <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-10T233818</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复测：① 首次收藏成功落盘、不再报「无法写入收藏」；② 全屏忽略后打开「图库（忽略）」可见、且「全部」不重复计数；③ 全屏下打开图库为白底；④ 关于弹窗正常显示、全屏沉浸态点上部不再闪烁</span>
+      <span class="chip warn">⚠ 关于弹窗客观说明：回调与 TextViewer 用法经源码核验正确，若个别设备仍不显示，需确认所点菜单确为本插件「关于 美术馆」项（非其它插件），并留意是否仍有第三方插件对全屏 widget 的兼容补丁</span>
+    </div>
+  </section>
+
   <div class="aside">
     本文件为 artgallery.koplugin 的<b>专属审计时间线</b>，按「每次修改即时追加」原则维护，就近存档于插件 <code>audit/</code> 目录。任何阶段改动完成后应立即补记对应条目，不得积压或事后补记失真。日志约定遵循用户「改前查日志、改后即时记」纪律。
   </div>

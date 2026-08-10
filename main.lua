@@ -1181,7 +1181,8 @@ function ArtGalleryViewer:update()
     local image_layer = FrameContainer:new{
         -- 全屏态用黑色底：contain 适配的留白在墨水屏上隐形，图片视觉铺满整屏
         -- （借鉴 Illustrations 的全屏做法）；抽屉态保持白色卡片观感。
-        background = self._fullscreen and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_WHITE,
+        background = (self._fullscreen and not self._gallery_mode)
+            and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_WHITE,
         bordersize = 0,
         padding = 0,
         margin = 0,
@@ -2228,6 +2229,10 @@ end
 function ArtGalleryViewer:_invalidateGalleryCaches()
     self._all_cache = nil
     self._fav_cache = nil
+    -- 派生（shown∪ignored / 收藏）与 _render_of/_ignored_set 依赖 shown/ignored
+    -- 池内容；池被手动迁移（见 _hideCurrentImage）后必须重置，否则 _ensureDerived
+    -- 早返回导致「全部/收藏」合并用到过期的 _render_of 映射而串图。
+    self._derived_ok = nil
     self._gallery_layouts = nil
     if self._thumb_bbs then
         for _, t in pairs(self._thumb_bbs) do
@@ -3129,7 +3134,10 @@ function ArtGalleryViewer:onTap(_, ges)
     -- fall through to ReaderMenu:onTapShowMenu, which would ALSO open the
     -- bottom config menu whenever the user's show_bottom_menu setting is
     -- on (the default) — here we never want that second menu.
+    -- 全屏沉浸态（chrome_hidden）下，上部区域点击应失效（仅供双击缩放），
+    -- 不应唤起顶部菜单导致整屏刷新闪烁；抽屉态与全屏显 chrome 态保持原行为。
     if self.on_show_menu and G_reader_settings:nilOrTrue(TOP_MENU_KEY)
+       and not (self._fullscreen and self._chrome_hidden)
        and self:_inTopMenuZone(ges.pos) then
         self.on_show_menu()
         return true
@@ -3604,8 +3612,36 @@ end
 function ArtGalleryViewer:_hideCurrentImage()
     local cur = self._images_list_cur
     local meta = self.image_metas and self.image_metas[cur]
+    local closure = self._images_list and self._images_list[cur]
     if meta and self.on_hide then
         self.on_hide(meta)
+    end
+    -- 同步忽略池：镜像图库态 on_ignore 的分区迁移，使之后「图库（忽略）」能
+    -- 看到该图；同时从 shown 池移除，避免「全部」视图（shown∪ignored 合并）
+    -- 重复计数。忽略只改内存池 + 持久化设置，不重新扫描。
+    if meta then
+        if self.shown_metas then
+            for i = #self.shown_metas, 1, -1 do
+                if self.shown_metas[i] == meta then
+                    table.remove(self.shown_metas, i)
+                    if self.shown_list then table.remove(self.shown_list, i) end
+                    break
+                end
+            end
+        end
+        if self.ignored_metas then
+            local dup = false
+            for _, m in ipairs(self.ignored_metas) do
+                if m == meta then dup = true; break end
+            end
+            if not dup then
+                self.ignored_metas[#self.ignored_metas + 1] = meta
+                if self.ignored_list and closure then
+                    self.ignored_list[#self.ignored_list + 1] = closure
+                end
+            end
+        end
+        self:_invalidateGalleryCaches()
     end
     table.remove(self._images_list, cur)
     if self.image_metas then
@@ -4082,6 +4118,20 @@ end
 -- to `cp`/`rm -rf`. The record also keeps width/height/caption so the
 -- gallery can show them without reopening the book.
 
+-- 递归创建目录（等价于 mkdir -p）：lfs.mkdir 不会自动建父目录，父目录缺失时
+-- 会静默失败，导致 favorites 子目录建不出来、收藏字节副本写不进（报「无法写入收藏」）。
+local function _mkdirs(path)
+    local prefix = path:match("^/") and "/" or ""
+    local cur = prefix
+    for part in (path .. "/"):gmatch("([^/]+)/") do
+        cur = cur .. part
+        if not lfs.attributes(cur) then
+            lfs.mkdir(cur)
+        end
+        cur = cur .. "/"
+    end
+end
+
 function ArtGallery:_favSettings()
     return LuaSettings:open(DataStorage:getDataDir() .. "/artgallery/favorites.lua")
 end
@@ -4170,7 +4220,7 @@ function ArtGallery:addFavorite(im, viewer)
         return
     end
     local dir = DataStorage:getDataDir() .. "/artgallery/favorites"
-    if not lfs.attributes(dir) then lfs.mkdir(dir) end
+    _mkdirs(dir)  -- 递归建父目录 artgallery/，避免父缺失致收藏写入失败
     local dest = dir .. "/" .. self:_favFileName(im)
     local f = io.open(dest, "wb")
     if not f then
@@ -5775,7 +5825,6 @@ function ArtGallery:_menuItems()
         },
         {
             text = _("关于 美术馆"),
-            help_text = _("基于 Glimpse 合并 Illustrations 的全屏看图能力。"),
             callback = function()
                 -- 使用说明（新增）：介绍插件的各项功能、按钮与菜单及用法。
                 -- 文本较长，故设置 height 启用 ScrollTextWidget 滚动，避免溢出屏幕。

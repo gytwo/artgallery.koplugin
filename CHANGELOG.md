@@ -5,6 +5,10 @@
 
 ---
 
+## 阶段二十四 / Phase 24 — 修复四项真机 bug（收藏写入 / 忽略同步 / 图库黑底 / 关于与闪烁）（2026-08-10）
+- **中文**：v1.0.8。修复 KPW3 实机复测反馈的 4 个 bug：① 收藏「无法写入收藏」——`addFavorite` 仅建末级目录、父目录 `artgallery` 缺失致 `lfs.mkdir` 静默失败，新增递归建目录 `_mkdirs` 解决；② 全屏忽略未同步到「图库（忽略）」——`_hideCurrentImage` 未迁移 `ignored_metas/ignored_list` 内存池，已镜像图库态分区迁移并重置 `_derived_ok`；③ 全屏进图库整屏变黑——背景判定加 `not self._gallery_mode` 使画廊恒白底；④ 关于弹窗与上半屏闪烁——移除关于项冗余 `help_text`，并门控沉浸态（`_chrome_hidden`）顶部菜单唤起以消除闪烁。三项校验（语法/类顺序/加载）全过。
+- **English**: v1.0.8. Fixed 4 real-device bugs: ① "Cannot write favorite" — `addFavorite` only created the leaf dir and the parent `artgallery` was missing, silently failing `lfs.mkdir`; added a recursive `_mkdirs`. ② Fullscreen-ignore not appearing in the "Ignored" gallery tab — `_hideCurrentImage` didn't migrate the `ignored_metas/ignored_list` pools; now mirrors the gallery-state partition move and resets `_derived_ok`. ③ Black gallery background when entering from fullscreen — background now forced white in gallery mode. ④ About popup + upper-screen flicker — removed the redundant `help_text` and gated the immersive-state top-menu trigger to stop flicker. All three checks (syntax / class-order / load) pass.
+
 ## 阶段二十 / Phase 20 — 内置更新器指向本仓库 + 关于/作者更正（2026-08-10）
 - **中文**：内置更新器（移植自 Footcream）机制完整，唯一缺陷是 `github_repo` 仍指向旧仓库名 `ksaMask/mirador`，已改为真实仓库 `ksaMask123/artgallery.koplugin`，更新器现指向本仓库且确实可用（已实时核验 release API 可达）。「关于 美术馆」对话框插件名更正为「美术馆 / ArtGallery」、作者更正为 ksaMask123、更新链接同步更正；`_meta.lua` 同步（fullname/author/version 升 1.0.1）。为可真实验证更新，发布 v1.0.1 release 并上传 zip，设备内「检查更新」即可安装。代码改动已推送本仓库。
 - **English**: The built-in updater (ported from Footcream) was complete; its only defect was `github_repo` still pointing to the old `ksaMask/mirador`, now changed to the real repo `ksaMask123/artgallery.koplugin` (release API reachability verified live). The "About" dialog name is corrected to "美术馆 / ArtGallery", author to ksaMask123, and the update link synced; `_meta.lua` updated (fullname/author/version→1.0.1). To make the updater genuinely testable, a v1.0.1 release with the zip was published so "Check for updates" can install it. Code changes pushed to the repo.
@@ -92,6 +96,6 @@
 ---
 
 ### 备注 / Notes
-- 版本 / Version: `1.0.0`（见 `_meta.lua`）。
+- 版本 / Version: `1.0.8`（见 `_meta.lua`）。
 - 详细改动、风险表与方案文档见 `audit/` 目录（中文）。
   Detailed changes, risk tables, and design docs are in the `audit/` folder (Chinese).
