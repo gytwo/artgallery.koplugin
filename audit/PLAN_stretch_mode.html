@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全屏「拉伸」模式 · 已落地实现（2026-08-10）</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --line:#2a2f3a;
+    --txt:#d7dce5; --dim:#9aa3b2; --accent:#6ea8fe; --green:#5fd38a;
+    --amber:#f0b860; --red:#f08a8a; --mono:'SFMono-Regular',Consolas,'Liberation Mono',monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+    line-height:1.7;padding:32px 22px 64px}
+  .wrap{max-width:920px;margin:0 auto}
+  h1{font-size:24px;margin:0 0 6px;letter-spacing:.5px}
+  h2{font-size:18px;margin:34px 0 12px;padding-left:10px;border-left:3px solid var(--accent);color:#eaf0fb}
+  h3{font-size:15px;margin:22px 0 8px;color:var(--accent)}
+  .sub{color:var(--dim);font-size:13px;margin:0 0 4px}
+  .badge{display:inline-block;background:var(--panel2);border:1px solid var(--line);
+    color:var(--amber);font-size:12px;padding:2px 10px;border-radius:20px;margin-right:8px}
+  .meta{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:12px 16px;color:var(--dim);font-size:13px;margin:14px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;margin:14px 0}
+  ul{margin:8px 0;padding-left:22px}
+  li{margin:6px 0}
+  code{font-family:var(--mono);background:#0b0e13;border:1px solid var(--line);
+    border-radius:5px;padding:1px 6px;color:#bcd0ff;font-size:13px}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--dim)}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:5px;margin-right:6px}
+  .mod{background:#234;color:#7fd6c0;border:1px solid #2f5}
+  .add{background:#243;color:#9fe6a0;border:1px solid #3a6}
+  .rm{background:#422;color:#f0a0a0;border:1px solid #a44}
+  .k{color:var(--amber)} .g{color:var(--green)} .r{color:var(--red)} .d{color:var(--dim)}
+  .callout{border-left:3px solid var(--amber);background:#1c1810;padding:10px 14px;
+    border-radius:0 8px 8px 0;margin:12px 0;font-size:13px}
+  .ok{border-left-color:var(--green);background:#101c14}
+  .danger{border-left-color:var(--red);background:#1c1010}
+  .aside{margin-top:34px;color:var(--dim);font-size:12px;border-top:1px dashed var(--line);padding-top:14px}
+  .num{color:var(--accent);font-weight:600}
+  .fig{background:#0b0e13;border:1px solid var(--line);border-radius:10px;padding:14px;
+    margin:12px 0;text-align:center;color:var(--dim);font-size:12px}
+  .figbox{display:inline-block;margin:0 10px;vertical-align:top}
+  .box{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);
+    background:var(--panel2);color:var(--txt);font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>全屏「拉伸」模式 · 设计方案</h1>
+  <p class="sub"><span class="badge">仅方案 · 待审阅</span><span class="badge">不落地实现</span> artgallery.koplugin（KPW3 / KOReader）</p>
+  <div class="meta">
+    缘起：用户要求探索全屏态下新可选模式「拉伸」——按当前检测到的屏幕长宽，<b>独立改变图片的宽/高比例</b>以刚好填满整屏，相比现有全屏模式，不会因图片超高或超宽而损失可读内容。<br>
+    本文基于已读真实源码（插件工作副本 + KOReader 纯净源码 <code>koreader-kindle-v2026.07.1</code>）撰写，所有行号锚点均经 grep 核验。<b>本方案已于 2026-08-10 落地实现（见 CHANGELOG 阶段十五）</b>，下文保留原设计论证供追溯；实现与原文方案一致，仅"导航栏三态按钮 + 长按设默认"为审阅后新增的明确需求。
+  </div>
+
+  <h2>一、背景与动机</h2>
+  <div class="card">
+    <p>现有全屏填充仅两种态，由布尔开关 <code>self._contain_in_fullscreen</code> 控制（<code>main.lua:983-993 _toggleFillMode</code>）：</p>
+    <table>
+      <tr><th>现有模式</th><th>渲染数学</th><th>表现</th><th>代价</th></tr>
+      <tr>
+        <td><b>铺满（cover）</b><br><span class="d">_contain_in_fullscreen = false（默认）</span></td>
+        <td><code>scale = max(w_s, h_s)</code></td>
+        <td>图片占满整屏、无黑边</td>
+        <td class="r">超高图裁上下 / 超宽图裁左右 → <b>边缘可读内容被切掉</b></td>
+      </tr>
+      <tr>
+        <td><b>适配（contain）</b><br><span class="d">_contain_in_fullscreen = true</span></td>
+        <td><code>scale = min(w_s, h_s)</code></td>
+        <td>整图完整可见、不裁切</td>
+        <td class="d">超高图留上下黑边 / 超宽图留左右黑边 → 屏幕利用率低</td>
+      </tr>
+    </table>
+    <div class="fig">
+      <div class="figbox"><div class="box" style="width:120px;height:160px">屏幕 竖</div></div>
+      <div class="figbox"><div class="box" style="width:120px;height:90px;line-height:1.4">超宽图<br>cover→裁左右<br>contain→留黑边</div></div>
+      <div class="figbox"><div class="box" style="width:90px;height:120px;line-height:1.4">超高图<br>cover→裁上下<br>contain→留黑边</div></div>
+      <div style="margin-top:8px">两种现有模式都无法「既填满整屏、又不裁切、还不留黑边」</div>
+    </div>
+    <p><b>拉伸（stretch）目标</b>：取 <code>w_scale</code> 作用于宽、<code>h_scale</code> 作用于高（非均匀缩放），使图片按屏幕长宽比被<b>变形</b>后刚好填满整屏——不裁切、不留黑边，全部像素可见。代价是图片形变（圆形变椭圆、人物变胖/瘦），由用户主动选择。</p>
+  </div>
+
+  <h2>二、现有机制核查（已读源码，确保方案可行）</h2>
+
+  <h3>2.1 填充比例的计算入口</h3>
+  <p><code>_computeFitScaleFactor()</code>（<code>main.lua:3040-3068</code>）按当前态返回统一 fit 比例：</p>
+  <ul>
+    <li><span class="mod">cover</span> <code>return math.max(w_scale, h_scale)</code>（取大 → 溢出裁切）</li>
+    <li><span class="mod">contain</span> <code>return math.min(w_scale, h_scale)</code>（取小 → 留黑边）</li>
+  </ul>
+
+  <h3>2.2 图片控件的实际构造</h3>
+  <p><code>_new_image_wg()</code>（<code>main.lua:1798-1822</code>）在构建 <code>ImageWidget</code> 时传入：</p>
+  <ul>
+    <li><code>scale_factor = wg_scale</code>（fit 比例或 zoom 比例，0 表示适配态）</li>
+    <li><code>width = max_image_w</code>、<code>height = max_image_h</code>（内容区尺寸）</li>
+  </ul>
+
+  <h3>2.3 关键可行性支点：ImageWidget 的非均匀拉伸路径</h3>
+  <div class="callout ok">
+    查纯净源码 <code>frontend/ui/widget/imagewidget.lua</code>：当 <code>scale_factor == nil</code> 且传入的 <code>width/height</code> 与位图自身尺寸不同时，渲染走
+    <code>RenderImage:scaleBlitBuffer(self._bb, self.width, self.height, ...)</code>（<b>imagewidget.lua:332-336</b>）——<b>按 width×height 精确做非均匀缩放</b>。
+    这正是「拉伸」模式可直接借力的落地支点，无需改 KOReader 源码（仅改插件传参）。
+  </div>
+
+  <h2>三、方案设计</h2>
+
+  <h3>3.1 状态模型：布尔 → 三态枚举</h3>
+  <div class="card">
+    <p>把布尔 <code>_contain_in_fullscreen</code> 升级为三态枚举：</p>
+    <pre style="background:#0b0e13;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px;overflow:auto"><code>-- 旧（二态）
+self._contain_in_fullscreen = false   -- false=cover, true=contain
+
+-- 新（三态）
+self._fill_mode = "cover"   -- "cover" | "contain" | "stretch"</code></pre>
+    <p class="d">保留向后兼容：首次读取旧键 <code>artgallery_contain_in_fullscreen</code> 仍可映射到 cover/contain；新键 <code>artgallery_fill_mode</code> 带插件前缀持久化。</p>
+  </div>
+
+  <h3>3.2 切换入口：循环三态</h3>
+  <p><code>_toggleFillMode()</code>（<code>main.lua:983</code>）改为循环：<code>cover → contain → stretch → cover</code>。按钮图标/文案随态刷新（现有 ⤢ 旁「全屏铺满屏幕」菜单项改文案显示当前态，如「全屏：铺满 / 适配 / 拉伸」）。</p>
+
+  <h3>3.3 落地渲染（核心改动）</h3>
+  <div class="card">
+    <p>在 <code>_new_image_wg()</code> 构建 <code>ImageWidget</code> 处分支：</p>
+    <pre style="background:#0b0e13;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px;overflow:auto"><code>if self._fill_mode == "stretch" then
+    -- 非均匀拉伸：令 ImageWidget 走 scale_factor=nil + 精确 width/height
+    -- 触发 RenderImage:scaleBlitBuffer(bb, w, h) 填满内容区
+    wg_scale = nil
+else
+    wg_scale = (self.scale_factor == 0) and self:_computeFitScaleFactor() or self.scale_factor
+end
+self._image_wg = ImageWidget:new{
+    image = src, width = max_image_w, height = max_image_h,
+    scale_factor = wg_scale,   -- stretch 时传 nil → 非均匀铺满
+    rotation_angle = self._cur_rotation or 0,
+    ...
+}</code></pre>
+    <p class="d">cover / contain 两态沿用现有逻辑，<b>行为不变</b>。</p>
+  </div>
+
+  <h3>3.4 fit 比例计算的配合</h3>
+  <p>stretch 态下 <code>_computeFitScaleFactor</code> 不应再返回统一比例（会与 <code>nil</code> 传参语义冲突）。建议在函数顶部：<code>if self._fill_mode == "stretch" then return nil end</code>，由 <code>_new_image_wg</code> 的 nil 分支接管拉伸。其余两态逻辑不动。</p>
+
+  <h3>3.5 缩放 / 双击 / 平移交互（关键抉择点）</h3>
+  <div class="callout">
+    stretch 态图片已被非均匀拉伸铺满整屏，<b>无留白可平移</b>；若再允许双击放大 / 捏合缩放（叠加均匀 <code>scale_factor</code>），会重新引入留黑边或裁切，违背「刚好填满」初衷。
+    <br><b>推荐</b>：stretch 态锁定 fit —— 禁用双击放大与捏合缩放（<code>_applyNewScaleFactor</code> 在 stretch 态直接 <code>return</code>，双击改走「切下一模式」或仅切换 fit/非 fit）。这保持语义干净、实现最简。
+    <br><span class="d">备选</span>：允许在拉伸基础上叠加均匀 zoom（用户可放大看局部，但边缘会重新留黑边）——更复杂，且偏离用户「填满不损失内容」的诉求，<b>不推荐</b>。
+  </div>
+
+  <h3>3.6 旋转 / 智能选向</h3>
+  <ul>
+    <li><code>_smartRotation()</code>（<code>main.lua:3074</code>）：stretch 态下选向无意义（反正会被拉伸填满），建议跳过自动旋转；</li>
+    <li>用户<b>手动旋转</b>仍可叠加（先旋转再非均匀拉伸），由 <code>_setRotation</code> 记忆，不变。</li>
+  </ul>
+
+  <h2>四、KPW3 内存 / 续航 / 刷新影响评估（方案层）</h2>
+  <table>
+    <tr><th>维度</th><th>评估</th><th>结论</th></tr>
+    <tr><td>内存</td><td>复用现有解码位图，仅渲染期多一次 <code>scaleBlitBuffer</code> 到精确尺寸（一次性，等同现有 cover 解码成本）；不新增常驻缓存</td><td class="g">无新增峰值</td></tr>
+    <tr><td>续航</td><td>纯事件驱动；仅切模式/切图时一次解码+拉伸，无轮询、无后台 timer、无网络</td><td class="g">几乎无影响</td></tr>
+    <tr><td>刷新</td><td>同 cover/contain：切图区域级 GC16 清残影 + 缩放/平移 flashless fast</td><td class="g">克制</td></tr>
+    <tr><td>可读性代价</td><td>stretch 使图片<b>形变</b>（人物变胖瘦、圆变椭圆），属用户主动选择</td><td class="k">须 UI 明示「拉伸会变形」并提供一键回切</td></tr>
+  </table>
+
+  <h2>五、风险与待决项（提交审阅确认）</h2>
+  <div class="card">
+    <ul>
+      <li><span class="num">R1</span> <b>缓存 key 稳定性</b>：ImageWidget 在 <code>scale_factor==nil</code> 时用 <code>width/height</code> 参与缓存 hash（imagewidget.lua:139-145）。不同 width/height 生成不同 key，正常；但旋转态宽高互换会命中不同缓存，属预期。</li>
+      <li><span class="num">R2</span> <b>与缩放状态机的交互</b>：<code>_refreshScaleFactor</code>(3084) / <code>_applyNewScaleFactor</code>(3109) 依赖 <code>scale_factor</code>。stretch 态 viewer 侧 <code>scale_factor</code> 仍应保持 0（逻辑"适配态"，驱动圆点 pill / 导航 / 双击），但 <b>widget 侧传 nil</b>——需保证状态机在 stretch 态不走 zoom 分支（建议 3.5 锁定）。</li>
+      <li><span class="num">R3</span> <b>与 HiRes 解码路径交互</b>：<code>_getHiRes</code>(1834) 在 zoom>1 时换入全分辨率解码。stretch 态锁定 fit 后不应触发放大，故不走了；若未来允许备选缩放则需重算 ratio。</li>
+      <li><span class="num">R4</span> <b>抽屉态不受影响</b>：抽屉态恒 contain（小屏不裁切），stretch 仅对全屏态生效，与现有 <code>if self._fullscreen then ...</code> 分支一致。</li>
+    </ul>
+  </div>
+
+  <h2>六、实施步骤（若审阅通过）</h2>
+  <table>
+    <tr><th>#</th><th>改动点</th><th>文件 / 位置</th><th>类型</th></tr>
+    <tr><td>1</td><td>引入 <code>_fill_mode</code> 枚举 + 旧键兼容迁移</td><td>main.lua 初始化区块</td><td><span class="tag add">新增</span></td></tr>
+    <tr><td>2</td><td><code>_toggleFillMode</code> 改三态循环 + 文案</td><td>main.lua:983</td><td><span class="tag mod">修改</span></td></tr>
+    <tr><td>3</td><td><code>_new_image_wg</code> 分支：stretch 传 <code>scale_factor=nil</code></td><td>main.lua:1798</td><td><span class="tag mod">修改</span></td></tr>
+    <tr><td>4</td><td><code>_computeFitScaleFactor</code> 顶部 stretch 早返回 nil</td><td>main.lua:3040</td><td><span class="tag mod">修改</span></td></tr>
+    <tr><td>5</td><td><code>_applyNewScaleFactor</code> / 双击 在 stretch 态锁定</td><td>main.lua:3109 / 2702</td><td><span class="tag mod">修改</span></td></tr>
+    <tr><td>6</td><td>设置键 <code>artgallery_fill_mode</code> 持久化 + 菜单文案</td><td>main.lua 菜单区</td><td><span class="tag add">新增</span></td></tr>
+    <tr><td>7</td><td>UI 明示「拉伸会变形」提示 + 一键回切</td><td>菜单 help_text / 按钮</td><td><span class="tag add">新增</span></td></tr>
+  </table>
+
+  <h2>七、校验与回滚</h2>
+  <ul>
+    <li> LuaJIT <code>loadfile</code> 语法校验（同前序各阶段）；</li>
+    <li> 备份 <code>Backup/plugins/artgallery.koplugin/main.lua.&lt;时间戳&gt;</code>（开工前）；</li>
+    <li> 追加 <code>audit/CHANGELOG.html</code> 阶段条目（实施完成后即时记）；</li>
+    <li> KPW3 实机复测：三态切换文案正确、stretch 实填整屏无黑边无裁切、双击/捏合在 stretch 态被锁定、关全屏回到原填充态、抽屉态仍 contain。</li>
+  </ul>
+
+  <div class="callout danger">
+    <b>待用户审阅的抉择点：</b>
+    <ol style="margin:6px 0 0">
+      <li>stretch 态<b>禁用</b>双击放大/捏合（推荐，语义干净） vs 允许叠加均匀 zoom（复杂、偏离诉求）？</li>
+      <li>三态循环顺序是否 <code>cover → contain → stretch</code>？默认态保持 cover 不变？</li>
+      <li>「拉伸会变形」提示以 help_text 文案呈现，还是弹出一次性确认？</li>
+    </ol>
+  </div>
+
+  <div class="aside">
+    本文件为 artgallery.koplugin 全屏「拉伸」模式的<b>设计方案（待审阅）</b>，尚未落地实现。仅依用户要求完成可行性核查与方案撰写，遵循「改前查日志、改后即时记」与「仅改插件/补丁、绝不改 KOReader 源码」纪律。方案涉及的 KOReader 源码路径均来自只读核验，未做任何写入。
+  </div>
+
+</div>
+</body>
+</html>

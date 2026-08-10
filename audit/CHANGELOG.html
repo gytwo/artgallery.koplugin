@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美术馆 · 更新日志</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --border: #2a2f3a;
+    --text: #e6e9ef;
+    --muted: #9aa3b2;
+    --accent: #5aa9ff;
+    --accent-2: #7ee0b8;
+    --warn: #ffcc66;
+    --danger: #ff8a8a;
+    --ok: #7ee0b8;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f7fa;
+      --panel: #ffffff;
+      --panel-2: #eef1f6;
+      --border: #d8dee8;
+      --text: #1c2230;
+      --muted: #5b6678;
+      --accent: #1a6fe0;
+      --accent-2: #1f9d6b;
+      --warn: #b8791a;
+      --danger: #c0392b;
+      --ok: #1f9d6b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px 64px;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65; font-size: 15px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  header.hero {
+    border: 1px solid var(--border); border-radius: 14px;
+    background: linear-gradient(135deg, var(--panel), var(--panel-2));
+    padding: 22px 26px; margin-bottom: 26px;
+  }
+  header.hero h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: .5px; }
+  header.hero .sub { color: var(--muted); font-size: 13.5px; }
+  .meta-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+    gap: 10px 18px; margin-top: 16px; font-size: 13px;
+  }
+  .meta-grid div { color: var(--muted); }
+  .meta-grid b { color: var(--text); font-weight: 600; }
+  .phase {
+    border: 1px solid var(--border); border-radius: 12px;
+    background: var(--panel); margin-bottom: 20px; overflow: hidden;
+  }
+  .phase.open { border-color: var(--accent); }
+  .phase-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 20px; cursor: default;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-2);
+  }
+  .badge {
+    flex: none; font-size: 12px; font-weight: 700;
+    padding: 3px 9px; border-radius: 999px;
+    background: var(--accent); color: #06121f; letter-spacing: .3px;
+  }
+  .badge.done { background: var(--ok); color: #042018; }
+  .badge.wip  { background: var(--warn); color: #2a1c00; }
+  .phase-head h2 { margin: 0; font-size: 17px; }
+  .phase-head .date { margin-left: auto; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .phase-body { padding: 18px 22px 22px; }
+  h3 {
+    font-size: 14px; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--accent-2); margin: 22px 0 10px; border-left: 3px solid var(--accent-2);
+    padding-left: 10px;
+  }
+  h3:first-child { margin-top: 0; }
+  p { margin: 8px 0; }
+  ul { margin: 8px 0 8px 2px; padding-left: 20px; }
+  li { margin: 5px 0; }
+  code, .mono {
+    font-family: var(--mono); font-size: 12.5px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 5px; padding: 1px 6px; color: var(--accent);
+  }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 11px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; background: var(--panel-2); }
+  tr:hover td { background: var(--panel-2); }
+  .tag {
+    display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 5px;
+    border: 1px solid var(--border); color: var(--muted); margin-right: 4px;
+  }
+  .tag.add { color: var(--ok); border-color: var(--ok); }
+  .tag.mod { color: var(--warn); border-color: var(--warn); }
+  .callout {
+    border: 1px solid var(--border); border-left: 4px solid var(--accent);
+    background: var(--panel-2); border-radius: 8px; padding: 12px 16px; margin: 14px 0;
+    font-size: 13.5px; color: var(--muted);
+  }
+  .callout b { color: var(--text); }
+  .verify { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+  .chip {
+    font-size: 12.5px; padding: 6px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--panel-2);
+  }
+  .chip.ok { border-color: var(--ok); color: var(--ok); }
+  .aside {
+    font-size: 12.5px; color: var(--muted); margin-top: 28px;
+    border-top: 1px dashed var(--border); padding-top: 14px;
+  }
+  a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>美术馆 · 更新日志</h1>
+    <div class="sub">基于 Glimpse 合并 Illustrations 的全屏看图能力 · 专属审计时间线</div>
+    <div class="meta-grid">
+      <div>插件 ID：<b>artgallery</b></div>
+      <div>全称：<b>美术馆</b></div>
+      <div>当前版本：<b>1.0.0</b></div>
+      <div>上游来源：<b>Glimpse v1.2.0</b>（Erik Fanki）</div>
+      <div>Fork 维护：<b>ksaMask</b></div>
+      <div>GitHub：<b>ksaMask/artgallery</b></div>
+      <div>目标设备：<b>KPW3（Kindle PaperWhite 3）</b></div>
+      <div>日志约定：<b>每次修改追加，不事后补记</b></div>
+    </div>
+  </header>
+
+  <!-- ===================== 阶段一 ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段一 · 底座搭建 + 改名 + ⤢ 全屏切换</h2>
+      <span class="date">2026-08-09</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>用户喜欢 Glimpse 的抽屉式 UI（不丢阅读位置、继承 ImageViewer 的缩放/平移/旋转），但想要 Illustrations 的「全屏看图」能力。决策采用<b>方案 B</b>：以 Glimpse 为底座，把 Illustrations 的增强能力逐项移植进 美术馆，最终合二为一。本阶段完成三件事：① 备份原件；② 以 Glimpse 为蓝本建立 artgallery.koplugin 并全量改名；③ 在抽屉式查看器上新增一键全屏切换。</p>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead>
+          <tr><th>文件</th><th>性质</th><th>行号(约)</th><th>改动说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Backup/plugins/glimpse.koplugin.2026-08-09T181516/</code></td>
+            <td><span class="tag add">备份</span></td>
+            <td>—</td>
+            <td>开工前整目录备份 glimpse.koplugin 原件，作为还原保险（红线：裸改前必备份）。</td>
+          </tr>
+          <tr>
+            <td><code>artgallery.koplugin/_meta.lua</code></td>
+            <td><span class="tag mod">改名</span></td>
+            <td>全文件</td>
+            <td>name→<code>artgallery</code>，fullname→<code>美术馆</code>，version→<code>1.0.0</code>，author→<code>Erik Fanki (fork: ksaMask)</code>，description 注明「基于 Glimpse 合并 Illustrations 的全屏看图能力」。视为全新插件，故 version 从 1.0.0 起。</td>
+          </tr>
+          <tr>
+            <td><code>artgallery.koplugin/artgallery_scanner.lua</code></td>
+            <td><span class="tag mod">改名</span></td>
+            <td>全文件</td>
+            <td>由 <code>glimpse_scanner.lua</code> 改名（<code>mv</code>），内部 <code>Glimpse→美术馆</code> 逐行替换。</td>
+          </tr>
+          <tr>
+            <td><code>artgallery.koplugin/main.lua</code></td>
+            <td><span class="tag mod">改名</span></td>
+            <td>全文件</td>
+            <td>Glimpse→美术馆 全量改名；require 路径改 <code>artgallery_scanner.lua</code>；<code>github_repo="ksaMask/artgallery"</code>。改名用 <code>sed</code> 逐行替换，规避整文件正则误伤 HEX 串。</td>
+          </tr>
+          <tr>
+            <td><code>assets/fullscreen.svg</code> / <code>assets/fullscreen_exit.svg</code></td>
+            <td><span class="tag add">新增</span></td>
+            <td>—</td>
+            <td>全屏切换按钮图标（进入全屏 / 退出全屏两种状态）。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · 类字段</td>
+            <td><span class="tag add">新增</span></td>
+            <td>884</td>
+            <td>类字段 <code>panel_ratio_full = 1.0</code>：一键全屏时抽屉铺满整屏。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · <code>ArtGalleryViewer:_toggleFullscreen()</code></td>
+            <td><span class="tag add">新增</span></td>
+            <td>921–930</td>
+            <td>核心方法：在 <code>panel_ratio</code> 的 <code>505/630</code> 与 <code>1.0</code> 间切换并 <code>update()</code> 重排；复用 ImageViewer 全部缩放/平移逻辑。画廊模式下直接返回（不参与全屏）。切换时重置缩放与居中，避免缩略图与全屏视图坐标错位。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · <code>update()</code> 底栏</td>
+            <td><span class="tag add">新增</span></td>
+            <td>1050–1064</td>
+            <td>底栏新增 <code>_fs_frame</code>（⤢ 按钮），紧贴 Prev 右侧/左下角；图标随 <code>_fullscreen</code> 在 fullscreen.svg / fullscreen_exit.svg 间切换；pill <code>left_bound</code> 计算为其让出空间。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · <code>update()</code> pill 边界</td>
+            <td><span class="tag mod">修改</span></td>
+            <td>1123–1125</td>
+            <td>pill 左侧边界把 <code>_fs_frame</code> 宽度纳入，防止与全屏按钮重叠。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · <code>_paintPanel()</code></td>
+            <td><span class="tag mod">修改</span></td>
+            <td>1298</td>
+            <td><code>shadow_disabled</code> 增加 <code>or self._fullscreen</code>：全屏铺满整屏时渐变阴影无意义，跳过绘制。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · <code>_showMoreMenu()</code></td>
+            <td><span class="tag add">新增</span></td>
+            <td>2297–2303</td>
+            <td>⋯ 快捷操作菜单顶部新增「全屏查看 / 退出全屏」项，文本与图标随状态切换，回调 <code>_toggleFullscreen()</code>。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · <code>onTap()</code></td>
+            <td><span class="tag add">新增</span></td>
+            <td>2636–2639</td>
+            <td>点击命中 <code>_fs_frame</code> 区域时，经已验证的 <code>_flashButton</code> 复用导航按钮同款模式调用 <code>_toggleFullscreen()</code>。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · <code>onCloseWidget()</code></td>
+            <td><span class="tag mod">修改</span></td>
+            <td>1050 / 1566</td>
+            <td>构建侧 <code>if self._fs_frame then self._fs_frame:free() end</code>；销毁侧对称释放 <code>_fs_frame</code>，防资源泄漏。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>影响范围</h3>
+      <ul>
+        <li><b>功能</b>：抽屉式查看器新增「一键全屏」能力，全屏态下仍可用 ImageViewer 自带的缩放/平移/旋转（比 Illustrations 的全屏查看器更强，且白赚交互）。</li>
+        <li><b>兼容</b>：仅改动 <code>plugins/artgallery.koplugin/</code> 工作区，未触碰 KOReader 框架源码（红线守纪）。</li>
+        <li><b>墨水屏刷新</b>：全屏态仅跳过渐变阴影，原有 <code>full</code>/GC16 波形刷新逻辑不受影响；缩放/平移路径与 Glimpse 一致，无额外重排开销。</li>
+        <li><b>命名隔离</b>：所有内部类/方法/设置键前缀统一为 <code>artgallery_</code>，装机时<b>不另装</b> illustrations / glimpse，避免双入口冲突。</li>
+      </ul>
+
+      <h3>校验结果</h3>
+      <div class="verify">
+        <span class="chip ok">✓ LuaJIT 语法检查：main.lua / artgallery_scanner.lua / _meta.lua 全部 OK</span>
+        <span class="chip ok">✓ grep 核对：全屏相关锚点 14 处全部就位（884/921/929/1050/1052-1064/1123-1125/1298/1566/2297-2303/2636-2639）</span>
+        <span class="chip ok">✓ 改名核对：仅剩 2 处无害匹配（scanner require 注释、_meta.lua 的 name="artgallery"）</span>
+        <span class="chip ok">✓ 复用模式已验证：_flashButton(frame, action) 在 line 2560 确实调用 action()</span>
+      </div>
+
+      <div class="callout">
+        <b>命名映射（Glimpse → 美术馆）</b><br>
+        插件目录 <code>glimpse.koplugin</code> → <code>artgallery.koplugin</code>；类名 <code>GlimpseViewer</code> → <code>ArtGalleryViewer</code>；扫描模块 <code>glimpse_scanner.lua</code> → <code>artgallery_scanner.lua</code>；设置/Dispatcher 动作前缀 <code>glimpse_</code> → <code>artgallery_</code>；资源 <code>_PLUGIN_DIR</code> 指向 artgallery 目录。
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段二（占位，待开工） ===================== -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段二 · 移植 Illustrations 增强</h2>
+      <span class="date">2026-08-09</span>
+    </div>
+    <div class="phase-body">
+      <div class="callout">
+        <b>重要发现（修正合并计划）</b>：Glimpse 底座已自带 <b>GitHub 自动更新检查</b>（<code>_checkForUpdate</code> + 预发布开关，main.lua ~3938-4060、菜单「更新」~4321）与<b>用户可调的质量过滤</b>（<code>FILTER_KEY</code>，菜单 ~4259；scanner.filter 按 LEVELS 做最小尺寸/比例阈值）。因此原计划中的 ② 更新检查 与 ③ 最小尺寸过滤 实为<b>继承项，无需重移植</b>。仅 ① 全局收藏、④ CBZ、⑤ 作用域三选一 为真正新增。
+      </div>
+
+      <h3>已完成 · ⑤ 三选一作用域（新增 current_page 剧透模式）</h3>
+      <p>原 Glimpse 作用域为二选一（<code>read_so_far</code> 章节 / <code>whole_book</code> 全书）。现扩展为三选一，新增 <code>current_page</code>：仅显示已读到的图片（当前章节中尚未翻到的图片也隐藏），实现真正的「剧透保护」。</p>
+      <table>
+        <thead><tr><th>文件</th><th>性质</th><th>改动</th></tr></thead>
+        <tbody>
+          <tr><td><code>main.lua</code> · 类字段</td><td><span class="tag add">新增</span></td><td>line 55 增加 <code>LOG_TAG="[ArtGallery]"</code>；SCOPE_KEY 注释补齐 <code>current_page</code>。</td></tr>
+          <tr><td><code>main.lua</code> · <code>美术馆:_imagePage()</code></td><td><span class="tag add">新增</span></td><td>line 3174，由扫描器 node_path 构造 crengine xpointer，调 <code>doc:getPageFromXPointer()</code>（credocument.lua:900 已核验）求图片所在页，用于 current_page 比较。</td></tr>
+          <tr><td><code>main.lua</code> · showViewer 作用域裁剪</td><td><span class="tag mod">修改</span></td><td>line ~3357，clip 逻辑按 scope 分支：<code>read_so_far</code> 保留当前章节；<code>current_page</code> 额外按页比对，仅保留阅读位置之前的图片；<code>whole_book</code> 不过滤。</td></tr>
+          <tr><td><code>main.lua</code> · effective_scope</td><td><span class="tag mod">修改</span></td><td>line ~3536，映射为三值（whole_book / read_so_far / current_page）。</td></tr>
+          <tr><td><code>main.lua</code> · <code>on_toggle_scope</code></td><td><span class="tag mod">修改</span></td><td>line ~3669，⋯ 菜单「模式」在 全书→章节→当前页 三者间循环切换，并提示对应中文标签。</td></tr>
+          <tr><td><code>main.lua</code> · 菜单 + ⋯ 标签</td><td><span class="tag mod">修改</span></td><td>line ~2326 / ~4227 / ~4234，单图 ⋯ 与插件菜单均增加「仅显示已读到的图片」选项与状态显示。</td></tr>
+          <tr><td><code>main.lua</code> · 空状态「搜索全书」</td><td><span class="tag mod">修改</span></td><td>line ~3395，条件泛化为非 whole_book 即提供「搜索全书」入口。</td></tr>
+        </tbody>
+      </table>
+
+      <h3>已完成 · ② 关于（About）菜单项</h3>
+      <p>GitHub 更新检查继承自底座；本阶段补齐「关于 美术馆」菜单项（菜单末尾，line ~4401），展示版本 / 作者 / 仓库，完成「更新检查 + 关于」闭环。</p>
+
+      <h3>影响范围</h3>
+      <ul>
+        <li><b>功能</b>：作用域三选一——全书 / 当前章节之前 / 仅已读到（剧透保护）。current_page 仅在用户主动选择时生效，默认仍是 <code>read_so_far</code>（向后兼容）。</li>
+        <li><b>性能</b>：current_page 模式下，对当前章节的图片调用 <code>getPageFromXPointer</code>（仅当前章节少量图片、且非默认模式），开销可控；解析失败安全回退为显示整章。</li>
+        <li><b>安全降级</b>：所有 xpointer 调用均 <code>pcall</code> 包裹，reader 态文档缺失时 <code>_imagePage</code> 返回 nil → 回退到章节级裁剪。</li>
+        <li><b>红线</b>：仅改插件工作区，未触碰 KOReader 框架源码。</li>
+      </ul>
+
+      <h3>校验结果</h3>
+      <div class="verify">
+        <span class="chip ok">✓ LuaJIT 语法检查：main.lua / artgallery_scanner.lua / _meta.lua 全部 OK</span>
+        <span class="chip ok">✓ grep 核对：current_page / _imagePage / LOG_TAG / 关于 锚点全部就位</span>
+        <span class="chip ok">✓ API 核验：getPageFromXPointer 为 CreDocument 真实方法（credocument.lua:900）</span>
+      </div>
+
+      <h3>已完成 · ① 全局收藏画廊（脱离书本可用）+ 清除收藏</h3>
+      <p>Illrations 原做法：把图片字节 <code>cp</code> 到 Favorites 目录、用 <code>os.remove</code>/<code>rm -rf</code> 清除、收藏即物理文件副本。美术馆 改为更稳的等价实现：收藏 = 复制图片字节到 <code>DataStorage:getDataDir()/artgallery/favorites/</code>，索引存于 <b>LuaSettings</b>（<code>favorites.lua</code>，key 列表），清除走 <code>:purge</code>/置空 + <code>os.remove</code>，不再 shell 出 <code>rm -rf</code>。复制（而非引用归档条目）保证源书删除后收藏仍可读；key 采用 <code>book#entry</code> / <code>cbz:zip#entry</code> 精确去重。</p>
+      <table>
+        <thead><tr><th>文件</th><th>性质</th><th>改动</th></tr></thead>
+        <tbody>
+          <tr><td><code>main.lua</code> · 收藏存储</td><td><span class="tag add">新增</span></td><td><code>_favSettings/_favRecords/_saveFavRecords/getFavorites/isFavoriteByKey/_favFileName</code>：LuaSettings 在 <code>DataStorage:getDataDir()/artgallery/favorites.lua</code>；文件名按 <code>书名_条目名</code> 消歧。</td></tr>
+          <tr><td><code>main.lua</code> · <code>addFavorite(im, viewer)</code></td><td><span class="tag add">新增</span></td><td>复制当前图片字节到 favorites 目录并登记；book/cbz 上下文自动选 EPUB reader 或 zip reader 取字节；已收藏则提示「已在收藏中」。</td></tr>
+          <tr><td><code>main.lua</code> · <code>removeFavoriteByKey/removeFavoriteByFile/clearFavorites</code></td><td><span class="tag add">新增</span></td><td>移出/清除，安全删磁盘文件。</td></tr>
+          <tr><td><code>main.lua</code> · viewer 收藏开关</td><td><span class="tag add">新增</span></td><td><code>ArtGalleryViewer:_favKey/_currentFavoriteState/_toggleFavorite</code>：单图 ⋯ 菜单的「加入/移出收藏」，按 viewer 上下文（book/cbz/收藏画廊）计算 key。</td></tr>
+          <tr><td><code>main.lua</code> · <code>_showMoreMenu()</code></td><td><span class="tag mod">修改</span></td><td>单图模式新增「加入收藏/移出收藏」项（图标 favorite_off/on.svg），与全屏项同级；「在书中定位」「模式」两项在收藏/CBZ 画廊态自动隐藏。</td></tr>
+          <tr><td><code>main.lua</code> · <code>showFavorites()</code></td><td><span class="tag add">新增</span></td><td>脱离书本（FileManager）亦可打开的全局收藏画廊；长按图片即移出收藏。</td></tr>
+          <tr><td><code>main.lua</code> · Dispatcher + 菜单</td><td><span class="tag add">新增</span></td><td><code>artgallery_show_favorites</code> 动作 + <code>onArtGalleryShowFavorites</code> 处理 + 菜单「收藏」子项（显示收藏 / 清除收藏 ConfirmBox），可绑定手势全局唤出。</td></tr>
+          <tr><td><code>assets/favorite_off.svg</code> / <code>favorite_on.svg</code></td><td><span class="tag add">新增</span></td><td>收藏开关图标（星形描边 / 实心）。</td></tr>
+        </tbody>
+      </table>
+
+      <h3>已完成 · ④ CBZ 漫画支持（接入抽取层）</h3>
+      <p>Illustrations 原做法：<code>os.execute("unzip -j -o -q …")</code> 解包后按目录列举——依赖 busybox <code>unzip</code> 二进制，KPW3 上脆弱。美术馆 改为 KOReader 原生的 <b>Archiver.Reader</b>（<code>ffi/archiver</code>，即 Glimpse <code>_makeReader</code> 已在用的回退解包器），无需 shell 外调用。扫描逻辑落在纯 Lua 的 <code>artgallery_scanner.lua</code>，可 headless 单测。</p>
+      <table>
+        <thead><tr><th>文件</th><th>性质</th><th>改动</th></tr></thead>
+        <tbody>
+          <tr><td><code>artgallery_scanner.lua</code> · <code>M.scan_cbz(arc)</code></td><td><span class="tag add">新增</span></td><td>枚举 Archiver.Reader 条目，按扩展名（jpg/png/gif/webp/svg/bmp）过滤图片，自然排序（<code>%05d</code> 补零），生成 <code>{path, spine_index=i, …}</code> 记录，形状与 <code>scan()</code> 一致。尺寸留 0（画廊不需）。</td></tr>
+          <tr><td><code>main.lua</code> · <code>_makeZipReader(zip_path)</code></td><td><span class="tag add">新增</span></td><td>基于 Archiver.Reader 返回 <code>read_file</code> 闭包（<code>extractToMemory</code>），替代 shell <code>unzip</code>。</td></tr>
+          <tr><td><code>main.lua</code> · <code>_makeDiskReader()</code></td><td><span class="tag add">新增</span></td><td>收藏画廊用的磁盘字节读取器。</td></tr>
+          <tr><td><code>main.lua</code> · <code>_showExternalGallery(...)</code></td><td><span class="tag add">新增</span></td><td>收藏/CBZ 共用的「脱离书本」画廊构造：decode/make_list 复用 showViewer 逻辑；<b>不写 doc_settings</b>（FileManager 安全）；<code>scope="whole_book"</code>；<code>is_favorites/is_cbz/_zip_path</code> 标记驱动菜单与收藏行为；关闭时释放 reader（<code>on_external_close</code>）。</td></tr>
+          <tr><td><code>main.lua</code> · <code>showCbz(zip_path)</code></td><td><span class="tag add">新增</span></td><td>文件管理器选中 .cbz 后全屏翻阅页面图片；无图/无法打开时友好提示。</td></tr>
+          <tr><td><code>main.lua</code> · 菜单 + <code>addToMainMenu</code></td><td><span class="tag add/mod">新增/修改</span></td><td>菜单新增「浏览 CBZ 漫画」（仅 FileManager 且选中 .cbz 时启用）；<code>addToMainMenu(menu_items, file)</code> 捕获 FileManager 传入的 <code>file</code>。</td></tr>
+        </tbody>
+      </table>
+
+      <h3>影响范围</h3>
+      <ul>
+        <li><b>功能</b>：① 全局收藏画廊——任意图片一键收藏、脱离书本可看、可清除；④ CBZ——从文件管理器选 .cbz 即全屏翻阅漫画页。二者均复用 ArtGalleryViewer 的缩放/平移/旋转。</li>
+        <li><b>设计取舍</b>：未沿用 Illustrations 的「物理复制目录 + <code>rm -rf</code>」与「shell <code>unzip</code>」，改为 KOReader 原生 Archiver.Reader + LuaSettings 安全存储——规避 KPW3 上 shell 二进制依赖与 <code>rm -rf</code> 风险，且扫描逻辑可 headless 单测。</li>
+        <li><b>红线</b>：仅改 <code>plugins/artgallery.koplugin/</code> 工作区，未触碰 KOReader 框架源码（Archiver.Reader 为 KOReader 既有 API）。</li>
+      </ul>
+
+      <h3>校验结果</h3>
+      <div class="verify">
+        <span class="chip ok">✓ LuaJIT 语法检查：main.lua / artgallery_scanner.lua / _meta.lua 全部 OK</span>
+        <span class="chip ok">✓ grep 核对：scan_cbz / isFavoriteByKey / showFavorites / showCbz / _showExternalGallery / _favKey / artgallery_show_favorites / is_favorites / is_cbz / _zip_path / _menu_file 锚点全部就位</span>
+        <span class="chip ok">✓ headless 单测 scan_cbz：过滤 .txt/.xml、自然排序（OEBPS/1.png→/2.png→/10.png→cover.jpg→page 03.webp）、spine 顺序正确</span>
+        <span class="chip ok">✓ ArtGalleryViewer:init/update 不触碰 self.ui.document——FileManager 打开画廊安全</span>
+        <span class="chip warn">△ 收藏/CBZ 真机交互需 KPW3 实机验证（headless 无法跑 LuaSettings/Archiver C 绑定与 UI）</span>
+      </div>
+
+      <div class="callout">
+        <b>阶段二全部完成</b>：① 收藏、② 更新+关于（继承）、③ 最小尺寸（继承）、④ CBZ、⑤ 三选一作用域——五项增强落地。仅 ②/③ 为 Glimpse 底座继承项，无需重移植（见本阶段开头「重要发现」）。
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段三（完成） ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段三 · 统一抽取/缓存层 + 收尾自检</h2>
+      <span class="date">2026-08-09</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>统一抽取/缓存层在阶段一/二已<b>基本就位</b>：EPUB 走 <code>scanner.scan()</code> + <code>scanner.filter()</code> + 版本化侧边缓存（<code>scanner.VERSION</code> 失效），CBZ 走 <code>scanner.scan_cbz()</code>，二者与收藏画廊共用同一 <code>ArtGalleryViewer</code>。本阶段补齐唯一实质缺口——<b>旧 Illustrations 收藏迁移/提示</b>，并完成收尾自检（StyLua 决策 + crash.log 诊断）。</p>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead><tr><th>文件</th><th>性质</th><th>改动</th></tr></thead>
+        <tbody>
+          <tr><td><code>main.lua</code> · 旧收藏迁移</td><td><span class="tag add">新增</span></td><td><code>_legacyFavoritesDir()</code> 复刻 Illustrations 的缓存根推导（<code>DataStorage:getCacheDir()</code> 或 settings 的 /cache）；<code>_legacyFavoritesFiles()</code> 列举 <code>&lt;cache&gt;/illustrations/Favorites/</code> 下图片文件；<code>_migrateLegacyFavorites()</code> 纯 io 字节复制 + 登记 LuaSettings 索引；<code>_offerLegacyMigration()</code> 一次性 ConfirmBox；常量 <code>LEGACY_MIGRATED_KEY="artgallery_legacy_fav_migrated"</code>。</td></tr>
+          <tr><td><code>main.lua</code> · <code>showFavorites()</code></td><td><span class="tag mod">修改</span></td><td>空收藏分支先检测旧目录：若存在、且未迁移过、且当前收藏为空，弹出「迁移 / 忽略」ConfirmBox；「忽略」置 <code>LEGACY_MIGRATED_KEY</code> 屏蔽后续打扰，原文件保持不变。</td></tr>
+          <tr><td><code>main.lua</code> · <code>showCbz()</code></td><td><span class="tag mod">注释</span></td><td>明确 CBZ <b>刻意不走</b> <code>scanner.filter</code> 最小尺寸过滤（漫画每页皆正文，过滤会误删合法页），与 EPUB 在此处有意分流——非疏漏。</td></tr>
+          <tr><td><code>artgallery_scanner.lua</code></td><td><span class="tag mod">确认</span></td><td>已是统一抽取层：<code>scan()</code>（EPUB）/ <code>scan_cbz()</code>（CBZ）/ <code>filter()</code>（最小尺寸分级）三件套，纯 Lua 可 headless 单测；本阶段无需改动。</td></tr>
+        </tbody>
+      </table>
+
+      <h3>影响范围</h3>
+      <ul>
+        <li><b>升级体验</b>：从 Illustrations 迁到 美术馆 的用户，首次打开空收藏即被询问是否迁移旧收藏；迁移复制字节 + 登记索引，原 <code>Favorites/</code> 目录原样保留（可手动回退）。同名文件自动加 <code>_legacyN</code> 后缀防覆盖。</li>
+        <li><b>统一层</b>：EPUB 与 CBZ 的抽取、画廊渲染、收藏能力全部经 <code>artgallery_scanner</code> + 同一 viewer，无第二套并行的扫描/过滤逻辑；缓存仅 EPUB 侧边 .sdr（按 <code>scanner.VERSION</code> 失效），CBZ 体量小按需即时扫描。</li>
+        <li><b>红线</b>：仅改 <code>plugins/artgallery.koplugin/</code> 工作区；迁移用纯 io 字节复制，未 shell 出 <code>cp</code>/<code>rm -rf</code>。</li>
+      </ul>
+
+      <h3>StyLua 决策</h3>
+      <div class="callout">
+        <b>整文件 StyLua 重排：跳过（已实测验证）。</b> 本工程 Glob 无 <code>stylua.toml</code>，KOReader 官方仓库根目录亦无该文件（curl 404 + 不在 Makefile）。我据 koreader/frontend 实证风格（<b>4 空格缩进、空格而非 tab、双引号为主</b>，行长多 ≤80）构造了一份配置（<code>column_width=120 / indent_type=Spaces / indent_width=4 / quote_style=AutoPreferDouble / call_parentheses=Always</code>），对三文件实跑 StyLua：<b>main.lua 改动 1984 行、scanner.lua 改动 541 行</b>。diff 预览显示 StyLua 把 Glimpse 基线作者刻意做的<b>列对齐</b>（如 <code>{ key = "gallery",    default = true  }</code> → <code>{ key = "gallery", default = true }</code>、注释前对齐空格）全部抹平——这是噪声重排，会：① 制造 2500+ 行、无法审阅的 diff；② 让插件无法再与 Glimpse 基线做差异比对；③ 违背用户「<b>最小化修改而非整体重写</b>」纪律，且不提升任何正确性。已立即回退三文件至 StyLua 前快照（行数 4940、语法 OK 复验）。结论：本插件不适用整文件 StyLua；仅对新增代码手动保持与基线一致的缩进/引号风格。配置样本留档于 <code>D:\WorkBuddy\stylua_artgallery.toml</code>，供未来全新插件参考。
+      </div>
+
+      <h3>校验结果</h3>
+      <div class="verify">
+        <span class="chip ok">✓ LuaJIT 语法检查：main.lua / artgallery_scanner.lua / _meta.lua 全部 OK</span>
+        <span class="chip ok">✓ grep 锚点：_legacyFavoritesDir / _legacyFavoritesFiles / _migrateLegacyFavorites / _offerLegacyMigration / LEGACY_MIGRATED_KEY 全部就位并接入 showFavorites</span>
+        <span class="chip ok">✓ headless 单测：迁移核心逻辑（碰撞后缀 map_legacy1.png + 字节复制逐字节一致）通过</span>
+        <span class="chip ok">✓ crash.log 诊断：无任何 美术馆 相关错误或 stack traceback（仅 1 条无关字体加载 ERROR：AaXXTCXDT 字体，非本插件问题）</span>
+        <span class="chip ok">✓ 统一层确认：EPUB/CBZ 共用 artgallery_scanner + 同一 ArtGalleryViewer</span>
+        <span class="chip warn">△ StyLua：实测用实证配置跑 → main.lua 改 1984 行 / scanner 改 541 行（抹平基线列对齐），已回退；确认整文件格式化不适用本插件，守最小修改纪律</span>
+        <span class="chip warn">△ 迁移/CBZ 真机交互需 KPW3 实机验证（headless 无法跑 LuaSettings/Archiver C 绑定与 ConfirmBox UI）</span>
+      </div>
+
+      <div class="callout">
+        <b>全部阶段完成</b>：阶段一（底座+改名+全屏切换）、阶段二（① 收藏 / ② 更新+关于 / ③ 最小尺寸 / ④ CBZ / ⑤ 三选一作用域）、阶段三（统一抽取缓存层 + 旧收藏迁移 + 收尾自检）。artgallery.koplugin v1.0.0 功能闭环达成。
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段四（完成） ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段四 · 全面审查（对照纯洁源码 koreader-kindle-v2026.07.1）</h2>
+      <span class="date">2026-08-09</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>用户要求「参考纯洁源码，对合并后的新插件进行全方位检查，若有缺陷就要修补」。本次以 <code>koreader-kindle-v2026.07.1/koreader/</code> 为<b>只读基准</b>（仅 grep 阅读，绝不写入），逐项核验 <code>artgallery.koplugin</code> 对 KOReader 框架 API 的调用是否合法、基类覆写契约是否匹配、新增逻辑（收藏/CBZ/外部画廊/迁移/全屏/Dispatcher）是否有缺陷。</p>
+
+      <h3>核验清单与结论（全部对照纯洁源码逐行核实）</h3>
+      <table>
+        <thead><tr><th>核验面</th><th>基准位置（v2026.07.1）</th><th>结论</th></tr></thead>
+        <tbody>
+          <tr><td>ImageViewer 基类契约</td><td><code>frontend/ui/widget/imageviewer.lua</code></td><td><span class="tag ok">通过</span> <code>ArtGalleryViewer:init</code> 正确调用 <code>ImageViewer.init(self)</code>（912/914）；<code>onCloseWidget</code> 调用 <code>ImageViewer.onCloseWidget(self)</code>（1603）释放当前 <code>self.image</code>，无泄漏；<code>_enterGallery</code> 为 美术馆 自带方法（1890），非误用基类；<code>self.image</code> 为 table 时基类按 list 推导 <code>_images_list/_images_list_cur/_images_list_nb</code>（143–155），外部画廊复用同一机制。</td></tr>
+          <tr><td>Archiver.Reader（CBZ）</td><td><code>ffi/archiver.lua</code></td><td><span class="tag ok">通过</span> <code>Reader:new/open/iterate/extractToMemory/close</code> 全部存在且签名匹配；<code>scan_cbz</code> 的 <code>entry.mode/path</code> 与 entry schema 一致；<code>showCbz</code> 用独立 reader 解码、scan 后即 <code>arc:close</code>，无重复持有。</td></tr>
+          <tr><td>RenderImage（解码）</td><td><code>frontend/ui/renderimage.lua</code></td><td><span class="tag ok">通过</span> <code>renderImageData / renderSVGImageDataWithCRengine / scaleBlitBuffer(bb,w,h,free_orig) / renderCheckerboard(w,h,bb_type)</code> 均存在、签名匹配；<code>_render</code> SVG 优先、其余 MuPDF、失败降级 checkerboard。</td></tr>
+          <tr><td>LuaSettings / DataStorage</td><td><code>frontend/luasettings.lua</code> · <code>datastorage.lua</code></td><td><span class="tag ok">通过</span> <code>LuaSettings:open(path)</code>（21）、<code>DataStorage:getDataDir()</code> 签名正确；收藏索引落 <code>&lt;dataDir&gt;/artgallery/favorites.lua</code>。</td></tr>
+          <tr><td>书本读取</td><td><code>frontend/document/credocument.lua</code></td><td><span class="tag ok">通过</span> <code>_makeReader</code> 优先 <code>doc:getDocumentFileContent</code>（CreDocument:965），回退 Archiver，<code>pcall</code> 包裹无崩溃。</td></tr>
+          <tr><td>收藏逻辑 + key 一致性</td><td>—</td><td><span class="tag ok">通过</span> <code>addFavorite</code> 的 key 规则（<code>cbz:&lt;zip&gt;#&lt;path&gt;</code> / <code>&lt;doc.file&gt;#&lt;path&gt;</code>）与 viewer 侧 <code>_favKey()</code>（2449）逐字符一致；<code>_currentFavoriteState/_toggleFavorite</code> 调用链自洽；删除用 <code>os.remove</code> 单文件（非 <code>rm -rf</code>）；同名自动 <code>_i</code> 后缀防覆盖。</td></tr>
+          <tr><td>Dispatcher + 加载域</td><td><code>frontend/dispatcher.lua</code></td><td><span class="tag ok">通过</span> <code>artgallery_show_favorites</code> 注册 <code>reader/filemanager=true</code>；插件 <code>is_doc_only=false</code>（3053）故文件管理器亦加载，动作可全局唤出。</td></tr>
+          <tr><td>外部画廊 FileManager 安全</td><td><code>imageviewer.lua</code></td><td><span class="tag ok">通过</span> <code>_showExternalGallery</code> 注入 <code>get_pref=function()return{}end</code>、各回调 no-op、<code>on_show_menu</code> 守卫 <code>if self.ui then</code>；<code>_enterGallery</code> 不碰 <code>self.ui</code>，无书本时打开不崩。</td></tr>
+          <tr><td>on_hide 作用域</td><td><code>main.lua</code> 3005</td><td><span class="tag ok">通过</span> <code>on_hide</code> 仅在用户<b>主动「隐藏当前图」</b>（<code>_hideCurrentImage</code>）时触发，<b>非</b>普通关闭；收藏画廊「隐藏即取消收藏」为预期行为，无误删。</td></tr>
+          <tr><td>网络 / 更新检查</td><td><code>socketutil</code></td><td><span class="tag ok">通过</span> 用 KOReader 标准 <code>socketutil:set_timeout</code>（10s/op、30s 总）+ <b>子进程</b>抓取，不裸 <code>socket:settimeout</code>、不阻塞主线程，符合 KPW3 网络纪律。</td></tr>
+          <tr><td>CBZ 最小尺寸过滤</td><td><code>artgallery_scanner.lua</code></td><td><span class="tag ok">通过（刻意）</span> CBZ 不经 <code>scanner.filter</code>，漫画每页皆正文，过滤会误删合法页——与 EPUB 有意分流，非疏漏。</td></tr>
+        </tbody>
+      </table>
+
+      <h3>发现的唯一瑕疵与修补</h3>
+      <table>
+        <thead><tr><th>文件</th><th>性质</th><th>改动</th></tr></thead>
+        <tbody>
+          <tr><td><code>artgallery_scanner.lua</code> · <code>scan_cbz</code></td><td><span class="tag mod">修复</span></td><td>原实现把 <code>format</code> 留 <code>nil</code>，导致 CBZ 内的 <b>SVG 页</b>被 MuPDF 拒收、落到 checkerboard。现对 <code>.svg</code> 条目设 <code>format="svg"</code>，使 <code>_render</code> 走 crengine SVG 渲染（且 <code>_render</code> 对误判会自动回退 <code>renderImageData</code>，无回归风险）。最小、安全。</td></tr>
+        </tbody>
+      </table>
+
+      <h3>已知限制（非缺陷，记录在案）</h3>
+      <ul>
+        <li><b>CBZ 解码性能</b>：<code>Archiver.Reader:extractToMemory</code> 经 <code>seek</code> 每次都从归档头重读（libarchive 顺序访问特性）。画廊缩略图与单页浏览对大 CBZ 会重复读取——<b>功能正确、仅偏慢</b>。因 KPW3 内存红线（~380MB），未做「全量预读到内存」缓存，避免大 CBZ 撑爆内存。典型体量 CBZ 可接受。</li>
+        <li><b>onCloseWidget 刷新栈 hack</b>：<code>ArtGalleryViewer:onCloseWidget</code> 在调用基类后 <code>table.remove(UIManager._refresh_func_stack)</code> 丢弃上游强制 "flashui"（继承 Glimpse，已 headless 刷新队列追踪验证于 v2026.07.1 有效）。脆弱点在于依赖 UIManager 内部栈结构，版本升级若改栈实现需重验——当前版本安全。</li>
+      </ul>
+
+      <h3>校验结果</h3>
+      <div class="verify">
+        <span class="chip ok">✓ 全面审查：10 个核验面逐行对照纯洁源码，均无崩溃级/逻辑缺陷</span>
+        <span class="chip ok">✓ 修补：scan_cbz 对 .svg 标记 format="svg"，CBZ 内 SVG 页现可经 crengine 渲染</span>
+        <span class="chip ok">✓ LuaJIT 语法：main.lua / artgallery_scanner.lua / _meta.lua 全部 OK</span>
+        <span class="chip ok">✓ headless 单测 scan_cbz：6 图、自然排序（1→2→10）、svg 标记、txt/目录过滤通过</span>
+        <span class="chip ok">✓ 红线：仅改 plugins/artgallery.koplugin/，纯洁源码树零写入</span>
+        <span class="chip warn">△ 收藏/CBZ/迁移真机交互仍建议 KPW3 实机走一遍 VERIFY_ON_KPW3.html（headless 无法跑 LuaSettings/Archiver C 绑定与 ConfirmBox）</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段五（完成） ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段五 · 更名（Mirador → 美术馆 / 美术馆）</h2>
+      <span class="date">2026-08-09</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>用户选定中文展示名「<b>美术馆</b>」、英文名与插件名对应为 <b>美术馆</b>，要求英文与插件名同步修改（中文名仅作展示，内部 id 仍为 <code>artgallery</code> 以守住最小改动纪律）。</p>
+
+      <h3>改名范围（全量、机械 token 替换，受控脚本 + 逐处核对）</h3>
+      <table>
+        <thead><tr><th>对象</th><th>旧</th><th>新</th></tr></thead>
+        <tbody>
+          <tr><td>文件夹</td><td><code>mirador.koplugin</code></td><td><code>artgallery.koplugin</code></td></tr>
+          <tr><td>扫描器文件</td><td><code>mirador_scanner.lua</code></td><td><code>artgallery_scanner.lua</code></td></tr>
+          <tr><td>_meta.name</td><td><code>"mirador"</code></td><td><code>"artgallery"</code></td></tr>
+          <tr><td>_meta.fullname</td><td><code>_("Mirador 窥图")</code></td><td><code>_("美术馆")</code></td></tr>
+          <tr><td>类</td><td><code>Mirador / MiradorViewer / MiradorScanner</code> 及全部 widget 类</td><td><code>美术馆 / ArtGalleryViewer / ArtGalleryScanner</code></td></tr>
+          <tr><td>设置键</td><td><code>mirador_*</code>（scope/filter/invert/nav/captions/top_menu/shadow/gesture_tip/quick_actions/hidden/forced/img_prefs）</td><td><code>artgallery_*</code></td></tr>
+          <tr><td>Dispatcher</td><td><code>mirador_show</code> / <code>mirador_show_favorites</code>；事件 <code>MiradorShow</code> / <code>MiradorShowFavorites</code></td><td><code>artgallery_show</code> / <code>artgallery_show_favorites</code>；<code>ArtGalleryShow</code> / <code>ArtGalleryShowFavorites</code></td></tr>
+          <tr><td>viewer 回指字段</td><td><code>self.mirador</code> / <code>mirador = self</code></td><td><code>self.artgallery</code> / <code>artgallery = self</code></td></tr>
+          <tr><td>主菜单键</td><td><code>menu_items.mirador</code></td><td><code>menu_items.artgallery</code></td></tr>
+          <tr><td>收藏目录</td><td><code>&lt;dataDir&gt;/mirador/favorites(.lua)</code></td><td><code>&lt;dataDir&gt;/artgallery/favorites(.lua)</code></td></tr>
+          <tr><td>更新临时目录</td><td><code>&lt;dataDir&gt;/mirador</code></td><td><code>&lt;dataDir&gt;/artgallery</code></td></tr>
+          <tr><td>LOG_TAG / User-Agent</td><td><code>[Mirador]</code> / <code>mirador-updater</code></td><td><code>[ArtGallery]</code> / <code>artgallery-updater</code></td></tr>
+          <tr><td>显示串</td><td><code>_("打开 Mirador")</code> 等</td><td><code>_("打开美术馆")</code> 等</td></tr>
+          <tr><td>审计文档</td><td><code>Mirador</code> / <code>mirador</code></td><td><code>ArtGallery</code> / <code>artgallery</code>（CHANGELOG.html / VERIFY_ON_KPW3.html）</td></tr>
+        </tbody>
+      </table>
+
+      <h3>有意保留（非遗漏）</h3>
+      <ul>
+        <li><code>github_repo = "ksaMask/mirador"</code>（main.lua:3056）与 About 文本中的 <code>GitHub ksaMask/mirador</code>（main.lua:4933）：指向<b>真实 GitHub 仓库名</b>。仓库重命名是独立操作，若现在改会导致更新检查在新仓库就绪前失效，故保留；<b>待你在 GitHub 将仓库重命名为 <code>artgallery</code> 后，再同步这 2 处</b>。</li>
+      </ul>
+
+      <h3>校验结果</h3>
+      <div class="verify">
+        <span class="chip ok">✓ 改名后仅 2 处 mirador 残留，均为有意保留（github_repo + About，指向真实仓库）</span>
+        <span class="chip ok">✓ 收藏目录 / 更新临时目录 / 主菜单键 全改为 artgallery，无遗留旧路径代码路径</span>
+        <span class="chip ok">✓ LuaJIT 语法：main.lua / artgallery_scanner.lua / _meta.lua 全部 OK</span>
+        <span class="chip ok">✓ headless 单测 scan_cbz：6 图、自然排序、svg 标记、txt/目录过滤通过</span>
+        <span class="chip ok">✓ 审计文档 grep mirador：0 残留</span>
+        <span class="chip ok">✓ 改名前已全量备份：Backup/plugins/mirador.koplugin.2026-08-09T210407</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段六（进行中） ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段六 · 四项体验修复（菜单中文名 / 全书搜索记忆 / 按书清缓存 / 全屏铺满）</h2>
+      <span class="date">2026-08-09</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>用户实机反馈四类问题：① 全屏模式未真正铺满整屏；② 插件在触摸菜单中显示英文名 美术馆，应显示中文名「美术馆」；③ 同一本书连续唤出时，每次都弹出「当前章节之前没有图片——全书还有 N 张」并要求点「搜索全书」，用户认为「搜索过一次就该有缓存/记忆」；④ 要求建立「按书籍分别清理其缓存」的功能。本阶段先完成 ②③④（明确、无歧义），① 待用户确认「半屏」的具体含义后再落（见文末待确认）。</p>
+
+      <h3>具体改动点（已落地：②③④）</h3>
+      <table>
+        <thead><tr><th>文件</th><th>性质</th><th>改动</th></tr></thead>
+        <tbody>
+          <tr><td><code>main.lua</code> · <code>addToMainMenu</code></td><td><span class="tag mod">修改</span></td><td>顶级菜单项 <code>menu_items.artgallery.text</code> 由 <code>_("ArtGallery")</code> 改为 <code>_("美术馆")</code>；手势提示与「关于」中的 <code>ArtGallery</code> 文案同步改为「美术馆」（菜单全中文化）。</td></tr>
+          <tr><td><code>main.lua</code> · 设置辅助</td><td><span class="tag add">新增</span></td><td><code>_wholeBookRemembered()</code> / <code>_rememberWholeBook()</code> / <code>_forgetWholeBook()</code>：基于本书 <code>doc_settings</code> 键 <code>artgallery_whole_book</code> 的按书记忆（与全局 <code>SCOPE_KEY</code> 区分）。</td></tr>
+          <tr><td><code>main.lua</code> · <code>showViewer</code></td><td><span class="tag mod">修改</span></td><td>函数开头（<code>_viewer</code> 守卫之后）把 <code>whole_book_once = whole_book_once or self:_wholeBookRemembered()</code>，使「搜索全书」的按书记忆贯穿本次及其后的重开（on_rotate / on_ignore 等回调再次调用 showViewer 时）。</td></tr>
+          <tr><td><code>main.lua</code> · 空状态「搜索全书」</td><td><span class="tag mod">修改</span></td><td>ConfirmBox 的 <code>ok_callback</code> 先 <code>self:_rememberWholeBook()</code> 再 <code>self:showViewer(true)</code>；下次打开本书直接以全书范围显示，不再弹空状态。</td></tr>
+          <tr><td><code>main.lua</code> · <code>on_toggle_scope</code> / 范围单选</td><td><span class="tag mod">修改</span></td><td>用户显式切换/选择范围时调用 <code>self:_forgetWholeBook()</code>，使显式选择优先于按书记忆的「搜索全书」。</td></tr>
+          <tr><td><code>main.lua</code> · <code>_clearBookCache()</code></td><td><span class="tag add">新增</span></td><td>清空内存缓存 <code>self._scan</code> 并 <code>os.remove</code> 本书 <code>.sdr</code> 侧的 <code>artgallery.scan.lua</code>；下次打开自动重扫。不影响原书与收藏。</td></tr>
+          <tr><td><code>main.lua</code> · <code>_menuItems()</code></td><td><span class="tag add">新增</span></td><td>主菜单新增「清除本书图片缓存」项（位于「恢复被忽略的图片」与「高级」之间），仅打开书籍时可用；点击即清缓存并提示「下次打开将重新扫描」。按书清理（缓存本就随书存于各自 .sdr）。</td></tr>
+          <tr><td><code>main.lua</code> · <code>_computeFitScaleFactor(cover)</code></td><td><span class="tag mod">修改</span></td><td>新增 <code>cover</code> 参数：<code>cover</code> 为真时返回 <code>math.max(w,h)</code>（cover 适配，铺满整屏、溢出裁切）；否则维持原 <code>math.min(1.5, w, h)</code>（contain 适配，整图可见）。</td></tr>
+          <tr><td><code>main.lua</code> · 适配调用点</td><td><span class="tag mod">修改</span></td><td><code>_new_image_wg</code>(1669) / <code>_refreshScaleFactor</code>(2910) / <code>_applyNewScaleFactor</code>(2932) 三处 <code>_computeFitScaleFactor</code> 调用传入 <code>self._fullscreen</code>，使全屏态以 cover 为基准、抽屉态以 contain 为基准。</td></tr>
+          <tr><td><code>main.lua</code> · <code>_toggleFullscreen()</code></td><td><span class="tag mod">修改</span></td><td>切换时清掉 <code>_fit_scale_factor</code> / <code>_scale_factor_0</code>，使其按新基准（_fullscreen）重算缩放下限/预渲染解析值。</td></tr>
+          <tr><td><code>main.lua</code> · <code>_maxScale()</code></td><td><span class="tag mod">修改</span></td><td>全屏态把缩放上限放宽一倍（<code>m = m * 2</code>），避免 cover 基准超过 1.5 时「放大手势反而把图片缩小」。</td></tr>
+        </tbody>
+      </table>
+
+      <h3>影响范围</h3>
+      <ul>
+        <li><b>② 菜单中文名</b>：触摸菜单顶级项显示「美术馆」，手势提示与关于文案同步中文化；其余内部 id 仍为 <code>artgallery</code>（守住最小改动纪律）。</li>
+        <li><b>③ 全书搜索记忆</b>：仅影响「空状态→搜索全书」这一路径的持久化；范围偏好（全局 <code>SCOPE_KEY</code>）与按书记忆（<code>artgallery_whole_book</code>）解耦——用户显式改范围即清除按书记忆。扫描结果仍走原 .sdr 侧边缓存（mtime/size/version 校验），非本次新增。</li>
+        <li><b>④ 按书清缓存</b>：复用既有 <code>_cachePath()</code>（本书 .sdr）；与「重新扫描本书」（立即重扫）形成互补——清缓存是「删除→下次重扫」，重新扫描是「立即重扫」。</li>
+        <li><b>红线</b>：仅改 <code>plugins/artgallery.koplugin/main.lua</code>；改前已备份 <code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-09T215126</code>。</li>
+      </ul>
+
+      <h3>校验结果（已落地部分）</h3>
+      <div class="verify">
+        <span class="chip ok">✓ LuaJIT 语法检查：main.lua 编译通过（loadfile）</span>
+        <span class="chip ok">✓ grep 核对：菜单 <code>text = _("美术馆")</code> 就位；旧 <code>text = _("ArtGallery")</code> 菜单项已无；<code>artgallery_whole_book</code> / <code>_clearBookCache</code> / <code>_rememberWholeBook</code> / <code>_forgetWholeBook</code> / <code>清除本书图片缓存</code> 全部就位</span>
+        <span class="chip ok">✓ ① 全屏铺满：<code>_computeFitScaleFactor(cover)</code> 全屏改 cover（取 max 比例铺满、溢出裁切）；三处调用传入 <code>self._fullscreen</code>；<code>_toggleFullscreen</code> 清 fit 基准；<code>_maxScale</code> 全屏放宽上限</span>
+        <span class="chip warn">△ 四项真机交互建议 KPW3 实机走一遍（headless 无法跑 doc_settings/LuaSettings 与 UI；cover 裁切行为需实机目测）</span>
+      </div>
+
+      <h3>① 全屏铺满（已落，用户确认「图片约占 2/3 屏」）</h3>
+      <div class="callout">
+        <b>⚠ 已补正</b>：下方 cover 方案已被「① 全屏铺满·补正」推翻，改为 <b>contain + 全屏黑底</b>（对齐 Illustrations），不再裁切内容。<br>
+        <b>根因</b>：⤢ 全屏本就让白底边框铺满整屏宽（<code>panel_ratio=1.0</code>），但图片用 <b>contain 适配</b>（取较小比例、整图可见、封顶 1.5），竖图只占满高度、宽度仅约 2/3，两侧留白——用户感知「只占半屏/2/3 屏」。<br>
+        <b>修法</b>：全屏态改用 <b>cover 适配</b>（<code>_computeFitScaleFactor(true)</code> 返回 <code>math.max(w,h)</code>），图片铺满整屏、溢出部分裁切；抽屉态维持 contain（整图可见）。<code>_toggleFullscreen</code> 清掉旧 fit 基准使其按新基准重算；<code>_maxScale</code> 全屏放宽缩放上限避免「放大反而缩小」。<br>
+        <b>取舍</b>：全屏=铺满（地图等边可能裁掉少量边缘，需看全图可切回抽屉态 contain）；抽屉态=不裁切、整图可见。两者由 ⤢ 一键切换。
+      </div>
+
+      <h3>① 全屏铺满·补正（对齐 Illustrations：contain + 黑底，不裁切）</h3>
+      <div class="callout">
+        <b>推翻原因</b>：上一条 cover 方案（全屏取 max 比例、溢出裁切）虽铺满，但<b>裁掉了地图/示意图的边缘内容</b>——美术馆作为参考图浏览器，丢边不可接受。用户随要求「学习 Illustrations 插件的全屏做法」。<br>
+        <b>Illustrations 的做法</b>：<code>GalleryWindow</code> 是 <code>fullscreen=true</code> 的模态窗，<code>width/height = Screen:getWidth/Height()</code> 占满整屏；图片用 <code>ImageWidget(scale_factor = 0)</code>（即 contain、整图可见）置于<b>黑色</b> <code>FrameContainer</code> 中居中。靠黑色底让 contain 的留白在墨水屏上隐形，于是「看着铺满、且不裁切」。<br>
+        <b>修法（对齐）</b>：① 撤回 cover——<code>_computeFitScaleFactor()</code> 去掉 <code>cover</code> 参数，全屏与抽屉都用 contain（全屏态不封顶 1.5，取能完整显示的最大比例）；② 全屏态把图片区底色由白改黑（<code>update()</code> 中 <code>image_layer.background = self._fullscreen and COLOR_BLACK or COLOR_WHITE</code>）。外层 <code>main_frame</code> 在 update 中已设 <code>background=nil</code>（透明），故全屏 = 透明外框 + 黑色图片区，留白全黑、视觉铺满且不裁切。<br>
+        <b>文档命名同步</b>：用户要求两份审计 HTML（CHANGELOG / VERIFY_ON_KPW3）的展示名同步为「美术馆」——脚本将散文/标题/全名处的 <code>ArtGallery</code>（及 <code>ArtGallery 窥图</code>）替换为「美术馆」；<code>&lt;code&gt;</code> 内真实代码记号（<code>ArtGalleryViewer</code>、<code>[ArtGallery]</code>、<code>artgallery</code> id 等）原样保留。<br>
+        <b>影响</b>：全屏不再裁切；竖图在竖屏上 contain 正好填满、横图上下黑边隐形。缩放上限放宽（<code>_maxScale</code> 全屏 ×2）保留，便于放大细看。<br>
+        <span class="chip ok">✓ LuaJIT 语法检查：main.lua 编译通过（loadfile）</span>
+        <span class="chip warn">△ contain+黑底观感需 KPW3 实机目测（尤其横图黑边是否隐形、竖图是否真正铺满）</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <span class="badge done">已完成</span>
+    <h2>阶段七 · 智能适配屏幕（自动选向 + 全屏铺满/适配切换）</h2>
+    <div class="verify">
+      <span class="chip ok">✓ LuaJIT 语法检查：main.lua 编译通过（loadfile）</span>
+      <span class="chip ok">✓ grep 核对：<code>_smartRotation</code> / <code>_auto_rotated_for</code> / <code>_contain_in_fullscreen</code> / <code>_toggleFillMode</code> / <code>math.max(w_scale, h_scale)</code> / 菜单 <code>checked = not self._contain_in_fullscreen</code> 全部就位</span>
+      <span class="chip warn">△ 智能选向 + cover 铺满观感需 KPW3 实机目测</span>
+    </div>
+
+    <h3>背景：与 Illustrations 全屏是否相同？是否「智能」？</h3>
+    <div class="callout">
+      <b>结论一（与 Illustrations 是否相同）</b>：阶段六补正后，美术馆全屏在<b>视觉效果上已与 Illustrations 等价</b>——都是 contain 适配 + 黑色图片区 + 占满屏幕区，留白在墨水屏上隐形。但<b>架构不同</b>：Illustrations 用独立的 <code>fullscreen=true</code> 模态窗；美术馆复用 ImageViewer 抽屉，靠 <code>panel_ratio=1.0</code> + 透明外框 + 黑图片区实现。<br>
+      <b>结论二（都不「智能」）</b>：两者都只是<b>contain 适配</b>——横图仍留上下黑边（只是隐形），窄竖图只占约 2/3 宽。用户进一步要求「让图片智能适配屏幕」，故本阶段在 contain+黑底之上叠加两层智能：① 自动选向；② 全屏「铺满/适配」一键切换。
+    </div>
+
+    <h3>改动要点</h3>
+    <table>
+      <tr><th>位置</th><th>类型</th><th>说明</th></tr>
+      <tr><td><code>main.lua</code> · <code>_smartRotation()</code>（新增）</td><td><span class="tag add">新增</span></td><td>比较图片在 0°/90° 朝向下各自的 contain 比例，返回铺满更多屏幕的朝向（0 或 90）。屏幕宽高比决定哪种朝向更贴合——横图转竖屏朝向后填满整屏，竖图保持原朝向。</td></tr>
+      <tr><td><code>main.lua</code> · <code>_new_image_wg()</code></td><td><span class="tag mod">修改</span></td><td>每图首次构建 widget 时，若用户<b>未手动旋转</b>，自动套用 <code>_smartRotation()</code> 选向（<code>_auto_rotated_for</code> 守卫，仅一次；手动旋转后由 <code>_setRotation</code> 记住，不再被覆盖）。不裁切（仍是 contain 选向）。</td></tr>
+      <tr><td><code>main.lua</code> · <code>_computeFitScaleFactor()</code></td><td><span class="tag mod">修改</span></td><td>新增「铺满」(cover) 分支：<code>cover = self._fullscreen and not self._contain_in_fullscreen</code> 时返回 <code>math.max(w_scale, h_scale)</code>（占满整屏、溢出裁切）；否则维持 contain。抽屉态恒 contain（小屏不裁切）。</td></tr>
+      <tr><td><code>main.lua</code> · <code>_new_image_wg()</code> 比例采用</td><td><span class="tag mod">修改</span></td><td>适配/铺满比例<b>直接作为 widget 静止比例采用</b>（旧逻辑只在 fit≥1 时采用、否则交给 widget 自行 contain，导致大图无法 cover 铺满）。<code>viewer.scale_factor</code> 仍为 0（适配态），仅 widget 渲染比例取 fit——使 cover 对任意尺寸图片都能铺满，且不破坏缩放下限/上限语义。</td></tr>
+      <tr><td><code>main.lua</code> · <code>_toggleFillMode()</code>（新增） + <code>init()</code></td><td><span class="tag add">新增</span></td><td><code>init()</code> 增 <code>self._contain_in_fullscreen = false</code>（全屏默认「铺满」cover）与 <code>self._auto_rotated_for = nil</code>。<code>_toggleFillMode()</code> 翻转该标志并清 fit 基准后重绘。</td></tr>
+      <tr><td><code>main.lua</code> · ⋯ 溢出菜单</td><td><span class="tag add">新增</span></td><td>仅全屏显示「全屏铺满屏幕」项，<code>checked = not self._contain_in_fullscreen</code>：勾选=铺满（默认），取消勾选=适配（整图可见，适合地图）。</td></tr>
+    </table>
+
+    <h3>行为总览</h3>
+    <div class="callout">
+      <b>抽屉态</b>：永远 contain（整图可见，不裁切），与 Illustrations 一致。<br>
+      <b>全屏态（默认）</b>：自动选向 + cover 铺满——典型竖版书页图 aspect 与屏幕接近，cover≈contain，铺满且不裁切；横版地图自动转正后 cover 仅裁极少量边缘即可铺满；仅极端宽幅（如全景长图）会明显裁切。<br>
+      <b>全屏态（点「全屏铺满屏幕」取消勾选）</b>：转 contain——整图完整可见、黑边隐形，适合需要看全地图/示意图时。<br>
+      <b>用户手动旋转</b>：始终优先于自动选向（<code>_setRotation</code> 记忆，<code>_auto_rotated_for</code> 守卫不覆盖）。<br>
+      <span class="chip info">注：默认全屏=铺满（cover）。若你更希望全屏默认也「适配不裁切」，把 <code>init()</code> 中 <code>self._contain_in_fullscreen</code> 初值改 <code>true</code> 即可。</span>
+    </div>
+  </section>
+
+  <section>
+    <span class="badge fixed">已修复</span>
+    <h2>阶段八 · 全屏渲染缺陷修复（右列露书页 / 图片只露左半）</h2>
+    <div class="meta">触发：KPW3 实机 ⤢ 全屏后，右列露出应被遮蔽的书页、图片左半扩张占满左+中部（crash.log 已更新，无 ERROR/traceback，纯布局问题）</div>
+
+    <h3>根因（读源码定位，非猜测）</h3>
+    <div class="callout">
+      <b>main.lua:1283</b> 的刷新区 = <code>self.main_frame.dimen:combine(orig_dimen)</code>。而
+      <code>FrameContainer:paintTo</code>（<code>frontend/ui/widget/container/framecontainer.lua:104</code>）<b>只在首次 paint 时按当时子节点算出 w/h 存进 <code>self.dimen</code>，之后每次 paint 仅更新 <code>dimen.x/y</code>、绝不重算 <code>w/h</code></b>。
+      <code>update()</code> 切全屏时把 <code>_panel_w</code> 改为整屏宽并重排更宽的子节点，却<b>从不清除 <code>main_frame.dimen</code></b>——于是它停在抽屉尺寸（左 ~2/3 宽）：
+      <ul>
+        <li>刷新区只覆盖旧抽屉区域 → 全屏时右列书页在墨水屏上<b>残留</b>（framebuffer 已更新，但 e-ink 只刷新了抽屉那块）；</li>
+        <li>图片以 cover 溢出后，因面板只到 ~2/3，视觉上只露<b>左半</b>。</li>
+      </ul>
+      这同时解释了「右列书页」+「图片左半占左+中」两个现象，且抽屉态本身正常（尺寸未变，缓存恰好正确）。
+    </div>
+
+    <h3>改动要点</h3>
+    <table>
+      <tr><th>位置</th><th>类型</th><th>说明</th></tr>
+      <tr><td><code>main.lua</code> · <code>update()</code></td><td><span class="tag mod">修改</span></td><td>捕获 <code>orig_dimen</code> 后即刻 <code>self.main_frame.dimen = nil</code>，丢弃被 paint 缓存的旧尺寸，让下次 <code>paintTo</code> 按新（全屏/抽屉）子节点重算正确 w/h。刷新区随即覆盖整屏，书页被真正遮蔽、cover 图片完整铺满。</td></tr>
+      <tr><td><code>_meta.lua</code></td><td><span class="tag mod">修改</span></td><td>删除已弃用的 <code>name = "artgallery"</code> 字段（KOReader 2026.07.1 起忽略它、改由目录名推导），消除 crash.log 中 <code>WARN PluginLoader: artgallery name in _meta.lua, is deprecated</code> 噪声。</td></tr>
+    </table>
+
+    <div class="verify">
+      <span class="chip ok">✓ LuaJIT 语法检查：main.lua 编译通过（loadfile）</span>
+      <span class="chip ok">✓ grep 确认 <code>self.main_frame.dimen = nil</code> 就位（main.lua:996）；<code>_meta.lua</code> 已无 <code>name =</code> 字段</span>
+      <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-09T230818</code></span>
+      <span class="chip warn">△ 需 KPW3 实机复测：⤢ 切全屏后整屏被图片/黑底铺满、右列无书页残留；cover 默认铺满、点「全屏铺满屏幕」取消勾选转 contain 完整可见；切回抽屉右列恢复书页</span>
+    </div>
+  </section>
+
+  <section>
+    <span class="badge fixed">已修复+加固</span>
+    <h2>阶段九 · 代码审查与健壮性加固（用户要求：查缺陷并加固）</h2>
+    <div class="meta">方法：先读本日志 → 加载 kpw3-koreader-dev / koreader-code-format 技能 → 派发只读代码审查子代理全面审 main.lua / artgallery_scanner.lua / _meta.lua（对照 base ImageViewer 与 Illustrations）→ 逐条读源码核实 → 修复真实缺陷、加健壮性。改前已备份 main.lua.2026-08-09T233240。</div>
+
+    <h3>修复清单</h3>
+    <table>
+      <tr><th>位置</th><th>类型</th><th>说明</th></tr>
+      <tr><td><code>main.lua</code> · 新增 <code>_safeFlush()</code> + <code>_setImgPref</code> / <code>on_ignore</code> / <code>on_unignore</code> / <code>_getScan</code> / <code>_saveFavRecords</code></td><td><span class="tag mod">修改</span></td><td><b>C2 只读挂载崩溃</b>：LuaSettings:flush → util.writeToFile 在只读挂载（受保护 EPUB / SD 锁 / 掉盘）时 io.open 失败即抛异常，原本会炸掉「旋转」「忽略图片」等用户操作。新增 <code>_safeFlush</code> 统一 pcall 包裹所有落盘；<code>_setImgPref</code> 额外加 <code>doc_settings</code> nil 守卫。</td></tr>
+      <tr><td><code>main.lua</code> · <code>_getScan()</code></td><td><span class="tag mod">修改</span></td><td><b>R2 缓存结构校验</b>：命中缓存后校验 <code>type(c.images) == "table"</code>。畸形/截断缓存（version 虽匹配但缺 images 表）改按未命中重新扫描，不把畸形结构喂给下游 filter。</td></tr>
+      <tr><td><code>main.lua</code> · <code>_thumb()</code></td><td><span class="tag mod">修改</span></td><td><b>L1 缩略图缓存无上限</b>：新增 <code>THUMB_CACHE_CAP = 256</code> 的 FIFO 淘汰（<code>_thumb_keys</code> 记录插入顺序，超出即释放最早位图）。防大书/漫画翻页时内存无限增长（KPW3 可用 RAM 有限）。<code>init()</code> 增 <code>self._thumb_keys = {}</code>。</td></tr>
+      <tr><td><code>main.lua</code> · <code>_thumb()</code> + 两处 <code>decode()</code></td><td><span class="tag mod">修改</span></td><td><b>R1 缩放未兜底</b>：三处 <code>RenderImage:scaleBlitBuffer</code>（_thumb 解码 + 图库/单图两处静止比例解码）改 pcall，失败退回未缩放副本，绝不因此炸掉图库翻页或图片切换。</td></tr>
+      <tr><td><code>main.lua</code> · <code>_new_image_wg()</code></td><td><span class="tag mod">修改</span></td><td><b>R5 智能选向空转</b>：新增 <code>_smart_failed_for</code> 序号集合，图片尺寸未就绪（如 SVG 懒解码前）时标记本图，避免每次 <code>update()</code> 重复调用 <code>_smartRotation</code> 做无用功。<code>init()</code> 增 <code>self._smart_failed_for = {}</code>。</td></tr>
+      <tr><td><code>main.lua</code> · 菜单「打开美术馆」回调</td><td><span class="tag mod">修改</span></td><td><b>D2 延时回调串档</b>：<code>scheduleIn(0.3)</code> 前捕获当前 <code>doc/file</code>，回调内比对 <code>self.ui.document</code> 是否仍为同一文档，变了则放弃，防 0.3s 内关书/切书后对着错误文档打开查看器（串档或空文档崩溃）。</td></tr>
+      <tr><td><code>main.lua</code> · <code>addFavorite()</code></td><td><span class="tag mod">修改</span></td><td><b>R6 收藏写入完整性</b>：校验 <code>f:write</code> 与 <code>f:close</code> 均成功才写记录，失败删掉不完整文件并报错，不留指向残缺文件的死记录。</td></tr>
+      <tr><td><code>main.lua</code> · <code>addFavorite()</code></td><td><span class="tag mod">修改</span></td><td><b>R4 收藏死记录堆积</b>：写入前剔除源文件已删除的失效记录，防 favorites.lua 无限增长。</td></tr>
+    </table>
+
+    <div class="verify">
+      <span class="chip ok">✓ LuaJIT 语法检查：main.lua 编译通过（loadfile）</span>
+      <span class="chip ok">✓ grep 锚点就位：<code>_safeFlush</code>×5 调用 / <code>THUMB_CACHE_CAP</code> / <code>_smart_failed_for</code>×3 / <code>ok_scale</code>×2 / <code>ok_s</code> / <code>ag_doc</code> / <code>type(c.images)</code> / <code>ok_close</code></span>
+      <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-09T233240</code></span>
+    </div>
+
+    <h3>审查中确认无问题的项（已核实，未改）</h3>
+    <div class="callout">
+      图片释放/双释放（<code>image_disposable=true</code> + 单槽 <code>_bb_cache</code> 用 <code>bb:copy()</code>，viewer 的 <code>self.image</code> 与缓存非同一对象，无 use-after-free）；除零（<code>_computeFitScaleFactor</code>/<code>_smartRotation</code> 已守卫 <code>iw&gt;0 and ih&gt;0</code>）；面板模板缓存失效（<code>_panel_bb</code>/<code>_shadow_bb</code> 按尺寸+夜间键失效）；菜单置灰（「清除本书图片缓存」<code>enabled_func</code> 查 <code>self.ui.document</code>）；Dispatcher 幂等（按 id 覆盖）；<code>_render</code> SVG/位图路径均 pcall + checkerboard 兜底。
+    </div>
+
+    <h3>已知未改（低风险 / 需真机验证，避免回归）</h3>
+    <ul>
+      <li><b>D1 CBZ 两次打开 zip</b>：<code>showCbz</code> 扫描时开一个 <code>arc</code>、渲染时又 <code>_makeZipReader</code> 开一个。属性能小瑕疵（多解析一次），非崩溃，暂不改——复用同一 reader 需改动渲染路径，风险高于收益。</li>
+      <li><b>D3 圆角快照复用残影</b>：<code>_under_corner_bbs</code> 在首次 paint 抓取底层像素、之后复用雕刻圆角。若抽屉打开时底层页面被重绘（KOReader 菜单/电量条等），圆角可能回放旧像素产生轻微残影。仅罕见交互下出现，属轻微观感；改 paint 顺序风险高，留作已知限制，待 KPW3 实机确认是否可接受。</li>
+    </ul>
+  </section>
+
+  <section>
+    <span class="badge design">设计·待审阅（未实现）</span>
+    <h2>阶段十 · .MOBI 漫画支持方案（仅设计，不改代码）</h2>
+    <div class="meta">用户要求：探索能否对 .MOBI 格式漫画生效。本阶段<b>仅方案设计，未改动任何代码</b>，待用户审阅选定后再实现。</div>
+
+    <h3>现状核实</h3>
+    <div class="callout">
+      当前扫描器支持 <b>CBZ / PDF / DJVU</b>（按文件内嵌图片记录抽取）。<b>.MOBI 是单文档流式格式</b>：crengine 把全书渲染成文字页，内嵌图片混在 HTML 流中，KOReader 的 crengine <code>Document</code> 提供 <code>getPageCount/getPageText</code>，但<b>没有「枚举全书图片」的公开 API</b>。漫画类 MOBI 通常是整页即一张图（图片版漫画），文字极少；其图片以独立图片记录（Palm DB record / KF8 resource）存于 MOBI 容器内。
+    </div>
+
+    <h3>三套可行方案</h3>
+    <table>
+      <tr><th>方案</th><th>思路</th><th>优点</th><th>缺点 / 风险</th></tr>
+      <tr><td><b>A. 解析 MOBI 容器抽图</b>（推荐）</td><td>纯 Lua 解析 MOBI 头（Palm DB header → rec0 解压 → MOBI header → 图片 record 偏移表），逐个读图片 record 解码为位图；复用现有扫描器「图片列表」结构与 .sdr 侧边缓存。</td><td>与 CBZ 路径一致、离线、快；天然兼容「按书清缓存」「全书搜索记忆」。</td><td>需手写 MOBI 解析（Palm DB / HUFF-CDIC 解压、KF8 资源分段），工作量中等；加密/DRM MOBI 不可解；图片可能经压缩需 mupdf 既有能力辅助。</td></tr>
+      <tr><td><b>B. 逐页渲染 crengine 页面位图</b></td><td>把每页渲染成位图当「图片」，viewer 直接翻页。</td><td>几乎零解析、复用 KOReader 自身渲染。</td><td>文字书每页都是文字位图、无意义；漫画书每页=一张图尚可，但缩放/旋转/选图逻辑要重写；体积大、缓存贵。</td></tr>
+      <tr><td><b>C. 复用「外部画廊」入口</b></td><td>把 MOBI 当图片存档用 <code>showCbz</code> 同类逻辑，但需先解出图片——仍回到方案 A 的解包。</td><td>入口复用。</td><td>仅是方案 A 的包装，无独立价值。</td></tr>
+    </table>
+
+    <h3>推荐与边界</h3>
+    <ul>
+      <li><b>推荐方案 A</b>：解析容器抽图 + 仅对「<b>图片型 MOBI</b>」（全书图片数 ≥ 阈值且文字极少）启用，避免文字书误触发。</li>
+      <li><b>性能</b>：解包+抽图可能 &gt;200ms，须 <code>runAsync</code>/<code>timer</code> 拆离主线程（KPW3 看门狗复位风险）。</li>
+      <li><b>缓存</b>：抽出图片列表同样存 .sdr 侧边，沿用现有 <code>_getScan</code> 的 version/mtime/size 校验。</li>
+      <li><b>兼容</b>：与现有「按书清缓存」「全书搜索记忆」天然兼容（都按 doc_settings / .sdr）。</li>
+    </ul>
+
+    <h3>待用户决策</h3>
+    <div class="callout">
+      ① 是否接受方案 A 的工作量（手写 MOBI 解析）？② 是否仅对图片型 MOBI 启用？③ 是否先做小 PoC 验证 MOBI 解析可行性（用一本书实测抽图）再决定全量实现？<br>
+      <b>本阶段未改动任何代码，仅方案设计。</b>
+    </div>
+  </section>
+
+  <section>
+    <span class="badge">新增功能</span>
+    <h2>阶段十一 · 看图同步书籍阅读进度（漫画看完不再停第一页）</h2>
+    <div class="meta">用户要求：通过「美术馆」看图时，也应同步更改书籍本身的阅读进度，避免读者用美术馆看完一本漫画、结果漫画本身进度还在第一页。另：.MOBI 解析方案按用户要求搁置待议（见阶段十，未实现）。</div>
+
+    <h3>技术要点（为何这样实现）</h3>
+    <div class="callout">
+      KOReader 分页文档的阅读进度存于 <code>doc_settings</code> 的 <code>last_page</code>，由 <code>ReaderPaging:onSaveSettings</code> 在<b>关书时据 live <code>view.current_page</code></b> 写出。因此只写 <code>last_page</code> 不够——关书会被 live 旧位置覆盖。<b>正确做法是真正翻动 live 阅读位置</b>：调用 <code>self.ui.paging:onGotoPage(target)</code>（KOReader 核心模块同源用法），它发 <code>PageUpdate</code> 事件 → <code>ReaderView:onPageUpdate</code> 更新 <code>self.state.page</code> 并重算，且会触发 <code>checkAutoSaveSettings()</code> <b>自动落盘</b>；关书时 <code>onSaveSettings</code> 再据新 live 位置写 <code>last_page</code>，进度才真正持久化。<br>
+      漫画（CBZ）每张图对应一页：扫描器 <code>spine_index</code> 即页码，故 <code>target = meta.spine_index</code>。仅对<b>分页文档</b>（CBZ/DjVu/PDF）生效；<b>滚动文档（EPUB）</b>图片散布、无稳定阅读顺序，乱跳进度反而误导，故跳过（<code>self.ui.rolling</code> 守卫）。并只在「更靠后」时推进（<code>target &gt; cur</code>），回看早图不把进度倒退。
+    </div>
+
+    <h3>改动要点</h3>
+    <table>
+      <tr><th>位置</th><th>类型</th><th>说明</th></tr>
+      <tr><td><code>main.lua</code> 常量区</td><td><span class="tag add">新增</span></td><td><code>SYNC_PROGRESS_KEY = "artgallery_sync_progress"</code>：同步开关，默认开（用 <code>G_reader_settings:isFalse</code> 判断，未设置=开）。</td></tr>
+      <tr><td><code>main.lua</code> · 新增 <code>ArtGallery:_syncReadingProgress(meta)</code></td><td><span class="tag add">新增</span></td><td>核心逻辑：开关开启 + <code>spine_index ≥ 1</code> + 非滚动文档 + <code>self.ui.paging.onGotoPage</code> 存在时，若 <code>target &gt; 当前页</code> 则 <code>pcall(paging.onGotoPage, paging, target)</code> 翻到对应页；成功置 <code>self._sync_advanced = true</code>。全程 pcall / 守卫，绝不在异常挂载或意外文档类型下崩溃。</td></tr>
+      <tr><td><code>main.lua</code> · <code>showViewer</code> 的 <code>on_image_shown</code> 回调</td><td><span class="tag mod">修改</span></td><td>原仅记忆 <code>artgallery_last</code>；现增加：用 <code>first_shown</code> 局部变量<b>跳过「刚打开」这一次</b>（避免一开就跳进度），仅在实际翻到新图时调用 <code>self:_syncReadingProgress(meta)</code>。该回调是 <code>switchToImageNum</code> 切图的唯一中枢，覆盖滑动/按钮/图库点选所有翻图路径。</td></tr>
+      <tr><td><code>main.lua</code> · 查看器 <code>onCloseWidget</code> 包装</td><td><span class="tag mod">修改</span></td><td>双保险：若本次会话推进过进度（<code>self._sync_advanced</code>），关闭画廊时 <code>pcall(function() self.ui:saveSettings() end)</code> 立即落盘，防 KOReader 在关书前被杀导致进度未保存（<code>onGotoPage</code> 已触发自动落盘，此处仅作冗余保护）。</td></tr>
+      <tr><td><code>main.lua</code> · 插件菜单 <code>_menuItems()</code></td><td><span class="tag add">新增</span></td><td>新增开关项「看图同步阅读进度」（默认开，可关闭），与「夜间反转」「导航按钮」并列；<code>checked_func</code>/<code>callback</code> 与既有开关同构。</td></tr>
+    </table>
+
+    <div class="verify">
+      <span class="chip ok">✓ LuaJIT 语法检查：main.lua 编译通过（loadfile）</span>
+      <span class="chip ok">✓ 锚点就位：<code>SYNC_PROGRESS_KEY</code> / <code>_syncReadingProgress</code> / <code>first_shown</code> / <code>self._sync_advanced</code> / 菜单项</span>
+      <span class="chip ok">✓ 只读源码核实：<code>ReaderPaging:onGotoPage</code>（readerpaging.lua:1147）、<code>ReaderView:onPageUpdate</code>（readerview.lua:1011，含 checkAutoSaveSettings）、<code>ReaderPaging:onSaveSettings</code> 据 live 写 last_page（readerpaging.lua:162）、<code>LuaSettings:isFalse</code>（luasettings.lua:129）均存在</span>
+      <span class="chip ok">✓ 备份：<code>Backup/2026-08-10T000755/main.lua</code></span>
+      <span class="chip warn">△ 需 KPW3 实机复测：CBZ 漫画在美术馆逐页翻看后，关书再开（或文件管理器进度）应停在最后一图对应页；中途回看早图进度不倒退；关闭「看图同步阅读进度」后翻图不再改书本进度；EPUB 翻图不改进度（符合预期）</span>
+    </div>
+
+    <h3>已知边界（本阶段刻意不做）</h3>
+    <ul>
+      <li><b>仅分页文档</b>：CBZ/DjVu/PDF 等页码型文档生效；EPUB 等滚动文档跳过（图片与阅读顺序非 1:1，强行同步会乱跳进度）。</li>
+      <li><b>收藏/外部查看器路径未挂接</b>：<code>showViewer</code>（主流程，手势/菜单打开）已挂接；另一条独立打开路径（约 main.lua:3767，<code>is_favorites</code>/<code>is_cbz</code> 的收藏/外部查看器，其 <code>on_image_shown</code> 为空）暂未接同步——该路径非主阅读流，如需亦可补。</li>
+      <li><b>.MOBI 漫画</b>：阶段十方案搁置待议，未实现。</li>
+    </ul>
+  </section>
+
+  <section>
+    <span class="badge">新增</span>
+    <h2>阶段十二 · EPUB 漫画看图同步阅读进度（独立开关）</h2>
+    <div class="meta">触发：用户确认 .MOBI 方案继续搁置；并追问「EPUB 漫画怎么处理」——此前阶段十一刻意跳过滚动文档，本轮补齐。用户决策：EPUB 与分页文档<b>各用独立开关</b>，互不牵连。</div>
+
+    <h3>关键发现（读真实源码，非猜测）</h3>
+    <div class="callout">
+      <ul>
+        <li>EPUB 是<b>滚动文档</b>，阅读位置是 <b>xpointer</b> 而非页码；<code>self.ui.rolling</code> 存在、<code>self.ui.paging</code> 依然存在（ReaderPaging 同时管理两类文档）。</li>
+        <li>图片记录 <code>spine_index</code>（第几篇文档）+ <code>node_path</code>（DOM 节点 xpointer）；插件 <code>on_show_in_book</code>（main.lua:4352）已有一套<b>已校验</b>的 xpointer 构造：拼 <code>/body/DocFragment[n]/body/node_path</code>，用 <code>isXPointerInDocument</code> + <code>getHTMLFromXPointer</code>（校验 HTML 确实含本图文件名）确认，失败回退章节开头，最终 <code>self.ui.rolling:onGotoXPointer(target)</code>。本阶段直接复用该逻辑。</li>
+        <li><code>onGotoXPointer</code> 与分页的 <code>onGotoPage</code> 对称：更新 live 阅读位置并触发自动落盘；关书时 <code>onSaveSettings</code> 据 live 位置写 <code>last_xpointer</code>。</li>
+      </ul>
+    </div>
+
+    <h3>⚠ 关键正确性坑（已规避）</h3>
+    <div class="callout warn">
+      滚动文档下 <code>self.ui.paging</code> <b>非 nil</b>。若沿用阶段十一「先判 <code>self.ui.paging</code>」的顺序，EPUB 会被错当成分页文档、拿 <code>spine_index</code> 当页码调 <code>onGotoPage</code>——在滚动文档上是错的。<b>必须「先判 <code>self.ui.rolling</code> 再判 <code>self.ui.paging</code>」</b>，与 <code>on_show_in_book</code> 的判别保持一致。
+    </div>
+
+    <h3>改动要点</h3>
+    <table>
+      <tr><th>位置</th><th>类型</th><th>说明</th></tr>
+      <tr><td><code>main.lua</code> · 常量区</td><td><span class="tag add">新增</span></td><td><code>SYNC_PROGRESS_EPUB_KEY = "artgallery_sync_progress_epub"</code>（默认开）。</td></tr>
+      <tr><td><code>_syncReadingProgress</code></td><td><span class="tag mod">重写</span></td><td>拆为两分支：<b>先 rolling</b>（EPUB）→ 复用 <code>on_show_in_book</code> 的已校验 xpointer 构造，<code>onGotoXPointer</code> 跳转，前向判定用 <code>getPageFromXPointer(target)</code> 与 <code>getCurrentPage()</code> 比较；<b>后 paging</b>（CBZ）→ 维持原 <code>onGotoPage(spine_index)</code>。两分支各自独立开关、各自「只前进不倒退」、全程 pcall/守卫。</td></tr>
+      <tr><td>插件菜单</td><td><span class="tag add">新增</span></td><td>原「看图同步阅读进度」改名为「看图同步阅读进度（分页文档）」；新增「看图同步阅读进度（EPUB）」独立开关（默认开，help 提示普通文字书若被误跳可单独关）。</td></tr>
+    </table>
+
+    <div class="verify">
+      <span class="chip ok">✓ LuaJIT 语法检查：main.lua 编译通过（loadfile）</span>
+      <span class="chip ok">✓ grep 确认分支顺序：<code>if self.ui.rolling then</code> 在 <code>if self.ui.paging then</code> 之前（main.lua:3412 / 3447）</span>
+      <span class="chip ok">✓ 备份：<code>Backup/2026-08-10T002057/main.lua</code></span>
+      <span class="chip warn">△ 需 KPW3 实机复测：EPUB 漫画逐图翻看后关书再开应停在最后图对应位置；关闭「EPUB」开关后翻图不再改书本进度；文字书误跳时关该项即可</span>
+    </div>
+  </section>
+
+  <section>
+    <span class="badge">新增</span>
+    <h2>阶段十三 · 全屏沉浸式阅读（隐藏覆盖层 + 点按显隐）</h2>
+    <div class="meta">触发：用户要求全屏模式隐藏功能按钮/页码/左上标题以便沉浸式读漫画；并点底部恢复、点别处再隐藏。兼做 KPW3 内存/续航审查。</div>
+
+    <h3>需求澄清（读源码确认，非猜测）</h3>
+    <div class="callout">
+      <ul>
+        <li>全屏切换仅单图模式有效（<code>fs_frame</code> 仅 <code>not _gallery_mode</code> 时添加），故沉浸式只须处理单图覆盖层。</li>
+        <li>「功能按钮」= nav/fs/more 帧；「页码」= 底部<b>圆点 pill 位置指示器</b>（单图全屏无独立页码控件）；「左上字样」= <code>caption</code> 标签（<code>rec.caption = figcaption or title_attr or alt</code>，即用户所见 "Comic Book Images"）。三类皆在 <code>_new_image_wg</code> 的 overlay 构造内。</li>
+        <li>双击缩放是纯两击检测（<code>_checkDoubleTap</code>，无独立单击回调）。若「点别处立即隐藏」会破坏双击——标准解法：<b>延迟 350ms 隐藏</b>，双击时取消挂起任务。</li>
+      </ul>
+    </div>
+
+    <h3>改动要点</h3>
+    <table>
+      <tr><th>位置</th><th>类型</th><th>说明</th></tr>
+      <tr><td><code>_toggleFullscreen</code></td><td><span class="tag mod">修改</span></td><td>进入全屏即 <code>self._chrome_hidden = self._fullscreen</code>（沉浸式默认隐藏）；退出恢复。</td></tr>
+      <tr><td>新增 <code>_setChrome</code> / <code>_inBottomZone</code></td><td><span class="tag add">新增</span></td><td><code>_setChrome(hidden)</code> 统一显隐（清挂起定时器 + update 重建）；<code>_inBottomZone</code> 取屏幕底缘 56px 感应带。</td></tr>
+      <tr><td><code>onTap</code></td><td><span class="tag mod">修改</span></td><td>隐藏态：底部点按→<code>_setChrome(false)</code> 恢复，其余点按→<code>_checkDoubleTap</code>（保留双击缩放）；显示态：未命中按钮时 <code>scheduleIn(0.35)</code> 延迟隐藏，双击时由 <code>_checkDoubleTap</code> 取消。</td></tr>
+      <tr><td><code>_checkDoubleTap</code></td><td><span class="tag mod">修改</span></td><td>双击命中时取消挂起的延迟隐藏，改走缩放。</td></tr>
+      <tr><td><code>_new_image_wg</code> overlay 构造</td><td><span class="tag mod">修改</span></td><td>nav/fs/more/pill/caption 五处插入均加门控 <code>not (self._fullscreen and self._chrome_hidden)</code>；沉浸式时不绘制、不插入。</td></tr>
+      <tr><td><code>onCloseWidget</code></td><td><span class="tag mod">修改</span></td><td>① 顶部清挂起延迟隐藏定时器（防关查看器后误触发）；② 显式 <code>free(_pill_frame)</code>——沉浸式隐藏态该帧不被插入 <code>frame_elements</code>、原释放列表未覆盖，补上防泄漏。</td></tr>
+    </table>
+
+    <h3>KPW3 内存 / 续航审查结论</h3>
+    <div class="callout">
+      <ul>
+        <li><b>内存：低且受控。</b>缩略图缓存封顶 <code>THUMB_CACHE_CAP=256</code> FIFO 淘汰（main.lua:2193）；满分辨率解码仅当前一张、切图/旋转/关闭经 <code>_resetHiRes</code> 释放；<code>_thumb_bbs</code> 关闭时全释放。峰值约：256 张小缩略图（各数十 KB）+ 单张全分辨率解码（约 2–4MB），相对 KPW3 ~380MB RAM（系统占 ~120MB）余量充足。</li>
+        <li><b>续航：几乎无影响。</b>纯事件驱动，无轮询/后台 timer/网络；唯一新增的 0.35s 延迟隐藏是一次性、并在关查看器/双击/切全屏时清理，不会空转耗电。</li>
+        <li><b>刷新：克制。</b>仅切图时区域级 <code>full</code>(GC16) 清残影（限定抽屉区，非全屏）；缩放/平移走 flashless <code>fast</code>，无全屏全刷。</li>
+        <li><b>唯一观测点：</b>超大页（>2000px）全分辨率解码是瞬时内存峰，但随导航即释放，无累积。</li>
+      </ul>
+    </div>
+
+    <div class="verify">
+      <span class="chip ok">✓ LuaJIT 语法检查：main.lua 编译通过（loadfile）</span>
+      <span class="chip ok">✓ grep 确认五处门控 + 早期返回 + 延迟隐藏 + onCloseWidget 清理均就位</span>
+      <span class="chip ok">✓ 备份：<code>Backup/2026-08-10T104044/main.lua</code></span>
+      <span class="chip warn">△ 需 KPW3 实机复测：全屏即无按钮/页码/标题；点底部恢复、点图面再隐藏；双击缩放仍可用；从顶部菜单直接关书不泄漏</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>阶段十四 · 菜单「关于 ArtGallery」汉化</h2>
+    <div class="meta">触发：用户指出菜单仍有未汉化项「关于 Artgallery」；核查发现插件根菜单已用中文名「美术馆」（main.lua:4974），但关于项与同块帮助文本仍残留英文 "ArtGallery"，与关于对话框（main.lua:5343 已用「美术馆 v%1」）不一致。</div>
+    <h3>改动（main.lua 工作副本）</h3>
+    <ul>
+      <li><code>_menuItems</code> 关于项（~5339）：<code>text = _("关于 ArtGallery")</code> → <code>text = _("关于 美术馆")</code>。</li>
+      <li>同块「浏览 CBZ 漫画」帮助文本（~5330）：<code>用 ArtGallery 全屏翻阅</code> → <code>用美术馆全屏翻阅</code>，与中文名统一。</li>
+      <li>未动：关于对话框内上游项目名（Glimpse / Illustrations）与作者名（Erik Fanki / ksaMask）属专有名词，保留原文。</li>
+    </ul>
+    <h3>核查结论</h3>
+    <ul>
+      <li>插件对外中文名确定为「美术馆」（菜单根 + 关于对话框一致）；后续新增用户可见文本应沿用，不再出现裸 "ArtGallery"。</li>
+      <li>代码标识符（类名 <code>ArtGalleryViewer</code>、<code>LOG_TAG</code> 等）保持英文，属内部命名，无需翻译。</li>
+    </ul>
+    <div class="verify">
+      <span class="chip ok">✓ LuaJIT 语法检查：汉化后 main.lua 编译通过</span>
+      <span class="chip ok">✓ grep 确认菜单根已为「美术馆」、关于项与帮助文本两处已统一</span>
+      <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-10T110421</code></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>阶段十五 · 全屏「拉伸」模式（三态）+ 导航栏三态按钮 + 长按设默认</h2>
+    <div class="meta">触发：用户在阶段十四审阅后拍板——① stretch 态禁用双击放大/捏合；② 三态默认与循环顺序按最优解（默认 cover、顺序 铺满→适配→拉伸）；③ stretch 首选用弹出一次性变形确认；并新增明确要求：全屏「三态」在导航栏分别有选项、长按选项可设为默认全屏看图模式。本阶段把方案落地为代码（非仅方案）。</div>
+    <h3>改动（main.lua 工作副本）</h3>
+    <ul>
+      <li><b>状态变量升级</b>：<code>self._contain_in_fullscreen</code>（布尔）→ <code>self._fullscreen_fill</code>（枚举 <code>cover</code>/<code>contain</code>/<code>stretch</code>）。<code>init()</code> 读取持久化默认 <code>artgallery_default_fill</code>（缺省 <code>cover</code>）；<code>_toggleFullscreen</code> 进入全屏时套用该默认。</li>
+      <li><b>接口替换</b>：删除旧 <code>_toggleFillMode</code>；新增 <code>_fillLabel</code> / <code>_setFullscreenFill</code>（stretch 首选用弹 <code>ConfirmBox</code> 一次性变形确认，确认后 <code>makeTrue("artgallery_stretch_warned")</code> 不再弹；取消则保持原模式）/ <code>_applyFullscreenFill</code> / <code>_setDefaultFill</code>（<code>saveSetting("artgallery_default_fill", mode)</code> + <code>InfoMessage</code> 提示）。</li>
+      <li><b>stretch 渲染</b>：<code>_new_image_wg</code> 在 <code>_fullscreen_fill=="stretch"</code> 时给 <code>ImageWidget</code> 传 <code>scale_factor=nil</code> + <code>width/height</code> → 走 <code>RenderImage:scaleBlitBuffer(bb, w, h)</code> 非均匀拉伸填满容器（纯净源码 imagewidget.lua:332-338），刚好填满整屏、改变长宽比。抽屉态恒 contain，不触发拉伸。</li>
+      <li><b>cover 判定修正</b>：<code>_computeFitScaleFactor</code> cover 分支由 <code>not _contain_in_fullscreen</code> 改为 <code>_fullscreen_fill=="cover"</code>（stretch 不经此分支）。</li>
+      <li><b>缩放锁定</b>：stretch 态 <code>_applyNewScaleFactor</code> 与 <code>onArtGalleryDoubleTap</code> 提前返回，禁用程序化缩放/双击放大/捏合；<code>_refreshScaleFactor</code> 对 stretch 提前 return 兜底，避免上游把 <code>scale_factor</code> 由 0 改写为数值而误触发"已放大"分支（pill 变还原、禁切图、沉浸显隐失效）。</li>
+      <li><b>导航栏三态按钮</b>：覆盖层构造在「全屏单图态」底部居中建三个 <code>ArtGalleryTextButton</code>（铺满/适配/拉伸），当前模式 <code>inverted</code> 高亮；页码圆点 pill 据此上移一层避开按钮（<code>_fill_cluster_h</code>）。<code>onTap</code> 命中派发 <code>_setFullscreenFill</code>，<code>onHold</code> 长按命中派发 <code>_setDefaultFill</code>。</li>
+      <li><b>菜单同步</b>：原单条「全屏铺满屏幕」替换为三态 radio 项（各带 <code>callback</code> + <code>hold_callback</code>），与导航栏按钮语义一致。</li>
+    </ul>
+    <h3>用户抉择点落实</h3>
+    <ul>
+      <li>① stretch 禁用双击放大/捏合 —— <span class="ok">✓ 已落地</span>（缩放/双击/捏合入口全封锁，stretch 锁定 fit）。</li>
+      <li>② 三态默认与顺序按最优解 —— <span class="ok">✓ 默认 cover（沿用原行为）、展示顺序 铺满→适配→拉伸</span>（最常用在前）。</li>
+      <li>③ stretch 一次性变形确认 —— <span class="ok">✓ ConfirmBox 仅首次弹出</span>（持久化 <code>artgallery_stretch_warned</code>）。</li>
+      <li>★ 新增：导航栏三态按钮 + 长按设默认 —— <span class="ok">✓ 已落地</span>（长按任一态即持久化为默认，下次进全屏自动套用）。</li>
+    </ul>
+    <h3>KPW3 影响评估</h3>
+    <ul>
+      <li>内存：与 cover 同级——满分辨率解码仅当前一张、关闭即释放；无非均匀拉伸专属常驻开销。</li>
+      <li>续航：纯事件驱动，无轮询/后台 timer/网络；仅一次性确认弹窗（用户交互，非后台）。</li>
+      <li>刷新：切图区域级 GC16、缩放/平移 flashless fast；拉伸态禁用缩放故无放大刷新开销。</li>
+      <li>观测点：超大页(&gt;2000px)全分辨率解码为瞬时内存峰（与 cover 同，单次短暂）。</li>
+    </ul>
+    <div class="verify">
+      <span class="chip ok">✓ LuaJIT 语法检查：实现后 main.lua 编译通过</span>
+      <span class="chip ok">✓ grep 确认无 <code>_contain_in_fullscreen</code> / <code>_toggleFillMode</code> 残留引用</span>
+      <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-10T112834</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复测：三态按钮显隐/高亮、长按设默认、stretch 填满且禁用缩放、一次性确认仅弹一次、pill 上移不重叠</span>
+    </div>
+  </section>
+
+  <section class="stage">
+    <h2>阶段十五（修订）· 全屏三态布局简化：撤底部按钮簇，统一收进「右 ⋯」菜单</h2>
+    <div class="meta">触发：用户审阅阶段十五后指出——「底部居中放三态按钮簇」没有必要，把铺满/适配/拉伸三个选项都放进「右 ⋯」菜单即可。本修订据此裁撤导航栏底部按钮簇，长按设默认改为仅在「右 ⋯」菜单项上生效。</div>
+    <ul>
+      <li><b>裁撤落点（5 处全部移除）</b>：① 覆盖层构造中的底部居中三态按钮簇（含 `_fill_cover_frame/_fill_contain_frame/_fill_stretch_frame` 三帧与 `_fill_cluster_h`）；② 覆盖层重建时对该三帧的 `free()` 释放；③ 页码圆点 pill 的 `_fill_cluster_h` 上移避让逻辑；④ `onTap` 中对三帧的命中派发（`_setFullscreenFill`）；⑤ `onHold` 中对三帧的长按派发（`_setDefaultFill`）。</li>
+      <li><b>保留</b>：「右 ⋯」菜单内三态 radio 项（main.lua 约 2581 起）及其 `callback`（`_setFullscreenFill`）与 `hold_callback`（`_setDefaultFill`）——长按菜单项即设默认全屏看图模式，行为不变。</li>
+      <li><b>行为变化</b>：全屏单图态底部不再有铺满/适配/拉伸按钮；切换填充模式与设默认均经「右 ⋯」菜单完成（沉浸式隐藏态需先点底部恢复 chrome 再开 ⋯，与既有沉浸式设计一致）。</li>
+      <li><b>收益</b>：底部行更干净（仅 Prev/⤢/⋯/Next + 页码圆点 pill，pill 不再因避让而上移）；减少 3 个常建 Button widget 的每帧绘制与命中检测开销，对 KPW3 主线程更友好。</li>
+      <li><b>依赖不变</b>：`_setFullscreenFill` / `_applyFullscreenFill` / `_setDefaultFill` / `_fillLabel` 仍服务于菜单项；stretch 渲染（`scale_factor=nil` 非均匀拉伸）与缩放锁定逻辑未动。</li>
+    </ul>
+    <div class="verify">
+      <span class="chip ok">✓ LuaJIT 语法检查：修订后 main.lua 编译通过</span>
+      <span class="chip ok">✓ grep 确认无 <code>_fill_cover_frame</code> / <code>_fill_contain_frame</code> / <code>_fill_stretch_frame</code> / <code>_fill_cluster_h</code> 残留引用（仅剩菜单项注释已更正）</span>
+      <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-10T114805</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复测：全屏底部仅剩标准按钮无三态簇；「右 ⋯」内三态项单击切换 + 长按设默认；pill 居中不偏移；stretch 填满且禁用缩放</span>
+    </div>
+  </section>
+
+  <h2>阶段十六 · 拉伸模式启用缩放手势（双击 / 双指张合 / 按住移动）</h2>
+  <div class="meta">触发：用户重新审视阶段十五决策点①（"stretch 态禁用双击放大/捏合"），希望评估在拉伸模式下重新启用四类手势：双击放大、双指张开放大、双指捏合缩小、按住图片移动。本阶段按已审阅方案 <code>PLAN_stretch_gestures.html</code> 落地实现。</div>
+  <div class="card">
+    <p><b>核心结论</b>：stretch 与 cover 在缩放维度仅一个区别——<code>scale_factor==0</code> 时 stretch 走 ImageWidget 非均匀拉伸、cover 走均匀铺满；进入缩放后二者渲染完全一致。故"放开缩放"= 让 stretch 也能从 fit 进缩放，且缩放下限=cover 均匀填满。</p>
+    <p><b>改动落点（main.lua 工作副本）</b>：</p>
+    <ul>
+      <li><span class="tag mod">改</span><code>_new_image_wg</code>：stretch 非均匀拉伸分支收窄为 <code>and self.scale_factor == 0</code>，已缩放的 stretch 改走均匀数字比例（修 R1：避免缩放态仍被非均匀变形）。</li>
+      <li><span class="tag mod">改</span><code>_computeFitScaleFactor</code>：cover 判定改为 <code>cover or stretch</code>，使 stretch 缩放下限=cover 均匀铺满。</li>
+      <li><span class="tag mod">改</span><code>_refreshScaleFactor</code>：保留 stretch 早返回（护"0=拉伸填满"不变量 R3），并补 <code>self._fit_scale_factor = self:_computeFitScaleFactor()</code> 缓存 cover 下限。</li>
+      <li><span class="tag rm">删</span><code>_applyNewScaleFactor</code> 与 <code>onArtGalleryDoubleTap</code> 的两道 stretch 早返回（核心锁解除，开放双击/程序化缩放）。</li>
+      <li><span class="tag add">加</span>新增 <code>onZoomIn</code> / <code>onZoomOut</code> override：双指张开/捏合分别经此生效；stretch fit 态以 cover 下限为基数放大（修 R2「0 基数进不了缩放」坑）；已缩放态委托上游连续缩放；fit 态再缩小停在填满。</li>
+    </ul>
+    <p><b>四类手势映射</b>：双击放大 → <code>onArtGalleryDoubleTap</code>（0↔_maxScale，同 cover）；双指张开 → <code>onSpread→onZoomIn</code>；双指捏合 → <code>onPinch→onZoomOut</code>；按住移动 → 上游 <code>onPan</code> 缩放后自动可用（零额外代码）。</p>
+    <p><b>不变量保护</b>：<code>_refreshScaleFactor</code> 的 stretch 早返回保留，stretch fit 态 <code>scale_factor</code> 恒为 0（onTap「已放大」分支、pill「还原」态、沉浸显隐、导航按钮均依赖此）。缩放回弹到 ≤ cover 下限即归 0 回到非均匀填满。</p>
+  </div>
+  <div class="card">
+    <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+    <span class="chip ok">✓ grep 核验：stretch 三道守卫仅保留 <code>_refreshScaleFactor</code>（带缓存）；新增 onZoomIn/onZoomOut 已落地；_applyNewScaleFactor / onArtGalleryDoubleTap 守卫已删</span>
+    <span class="chip">方案文档：<code>PLAN_stretch_gestures.html</code>（已标注「已落地」）</span>
+    <span class="chip warn">⚠ 待 KPW3 实机复测：stretch 下 双击放大→平移→捏合缩小→回到填满；双指张开进场；沉浸式态双击不破坏隐藏；cover/contain 缩放/平移/双击无回归</span>
+  </div>
+
+  <h2>阶段十七 · 代码缺陷审查（聚焦阶段十六拉伸手势）</h2>
+  <div class="meta">触发：用户要求"检查是否有代码缺陷或漏洞"。按 diagnose 纪律，先读真实源码逐段核查，再修。</div>
+  <div class="card">
+    <p><b>审查范围</b>：阶段十六拉伸缩放手势的全部落点 + 关联不变量（<code>_new_image_wg</code>、<code>_computeFitScaleFactor</code>、<code>_refreshScaleFactor</code>、<code>_applyNewScaleFactor</code>、<code>onArtGalleryDoubleTap</code>、<code>onZoomIn/onZoomOut</code> override、<code>onPan</code> 滚轮分支、<code>_checkDoubleTap</code> 与沉浸式 350ms 隐藏的取消链路）。</p>
+    <p><b>核查结论（健康项）</b>：</p>
+    <ul>
+      <li>nil 兜底健壮：<code>_isOverFit</code>(:3128) 与 <code>_applyNewScaleFactor</code>(:3227) 均有 <code>or self:_computeFitScaleFactor()</code>，无 "number &lt;= nil" 崩溃风险。</li>
+      <li>手势路由正确：双指张开/捏合经上游 <code>onSpread/onPinch → self:onZoomIn/onZoomOut</code> 命中插件 override；滚轮经 <code>onPan</code> override；双击经 <code>onTap→_checkDoubleTap→onArtGalleryDoubleTap</code>，且 <code>_checkDoubleTap</code>(:2760) 命中时先 <code>unschedule</code> 挂起隐藏再缩放，与沉浸式 350ms 隐藏无冲突。</li>
+      <li>不变量守住：<code>_refreshScaleFactor</code> stretch 早返回保留；<code>_new_image_wg</code> 已将 stretch 收敛为 <code>scale_factor==0</code> 才非均匀拉伸（R1）；<code>_isOverFit</code> 缩放回弹归 0 闭环。</li>
+    </ul>
+    <p><b>发现并修复的缺陷</b>：</p>
+    <ul>
+      <li><span class="tag rm">🔴 缺陷</span><code>_new_image_wg</code>(原 :1821) 与 <code>_computeFitScaleFactor</code>(原 :3151) 的 stretch/cover 分支<b>未门控 <code>self._fullscreen</code></b>，违反"抽屉态恒为 contain"契约（:921/:925/:950）。后果：退出全屏（<code>_fullscreen_fill</code> 保留未重置）或默认态为 stretch 时，抽屉小图被<b>非均匀拉伸变形</b>/裁切。修复：两处均加 <code>self._fullscreen and (...)</code> 门控——全屏 stretch 维持填满、抽屉一律 contain。</li>
+      <li><span class="tag mod">🟡 注释失真</span><code>_applyFullscreenFill</code>(:1023) 注释仍写"stretch 锁定 fit（禁用缩放）"，与阶段十六放开缩放矛盾，已更正为"拉伸态缩放已放开"。</li>
+    </ul>
+    <p><b>未改动项（已确认安全）</b>：<code>onZoomIn/onZoomOut</code> 的 stretch 检查（:2807/:2819）<b>刻意不门控 <code>_fullscreen</code></b>——抽屉态下 <code>_computeFitScaleFactor</code> 已自门控返回 contain 下限，缩放从 contain 起算、无变形，行为正确。</p>
+  </div>
+  <div class="card">
+    <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+    <span class="chip ok">✓ grep 核验：:1825 / :3157 已加 <code>self._fullscreen and</code> 门控；:1023 注释已更正</span>
+    <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-10T122057</code></span>
+    <span class="chip warn">⚠ 待 KPW3 实机复测：全屏拉伸填满、双击/双指缩放、回弹归 0 照常；退出全屏后抽屉图不再变形（关键回归点）；cover/contain 抽屉态仍 contain 无裁切</span>
+  </div>
+
+  <div class="aside">
+    本文件为 artgallery.koplugin 的<b>专属审计时间线</b>，按「每次修改即时追加」原则维护，就近存档于插件 <code>audit/</code> 目录。任何阶段改动完成后应立即补记对应条目，不得积压或事后补记失真。日志约定遵循用户「改前查日志、改后即时记」纪律。
+  </div>
+
+</div>
+</body>
+</html>

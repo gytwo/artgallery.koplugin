@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拉伸模式启用缩放手势 · 设计方案（已落地）</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --line:#2a2f3a;
+    --txt:#d7dce5; --dim:#9aa3b2; --accent:#6ea8fe; --green:#5fd38a;
+    --amber:#f0b860; --red:#f08a8a; --mono:'SFMono-Regular',Consolas,'Liberation Mono',monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+    line-height:1.7;padding:32px 22px 64px}
+  .wrap{max-width:940px;margin:0 auto}
+  h1{font-size:24px;margin:0 0 6px;letter-spacing:.5px}
+  h2{font-size:18px;margin:34px 0 12px;padding-left:10px;border-left:3px solid var(--accent);color:#eaf0fb}
+  h3{font-size:15px;margin:22px 0 8px;color:var(--accent)}
+  .sub{color:var(--dim);font-size:13px;margin:0 0 4px}
+  .badge{display:inline-block;background:var(--panel2);border:1px solid var(--line);
+    color:var(--amber);font-size:12px;padding:2px 10px;border-radius:20px;margin-right:8px}
+  .meta{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:12px 16px;color:var(--dim);font-size:13px;margin:14px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;margin:14px 0}
+  ul{margin:8px 0;padding-left:22px}
+  li{margin:6px 0}
+  code{font-family:var(--mono);background:#0b0e13;border:1px solid var(--line);
+    border-radius:5px;padding:1px 6px;color:#bcd0ff;font-size:13px}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--dim)}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:5px;margin-right:6px}
+  .mod{background:#234;color:#7fd6c0;border:1px solid #2f5}
+  .add{background:#243;color:#9fe6a0;border:1px solid #3a6}
+  .rm{background:#422;color:#f0a0a0;border:1px solid #a44}
+  .k{color:var(--amber)} .g{color:var(--green)} .r{color:var(--red)} .d{color:var(--dim)}
+  .callout{border-left:3px solid var(--amber);background:#1c1810;padding:10px 14px;
+    border-radius:0 8px 8px 0;margin:12px 0;font-size:13px}
+  .ok{border-left-color:var(--green);background:#101c14}
+  .danger{border-left-color:var(--red);background:#1c1010}
+  .aside{margin-top:34px;color:var(--dim);font-size:12px;border-top:1px dashed var(--line);padding-top:14px}
+  .num{color:var(--accent);font-weight:600}
+  pre{background:#0b0e13;border:1px solid var(--line);border-radius:8px;padding:12px 14px;
+    overflow:auto;font-size:12px;line-height:1.55;color:#cdd6e6}
+  pre .c{color:#6b7585} pre .k{color:#f0b860} pre .g{color:#5fd38a}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>拉伸模式启用缩放手势 · 设计方案</h1>
+  <p class="sub"><span class="badge">已落地</span> artgallery.koplugin（KPW3 / KOReader）</p>
+  <div class="meta">
+    缘起：用户在阶段十五审阅后，重新审视当时决策点①（"stretch 态禁用双击放大/捏合"），希望评估在拉伸模式下
+    <b>重新启用</b>以下四类手势的可行性：<b>双击放大</b>、<b>双指张开放大</b>、<b>双指捏合缩小</b>、<b>按住图片移动</b>。<br>
+    本文基于已读真实源码（插件工作副本 + KOReader 纯净源码 <code>koreader-kindle-v2026.07.1</code>）撰写，所有行号锚点均经 grep 核验。<b>本方案尚未编码，仅提交审阅。</b>
+  </div>
+
+  <h2>一、结论：技术上可行，且改动很小</h2>
+  <div class="card">
+    <p><b>可以启用。</b>拉伸（stretch）与铺满（cover）在「缩放」维度上<b>只有一个区别</b>：</p>
+    <ul>
+      <li><code>scale_factor == 0</code>（fit 态）下，stretch 走 <code>ImageWidget</code> 的 <b>非均匀拉伸</b>（传 <code>scale_factor=nil</code> + 精确 <code>width/height</code>），cover 走 <b>均匀铺满</b>（传 <code>wg_scale=fit</code>）。</li>
+      <li>一旦进入缩放（<code>scale_factor != 0</code>），二者<b>渲染完全一致</b>——都是均匀比例 + 居中 + 可平移，没有任何"拉伸/非拉伸"差异。</li>
+    </ul>
+    <p>因此"放开缩放"的本质 = <b>让 stretch 也能从 fit 态进入缩放，且缩放下限=cover 均匀填满</b>。无需改 KOReader 框架，仅插件内：解开 <span class="rm">2 道</span> stretch 守卫 + 修 <span class="mod">1 处</span> 渲染分支 + 新增 <span class="add">2 个</span> 缩放入口 override。</p>
+  </div>
+
+  <h2>二、现状：为什么目前被锁死</h2>
+  <p>阶段十五为 stretch 锁定了缩放，共 <span class="num">3</span> 道守卫，全部在 <code>main.lua</code> 工作副本：</p>
+  <table>
+    <tr><th>落点（当前行号）</th><th>守卫内容</th><th>作用</th></tr>
+    <tr><td><code>onArtGalleryDoubleTap</code> :2775</td><td><code>if self._fullscreen_fill == "stretch" then return true end</code></td><td>双击放大直接被吞</td></tr>
+    <tr><td><code>_applyNewScaleFactor</code> :3193</td><td><code>if self._fullscreen_fill == "stretch" then return end</code></td><td>所有程序化缩放（双击/滚轮/捏合）被忽略——<b>这是核心锁</b></td></tr>
+    <tr><td><code>_refreshScaleFactor</code> :3167</td><td><code>if self._fullscreen_fill == "stretch" then return end</code></td><td>兜底：不让上游把 <code>scale_factor</code> 由 0 改写成数值，以维持"0=拉伸填满"不变量</td></tr>
+  </table>
+  <div class="callout ok">
+    <b>不变量（必须保护）</b>：<code>scale_factor == 0</code> 在 stretch 下恒表示"非均匀拉伸填满"。<code>onTap</code> 的"已放大"分支、页码圆点 pill 的"还原"态、沉浸式显隐逻辑、导航按钮启用/禁用都依赖此不变量。任何改动都<b>不得</b>让 stretch 在 fit 态把 <code>scale_factor</code> 改写成非 0。
+  </div>
+
+  <h2>三、核心难点：从"填满态"进入缩放的数学</h2>
+  <p>上游 <code>onZoomIn(inc)</code>（imageviewer.lua:703）计算：</p>
+  <pre><span class="c">-- 上游逻辑</span>
+<span class="k">function</span> ImageViewer:onZoomIn(inc)
+    self:_refreshScaleFactor()        <span class="c">-- stretch 下此处早返回，scale_factor 仍是 0</span>
+    <span class="k">local</span> new_factor = self.scale_factor * (1 + inc)  <span class="c">-- = 0 * (1+inc) = 0 ！</span>
+    self:_applyNewScaleFactor(new_factor)
+<span class="k">end</span></pre>
+  <p>若 <code>scale_factor==0</code> 而 <code>_refreshScaleFactor</code> 早返回（不解析 0→数值），则 <code>new_factor</code> 恒为 <code>0</code>，<code>_applyNewScaleFactor(0)</code> 会按"缩放回下限"直接归 0——<b>双指张开/捏合从填满态根本无法进入缩放</b>。这是放开手势的真正坑，必须单独处理（见第五节 <code>onZoomIn/onZoomOut</code> override）。</p>
+
+  <h2>四、四个手势的可行性与映射</h2>
+  <table>
+    <tr><th>手势</th><th>上游入口</th><th>当前被锁原因</th><th>放开方式</th><th>可行性</th></tr>
+    <tr>
+      <td><b>双击放大</b></td>
+      <td><code>onArtGalleryDoubleTap</code> → <code>_applyNewScaleFactor(_maxScale())</code></td>
+      <td>:2775 早返回吞掉</td>
+      <td>移除该早返回即可；逻辑与 cover 完全一致（0↔_maxScale）</td>
+      <td><span class="g">✓ 直接可用</span></td>
+    </tr>
+    <tr>
+      <td><b>双指张开放大</b></td>
+      <td><code>onSpread</code> → <code>onZoomIn</code></td>
+      <td>经 <code>_applyNewScaleFactor</code> :3193 守卫</td>
+      <td>解守卫 + 新增 <code>onZoomIn</code> override 修复"0 基数"坑</td>
+      <td><span class="g">✓ 修坑后可用</span></td>
+    </tr>
+    <tr>
+      <td><b>双指捏合缩小</b></td>
+      <td><code>onPinch</code> → <code>onZoomOut</code></td>
+      <td>同上（<code>onZoomOut</code>→<code>_applyNewScaleFactor</code>）</td>
+      <td>解守卫 + 新增 <code>onZoomOut</code> override：在填满态再缩小则停在填满（不穿帮）</td>
+      <td><span class="g">✓ 修坑后可用</span></td>
+    </tr>
+    <tr>
+      <td><b>按住图片移动</b></td>
+      <td><code>onPan</code>（上游 imageviewer.lua:654）</td>
+      <td>无专门守卫；但 fit 态图片已填满，无可平移内容</td>
+      <td>缩放生效后<b>自动可用</b>，无需额外代码（插件 <code>onPan</code> 仅处理鼠标滚轮并委托上游，不拦截真平移）</td>
+      <td><span class="g">✓ 零成本</span></td>
+    </tr>
+  </table>
+
+  <h2>五、具体改动点（按函数）</h2>
+
+  <h3>1. <code>_new_image_wg</code>（~1821）· 渲染分支 <span class="mod">改</span></h3>
+  <pre><span class="c">-- 现状（无条件 nil）：</span>
+<span class="k">if</span> self._fullscreen_fill == <span class="g">"stretch"</span> <span class="k">then</span> wg_scale = nil <span class="k">end</span>
+<span class="c">-- 改为（仅 fit 态非均匀拉伸；已缩放则走均匀数字）：</span>
+<span class="k">if</span> self._fullscreen_fill == <span class="g">"stretch"</span> <span class="k">and</span> self.scale_factor == 0 <span class="k">then</span> wg_scale = nil <span class="k">end</span></pre>
+  <div class="callout danger"><b>R1（必修）</b>：若不收窄为 <code>scale_factor==0</code>，已缩放的 stretch 会被继续传 <code>nil</code> → 缩放视图也被非均匀拉伸变形，违背"缩放后均匀"的设计。这是本方案最关键的一行。</div>
+
+  <h3>2. <code>_computeFitScaleFactor</code>（~3126）· 下限计算 <span class="mod">改</span></h3>
+  <pre><span class="c">-- 让 stretch 的缩放下限 = 均匀铺满（cover），与"填满意图"一致：</span>
+<span class="k">local</span> cover = self._fullscreen_fill == <span class="g">"cover"</span> <span class="k">or</span> self._fullscreen_fill == <span class="g">"stretch"</span></pre>
+  <p>仅影响 <code>_applyNewScaleFactor</code> 的下限判定；非 stretch 的 fit 渲染路径不调用它。</p>
+
+  <h3>3. <code>_refreshScaleFactor</code>（~3167）· 保留早返回 + 补缓存 <span class="mod">改</span></h3>
+  <pre><span class="k">if</span> self._fullscreen_fill == <span class="g">"stretch"</span> <span class="k">then</span>
+    self._fit_scale_factor = self:_computeFitScaleFactor()  <span class="c">-- 缓存 cover 下限，供 _applyNewScaleFactor 使用</span>
+    <span class="k">return</span>  <span class="c">-- 关键：保持 scale_factor==0=拉伸填满，不被上游改写</span>
+<span class="k">end</span></pre>
+  <div class="callout ok"><b>不变量保护</b>：此早返回必须保留。若误删，stretch 在 fit 态 <code>scale_factor</code> 会被改写成数值 → <code>onTap</code> 误判"已放大"（pill 变"还原"、禁切图、沉浸式显隐失效）。</div>
+
+  <h3>4. <code>_applyNewScaleFactor</code>（~3193）· 解核心锁 <span class="rm">删</span></h3>
+  <pre><span class="c">-- 删除此行：</span>
+<span class="c">-- if self._fullscreen_fill == "stretch" then return end</span></pre>
+  <p>删除后缩放数学正常跑：<code>new_factor &gt; 下限(cover)</code> → 均匀缩放；<code>new_factor ≤ 下限</code> → 归 0（回到非均匀填满）。</p>
+
+  <h3>5. <code>onArtGalleryDoubleTap</code>（~2775）· 解早返回 <span class="rm">删</span></h3>
+  <pre><span class="c">-- 删除此行：</span>
+<span class="c">-- if self._fullscreen_fill == "stretch" then return true end</span></pre>
+  <p>删除后双击行为同 cover：<code>was_fit</code>(0=填满) → 跳到 <code>_maxScale()</code> 均匀放大；已放大 → 归 0 填满。</p>
+
+  <h3>6. 新增 <code>onZoomIn</code> / <code>onZoomOut</code> override <span class="add">加</span></h3>
+  <pre><span class="k">function</span> ArtGalleryViewer:onZoomIn(inc)
+    <span class="c">-- 从"拉伸填满态"(scale_factor==0)进入缩放：以 cover 下限为基数，</span>
+    <span class="c">-- 否则 0*(1+inc)=0 永远进不了缩放（见第三节）。</span>
+    <span class="k">if</span> self._fullscreen_fill == <span class="g">"stretch"</span> <span class="k">and</span> self.scale_factor == 0 <span class="k">then</span>
+        <span class="k">local</span> floor = self:_computeFitScaleFactor() <span class="c">-- cover 均匀填满比例</span>
+        inc = inc <span class="k">or</span> 0.2
+        self:_applyNewScaleFactor(floor * (1 + inc))
+        <span class="k">return</span> <span class="k">true</span>
+    <span class="k">end</span>
+    <span class="k">return</span> ImageViewer.onZoomIn(self, inc)
+<span class="k">end</span>
+
+<span class="k">function</span> ArtGalleryViewer:onZoomOut(dec)
+    <span class="c">-- 已在"拉伸填满态"：再缩小无意义（已是最满），停在填满。</span>
+    <span class="k">if</span> self._fullscreen_fill == <span class="g">"stretch"</span> <span class="k">and</span> self.scale_factor == 0 <span class="k">then</span>
+        <span class="k">return</span> <span class="k">true</span>
+    <span class="k">end</span>
+    <span class="k">return</span> ImageViewer.onZoomOut(self, dec)
+<span class="k">end</span></pre>
+  <div class="callout"><b>说明</b>：<code>onSpread</code>（双指张开）调 <code>onZoomIn</code>、<code>onPinch</code>（双指捏合）调 <code>onZoomOut</code>，故这 2 个 override 一并对双指手势生效。插件已 override 多个 <code>ImageViewer</code> 方法，新增这两个风格一致、无冲突。</div>
+
+  <h2>六、UX 建议（待你拍板）</h2>
+  <div class="card">
+    <ul>
+      <li><b>双击跳到哪里？</b> 默认同 cover：直接跳到 <code>_maxScale()</code>（100% 原生，最清晰）。可选：改为跳到 <code>min(_maxScale, 下限×2)</code> 的中度放大，更平缓。推荐沿用 cover 行为（一致、简单）。</li>
+      <li><b>缩放回弹</b>：捏合/缩小到 ≤ cover 下限时，自动归 0 回到"非均匀填满"——视觉上从"均匀填满(裁切)"平滑切回"拉伸填满(变形)"。是否要这个 snap？推荐保留（与 cover 模式缩放回弹到 fit 的体感一致）。</li>
+      <li><b>变形确认弹窗</b>：仅进入 stretch fit 时弹一次（已持久化 <code>artgallery_stretch_warned</code>）。缩放/平移不重弹——合理，因为缩放后是均匀无变形。</li>
+      <li><b>沉浸式（chrome 隐藏）</b>：双击在隐藏态仍走 <code>_checkDoubleTap</code>，会取消 350ms 自动隐藏定时器——放开缩放后此行为不变，无冲突。</li>
+    </ul>
+  </div>
+
+  <h2>七、风险清单</h2>
+  <table>
+    <tr><th>风险</th><th>等级</th><th>说明 / 缓解</th></tr>
+    <tr><td>R1 缩放态仍被非均匀拉伸</td><td><span class="r">高</span></td><td>_new_image_wg 必须收窄为 <code>scale_factor==0</code> 才 nil（第五节·1）</td></tr>
+    <tr><td>R2 从填满态无法进入缩放</td><td><span class="r">高</span></td><td>0 基数坑 → onZoomIn override（第五节·6）</td></tr>
+    <tr><td>R3 不变量被破（scale_factor 被改写）</td><td><span class="r">高</span></td><td>_refreshScaleFactor 早返回必须保留（第五节·3）</td></tr>
+    <tr><td>R4 沉浸式双击取消隐藏失效</td><td><span class="d">低</span></td><td>_checkDoubleTap→onArtGalleryDoubleTap 链路不变，自动兼容</td></tr>
+    <tr><td>R5 缩放后平移越界</td><td><span class="d">低</span></td><td>上限用 _fit_scale_factor（下限已设为 cover），上游 onPan 边界计算正常</td></tr>
+    <tr><td>R6 变形确认误重弹</td><td><span class="d">低</span></td><td>仅 fit 进入触发，缩放/平移不触发，已持久化</td></tr>
+    <tr><td>R7 KPW3 性能 / 内存</td><td><span class="d">低</span></td><td>缩放/平移与 cover 同成本（均匀，单次满分辨率解码）；无新增常驻开销</td></tr>
+    <tr><td>R8 满图态双击跳 _maxScale 跨度大</td><td><span class="d">低</span></td><td>可选降级为 2× 下限（UX 建议）</td></tr>
+  </table>
+
+  <h2>八、校验与回滚</h2>
+  <div class="card">
+    <ul>
+      <li><b>语法</b>：LuaJIT <code>loadfile</code> 编译通过。</li>
+      <li><b>grep 核验</b>：确认 stretch 三道守卫中仅保留 <code>_refreshScaleFactor</code> 的（带缓存），其余两道删除；新增 <code>onZoomIn/onZoomOut</code> override 存在。</li>
+      <li><b>行为回归</b>：cover / contain 模式缩放、双击、平移不受影响（改动对它们路径中性）。</li>
+      <li><b>不变量自检</b>：stretch fit 态 <code>scale_factor</code> 恒为 0；pill 显示"填满"、导航可用、沉浸显隐正常。</li>
+      <li><b>回滚</b>：动工前整文件备份至 <code>Backup/plugins/artgallery.koplugin/</code>；若异常直接覆盖还原。</li>
+      <li><b>KPW3 实机复测</b>：stretch 下双击放大→平移→捏合缩小→回到填满；双指张开进场；沉浸式态双击不破坏隐藏。</li>
+    </ul>
+  </div>
+
+  <div class="aside">
+    本文件为 artgallery.koplugin 的<b>专属方案文档</b>，按「改前查日志、改后即时记」纪律就近存档于插件 <code>audit/</code> 目录。<br>
+    关联：<code>CHANGELOG.html</code> 阶段十五（stretch 落地 + 三态按钮簇撤裁）、<code>PLAN_stretch_mode.html</code>（stretch 原设计，已落地）。本方案已于 <b>阶段十六</b> 按第五节改动点落地编码，校验见 CHANGELOG 阶段十六条目。
+  </div>
+
+</div>
+</body>
+</html>

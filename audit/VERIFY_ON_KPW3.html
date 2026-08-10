@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美术馆 · KPW3 真机验证计划</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel-2: #1e222b; --border: #2a2f3a;
+    --text: #e6e9ef; --muted: #9aa3b2; --accent: #5aa9ff; --accent-2: #7ee0b8;
+    --warn: #ffcc66; --danger: #ff8a8a; --ok: #7ee0b8;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f7fa; --panel: #ffffff; --panel-2: #eef1f6; --border: #d8dee8;
+      --text: #1c2230; --muted: #5b6678; --accent: #1a6fe0; --accent-2: #1f9d6b;
+      --warn: #b8791a; --danger: #c0392b; --ok: #1f9d6b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 20px 64px; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65; font-size: 15px; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  header.hero { border-bottom: 1px solid var(--border); padding-bottom: 18px; margin-bottom: 24px; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  h2 { font-size: 19px; margin: 34px 0 12px; padding-left: 10px; border-left: 3px solid var(--accent); }
+  h3 { font-size: 16px; margin: 20px 0 8px; color: var(--accent-2); }
+  p { margin: 8px 0; }
+  code { font-family: var(--mono); background: var(--panel-2); padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin: 14px 0; }
+  .callout { background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid var(--warn);
+    border-radius: 8px; padding: 12px 14px; margin: 14px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 9px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--panel-2); color: var(--muted); font-weight: 600; }
+  .chip { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; margin: 3px 4px 3px 0;
+    border: 1px solid var(--border); }
+  .chip.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+  .chip.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--border)); }
+  .chip.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+  ol li, ul li { margin: 6px 0; }
+  .foot { margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+  .kbd { font-family: var(--mono); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px;
+    padding: 1px 7px; font-size: 13px; background: var(--panel-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <h1>美术馆 · KPW3 真机验证计划</h1>
+    <p style="color:var(--muted)">artgallery.koplugin v1.0.0 — 阶段一至三已完成（headless 语法 + 核心逻辑单测通过）。本计划覆盖 <b>headless 无法验证</b> 的真机交互：LuaSettings 持久化、Archiver C 绑定（CBZ）、ConfirmBox UI、墨水屏刷新。</p>
+  </header>
+
+  <div class="callout">
+    <b>为什么需要真机验证？</b> 之前的 headless 测试只覆盖了纯 Lua 逻辑（<code>scanner.scan_cbz</code> 过滤/自然排序、迁移字节复制/碰撞后缀）。以下依赖 KOReader 运行时 C 绑定与 UI 事件，只能在 KPW3 上跑：收藏索引读写、CBZ 解包、迁移 ConfirmBox、全屏波形刷新。
+  </div>
+
+  <h2>一、部署前置</h2>
+  <div class="panel">
+    <ol>
+      <li>将 <code>artgallery.koplugin</code> 复制到设备的 <code>koreader/plugins/</code> 目录。</li>
+      <li><b>移除</b> <code>illustrations.koplugin</code> 与 <code>glimpse.koplugin</code>（同名插件双装会产生重复菜单入口，且旧 Illustrations 的 <code>Favorites/</code> 会被迁移逻辑探测到）。</li>
+      <li>完全退出并重启 KOReader（确保插件被重新加载）。</li>
+      <li>（可选）保留 <code>E:\Download\AIWorkshop\Backup\plugins\artgallery.koplugin\</code> 作为回滚源。</li>
+    </ol>
+  </div>
+
+  <h2>二、功能验证清单</h2>
+  <table>
+    <thead><tr><th style="width:18%">能力</th><th style="width:34%">操作路径</th><th style="width:30%">预期行为</th><th style="width:18%">crash.log 关注</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>① 全屏切换 ⤢</b></td>
+        <td>打开含图书籍 → 调出 美术馆 抽屉 → 点 ⤢ 图标（或对应手势）</td>
+        <td>抽屉展开为全屏 <code>panel_ratio=1.0</code>，缩放/平移/旋转仍可用；再点收回复原抽屉宽度。</td>
+        <td>无 <code>ArtGallery</code> 报错</td>
+      </tr>
+      <tr>
+        <td><b>② 全局收藏</b></td>
+        <td>抽屉中 ⭐ 某图 → 退出书籍到文件管理器 → 菜单「收藏 → 显示收藏」</td>
+        <td>收藏画廊在<b>无书本</b>时也能打开（不崩）；缩略图来自 <code>DataStorage:getDataDir()/artgallery/favorites/</code>；长按可移除。</td>
+        <td>关注 <code>showFavorites</code> / <code>_showExternalGallery</code></td>
+      </tr>
+      <tr>
+        <td><b>③ 旧收藏迁移</b></td>
+        <td>若设备曾有 Illustrations 且 <code>&lt;cache&gt;/illustrations/Favorites/</code> 存在 → 首次「显示收藏」</td>
+        <td>弹 ConfirmBox「迁移 / 忽略」。迁移后旧图字节复制到 artgallery/favorites/ 并登记索引；忽略后不再打扰（<code>LEGACY_MIGRATED_KEY</code>）。</td>
+        <td>关注 <code>_migrateLegacyFavorites</code> / <code>_offerLegacyMigration</code></td>
+      </tr>
+      <tr>
+        <td><b>④ GitHub 更新检查</b></td>
+        <td>菜单「更新」（继承 Glimpse，含预发布开关）</td>
+        <td>联网查询最新 release；无网络/无更新时优雅提示，不卡死。</td>
+        <td>关注网络异常分支</td>
+      </tr>
+      <tr>
+        <td><b>⑤ 最小尺寸过滤</b></td>
+        <td>设置中调整过滤级别（<code>FILTER_KEY</code>，继承）</td>
+        <td>低于阈值的图从画廊移除；阈值=0 时不过滤。</td>
+        <td>关注 <code>scanner.filter</code></td>
+      </tr>
+      <tr>
+        <td><b>⑥ CBZ 浏览</b></td>
+        <td>文件管理器选中 <code>*.cbz</code> → 菜单「浏览 CBZ 漫画」</td>
+        <td>经 <code>Archiver.Reader</code> 解包到内存，按自然序逐页浏览；<b>刻意不走</b> <code>scanner.filter</code>（漫画每页皆正文）。</td>
+        <td>关注 <code>scanner.scan_cbz</code> / <code>Archiver</code></td>
+      </tr>
+      <tr>
+        <td><b>⑦ 作用域三态</b></td>
+        <td>抽屉 ⋯ → 切换作用域（全书 / 章节 / 当前页）</td>
+        <td>「当前页」仅显示已读到位置的图（剧透保护）；切换即时刷新画廊。</td>
+        <td>关注 <code>_imagePage</code> / <code>on_toggle_scope</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>三、墨水屏（E-ink）专项</h2>
+  <div class="panel">
+    <ul>
+      <li><b>刷新波形</b>：全屏/切页应走 <code>full</code> 或 <code>GC16</code> 波形（干净非残影），抽屉内轻交互可用 <code>UI</code> 波形。</li>
+      <li><b>点对点抖动</b>：渐变/阴影（如抽屉投影）应抖动为点阵，避免灰阶拖影；可在设置关闭阴影（<code>SHADOW_KEY</code>）对比验证。</li>
+      <li><b>响应与功耗</b>：KPW3 CPU 受限，大图解码 + 全屏刷新应有可感知但可接受的延迟（&lt;1s 为佳）；连续翻页不显著发热。</li>
+    </ul>
+  </div>
+
+  <h2>四、诊断与回滚</h2>
+  <div class="panel">
+    <p><b>crash.log 排查</b>（设备 <code>koreader/crash.log</code>）：</p>
+    <ul>
+      <li><code>grep -i "美术馆" crash.log</code> — 看插件级报错。</li>
+      <li><code>grep -n "stack traceback" crash.log</code> — 定位崩溃栈。</li>
+      <li>注意 <code>LOG_TAG</code>：插件日志若带 <code>[ArtGallery]</code> 可快速过滤。</li>
+    </ul>
+    <p><b>回滚</b>（出现异常时）：</p>
+    <ol>
+      <li>删除 <code>koreader/plugins/artgallery.koplugin</code>。</li>
+      <li>从 <code>E:\Download\AIWorkshop\Backup\plugins\artgallery.koplugin\</code> 取最近备份，或重装 <code>glimpse.koplugin</code> 恢复抽屉式体验。</li>
+      <li>重启 KOReader。</li>
+    </ol>
+  </div>
+
+  <div class="callout">
+    <b>验证通过标准：</b> 上述 7 项能力在 KPW3 上均可触发且行为符合「预期」列；crash.log 中无新增 <code>ArtGallery</code> 报错或 <code>stack traceback</code>。通过即代表 artgallery.koplugin v1.0.0 可发布。
+  </div>
+
+  <div class="foot">
+    配套文档：<code>audit/CHANGELOG.html</code>（阶段一~三改动时间线）。StyLua 整文件格式化经实证确认不适用本插件（会抹平 Glimpse 基线列对齐、产生 2500+ 行噪声 diff），已排除。
+  </div>
+</div>
+</body>
+</html>
