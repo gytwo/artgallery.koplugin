@@ -1082,6 +1082,28 @@
     </div>
   </section>
 
+  <section class="stage">
+    <h2>阶段二十二 · 修复插件「未加载」致命错误（加载期类顺序）</h2>
+    <div class="meta">触发：KPW3 实装后插件完全加载失败，crash.log 报 <code>main.lua:365: attempt to index global 'ArtGalleryViewer' (a nil value)</code>。用户已更新 crash.log 供诊断。</div>
+    <div class="card">
+      <p><b>根因</b>：<code>ArtGalleryViewer:_getCornerIcon</code>（原 365 行）与 <code>_galleryFilterLabel</code>（原 384 行）两个<strong>方法定义</strong>被放在了 <code>local ArtGalleryViewer = ImageViewer:extend{...}</code>（918 行）类声明<strong>之前</strong>。Lua 加载期执行到 <code>function ArtGalleryViewer:method</code> 时会索引 <code>ArtGalleryViewer</code>，此时它尚是 nil 全局 → 抛错并中止整个插件加载。</p>
+      <p><b>修复</b>：将这两个方法整体移至类声明结束（978 行 <code>}</code>）之后、<code>init()</code> 之前重新定义；原位置仅留说明注释。KOReader 标准写法即「先 <code>local Class = Base:extend{...}</code> 声明类，再在其后定义方法」。原 365 报错点即 Fix ④⑤ 阶段新增角标能力时插入错位所致。</p>
+      <ul>
+        <li><span class="tag fix">修</span>移动 <code>_getCornerIcon</code> / <code>_galleryFilterLabel</code> 至类声明之后（现 958 / 977 行）。</li>
+        <li><span class="tag ok">核验</span>编写静态检查脚本（遍历所有 <code>function Class:method</code> 比对同名 <code>local Class = ...:extend</code> 声明行号），确认全文件已无「方法定义在类声明之前」的同类隐患。</li>
+        <li><span class="tag ok">核验</span>编写宽松代理加载器（桩接 KOReader 运行时全局，插件类名不预置为全局以复现该 bug），真实 <code>dofile</code> 执行 main.lua 加载期代码 → <code>LOAD_OK</code>，无异常。</li>
+        <li><span class="tag warn">经验</span><code>luajit loadfile</code> 仅解析、不执行，无法发现此类加载期运行时错误；今后插件改完后除语法校验外，须额外做「加载期执行」校验（静态顺序检查 + 代理加载测试）。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 静态类顺序检查：未检测到 method 早于类名声明</span>
+      <span class="chip ok">✓ 代理加载测试：<code>LOAD_OK</code></span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.6</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复装：插件应恢复正常加载，功能（收藏/长按菜单/图库三态/全屏三态图标/关于说明）应可用</span>
+    </div>
+  </section>
+
   <div class="aside">
     本文件为 artgallery.koplugin 的<b>专属审计时间线</b>，按「每次修改即时追加」原则维护，就近存档于插件 <code>audit/</code> 目录。任何阶段改动完成后应立即补记对应条目，不得积压或事后补记失真。日志约定遵循用户「改前查日志、改后即时记」纪律。
   </div>

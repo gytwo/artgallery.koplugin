@@ -361,32 +361,9 @@ function ArtGalleryCornerBadge:paintTo(bb, x, y)
 end
 function ArtGalleryCornerBadge:free() end  -- 图标归 _corner_icons 缓存所有，勿释放
 
--- 渲染并缓存某 SVG 的黑色/白色两版；dark=true 时返回白色（反相）版本。
-function ArtGalleryViewer:_getCornerIcon(svg_path, size, dark)
-    self._corner_icons = self._corner_icons or {}
-    local entry = self._corner_icons[svg_path]
-    if not entry then
-        local ok, ibb = pcall(RenderImage.renderSVGImageFile, RenderImage,
-            svg_path, size, size)
-        if not (ok and ibb) then return nil end
-        entry = { black = ibb }
-        -- 白色版本：对黑色图标矩形反相（保留 alpha，仅反色）
-        local w, h = ibb:getWidth(), ibb:getHeight()
-        local inv = ibb:copy()
-        pcall(inv.invertRect, inv, 0, 0, w, h)
-        entry.white = inv
-        self._corner_icons[svg_path] = entry
-    end
-    return dark and entry.white or entry.black
-end
-
--- 画廊循环过滤的当前中文标签（用于 ⋯ 按钮与底部 pill）。
-function ArtGalleryViewer:_galleryFilterLabel()
-    local f = self._gallery_filter or "all"
-    if f == "ignored" then return _("图库（忽略）") end
-    if f == "favorites" then return _("图库（收藏）") end
-    return _("图库（全部）")
-end
+-- （_getCornerIcon / _galleryFilterLabel 两个 ArtGalleryViewer 方法已移至本文件
+--   下方 local ArtGalleryViewer = ImageViewer:extend{...} 类声明之后定义，
+--   避免加载期执行到此处时 ArtGalleryViewer 尚未声明而被当作 nil 全局索引报错。）
 
 -- The ⋯ button: solid white rounded square with an anti-aliased 2px black
 -- border, so it stays visible over any image. `disabled` grays the border
@@ -976,6 +953,33 @@ local ArtGalleryViewer = ImageViewer:extend{
     -- silently swallow our tap pairs into unhandled double_tap gestures.
     disable_double_tap = true,
 }
+
+-- 渲染并缓存某 SVG 的黑色/白色两版；dark=true 时返回白色（反相）版本。
+function ArtGalleryViewer:_getCornerIcon(svg_path, size, dark)
+    self._corner_icons = self._corner_icons or {}
+    local entry = self._corner_icons[svg_path]
+    if not entry then
+        local ok, ibb = pcall(RenderImage.renderSVGImageFile, RenderImage,
+            svg_path, size, size)
+        if not (ok and ibb) then return nil end
+        entry = { black = ibb }
+        -- 白色版本：对黑色图标矩形反相（保留 alpha，仅反色）
+        local w, h = ibb:getWidth(), ibb:getHeight()
+        local inv = ibb:copy()
+        pcall(inv.invertRect, inv, 0, 0, w, h)
+        entry.white = inv
+        self._corner_icons[svg_path] = entry
+    end
+    return dark and entry.white or entry.black
+end
+
+-- 画廊循环过滤的当前中文标签（用于 ⋯ 按钮与底部 pill）。
+function ArtGalleryViewer:_galleryFilterLabel()
+    local f = self._gallery_filter or "all"
+    if f == "ignored" then return _("图库（忽略）") end
+    if f == "favorites" then return _("图库（收藏）") end
+    return _("图库（全部）")
+end
 
 function ArtGalleryViewer:init()
     self._cur_rotation = self:_prefFor(1).rotation or 0
