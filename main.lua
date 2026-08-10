@@ -23,6 +23,7 @@ local GestureRange = require("ui/gesturerange")
 local ImageViewer = require("ui/widget/imageviewer")
 local ImageWidget = require("ui/widget/imagewidget")
 local InfoMessage = require("ui/widget/infomessage")
+local TextViewer = require("ui/widget/textviewer")
 local InputContainer = require("ui/widget/container/inputcontainer")
 local LineWidget = require("ui/widget/linewidget")
 local LuaSettings = require("luasettings")
@@ -2415,7 +2416,7 @@ function ArtGalleryViewer:_galleryLayout()
     local tab = self._gallery_filter or "all"
     self._gallery_layouts = self._gallery_layouts or {}
     if self._gallery_layouts[tab] then return self._gallery_layouts[tab] end
-    local _, metas, nb = self:_tabList()
+    local _list, metas, nb = self:_tabList()  -- 首返回值(list)未直接用；勿用 _ 承接，否则遮蔽 gettext 的 _()
     local m = self:_galleryMetrics()
     local cols = self.gallery_cols
     local col_w = math.floor(
@@ -2622,7 +2623,7 @@ function ArtGalleryViewer:_buildGallery()
     local cur_meta = self.image_metas
         and self.image_metas[self._images_list_cur or 1]
     local band_top = self:_headMetrics().band_top
-    local _, metas, count = self:_tabList()
+    local _list, metas, count = self:_tabList()  -- 首返回值(list)未直接用，但切勿用 _ 承接，否则会遮蔽 gettext 的 _()
     local title_wg = TextWidget:new{
         text = self:_galleryFilterLabel(),
         face = Font:getFace("cfont", 16),
@@ -5806,11 +5807,15 @@ function ArtGallery:_menuItems()
                     "\n【快捷动作设置】\n" ..
                     "· 插件的「快捷动作」可自定义 ⋯ 菜单与按钮中显示哪些功能；关闭全部后 ⋯ 按钮会自动隐藏。"
                 )
-                UIManager:show(InfoMessage:new{
+                -- 改用 TextViewer（全屏可滚动长文本）而非 InfoMessage：
+                -- ① 长文可完整滚动阅读、不裁切；② 避开 BookLoadCover Plus 对
+                --    InfoMessage 的补丁（patchInfoMessage）在 height/ScrollTextWidget
+                --    路径上的兼容问题，确保弹窗稳定显示。
+                UIManager:show(TextViewer:new{
+                    title = _("关于 美术馆"),
                     text = guide .. "\n\n--------\n\n" ..
                         T(_("美术馆 / ArtGallery v%1\n\n基于 Glimpse 合并 Illustrations 的全屏看图能力。\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
                             _installed_version()),
-                    height = math.floor(Screen:getHeight() * 0.85),
                 })
             end,
         },

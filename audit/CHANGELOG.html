@@ -1104,6 +1104,39 @@
     </div>
   </section>
 
+  <section>
+    <div class="card">
+      <h2>阶段二十三 · 修复「图库崩溃」与「关于弹窗不显示」· v1.0.7</h2>
+      <h3>① 动机（来自真机 crash.log）</h3>
+      <ul>
+        <li><b>图库崩溃</b>：点击「图库（全部/收藏/忽略）」循环按钮后 KOReader 崩溃。crash.log 堆栈：
+          <code>main.lua:2650: attempt to call local '_' (a table value)</code>，位于 <code>_buildGallery</code>。</li>
+        <li><b>关于不显示</b>：点击「关于 美术馆」菜单无任何文本弹窗，但崩溃日志中无关于的 stack traceback（说明回调未抛错，弹窗被渲染异常吞掉）。</li>
+      </ul>
+      <h3>② 根因与改动点</h3>
+      <ul>
+        <li><b>图库崩溃根因</b>：<code>_buildGallery</code> 开头 <code>local _, metas, count = self:_tabList()</code> 用局部变量 <code>_</code> 承接首返回值（一个 list table），<b>遮蔽了 gettext 的 <code>_()</code> 函数</b>；随后 line 2650 的 <code>_("1 张图片")</code> 实际调用的是该 table → 崩溃。修复：将 <code>local _</code> 改名为 <code>local _list</code>。并顺手加固 <code>_galleryLayout</code> 中同款的 <code>local _, metas, nb = ...</code>（line 2419）隐患。</li>
+        <li><b>关于不显示根因</b>：v1.0.4 把关于文案改用 <code>InfoMessage</code> 并设 <code>height</code> 以触发 <code>ScrollTextWidget</code> 滚动；但真机装有 <b>BookLoadCover Plus</b> 插件，它对 <code>InfoMessage</code> 打了补丁（crash.log 记录 <code>patchInfoMessage 初始化完成</code>）。该补丁在 <code>height</code>/ScrollTextWidget 路径上渲染异常，使弹窗尺寸失效、不可见。修复：改用 KOReader 标准 <b><code>TextViewer</code></b>（全屏可滚动长文本，自带标题栏与关闭按钮），<b>完全不经过 InfoMessage，免疫该补丁</b>，且长文可完整滚动、不裁切。</li>
+      </ul>
+      <h3>③ 校验</h3>
+      <ul>
+        <li><span class="tag ok">LuaJIT 语法校验</span><code>SYNTAX OK</code></li>
+        <li><span class="tag ok">静态类顺序检查</span>未检测到 method 早于类名声明</li>
+        <li><span class="tag ok">代理加载测试</span><code>LOAD_OK</code>（加载期执行无异常）</li>
+        <li><span class="tag ok">全量排查 <code>_("</code> 调用</span>确认所有 gettext 调用均处于正确作用域，无残留 <code>local _</code> 遮蔽</li>
+        <li><span class="tag warn">经验</span>「<code>local _, x = f()</code> 丢弃首返回值」会静默遮蔽 gettext <code>_()</code>，是隐蔽崩溃源；与「方法早于类声明」同属「加载期/运行期才暴露、<code>loadfile</code> 语法校验漏网」类问题，须靠代理加载测试 + 作用域排查兜底。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 静态类顺序检查：OK</span>
+      <span class="chip ok">✓ 代理加载测试：<code>LOAD_OK</code></span>
+      <span class="chip ok">✓ 全量 <code>_("</code> 作用域排查：无残留遮蔽</span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.7</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复测：图库循环按钮不再崩溃；关于弹窗以全屏可滚动文本正常显示</span>
+    </div>
+  </section>
+
   <div class="aside">
     本文件为 artgallery.koplugin 的<b>专属审计时间线</b>，按「每次修改即时追加」原则维护，就近存档于插件 <code>audit/</code> 目录。任何阶段改动完成后应立即补记对应条目，不得积压或事后补记失真。日志约定遵循用户「改前查日志、改后即时记」纪律。
   </div>
