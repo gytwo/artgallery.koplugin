@@ -974,6 +974,19 @@
     <p><b>安装方式</b>：下载 <code>artgallery.koplugin-v1.0.0.zip</code> → 解压得到 <code>artgallery.koplugin</code> 文件夹 → 复制到 KOReader 的 <code>plugins/</code> 目录 → 重启 KOReader。</p>
   </section>
 
+  <section>
+    <h2>阶段十九 · README 致谢：溯源 Glimpse / Illustrations 原作者与项目链接</h2>
+    <div class="meta">日期：2026-08-10 | 作者：ksaMask | 类型：文档 / 致谢</div>
+    <p><b>需求</b>：在 GitHub 上找到 Glimpse.koplugin 与 Illustrations.koplugin 的作者名及项目链接，写进 <code>README.md</code> 致谢。</p>
+    <p><b>溯源结论（已用 GitHub API 核验）</b>：</p>
+    <ul>
+      <li><b>Glimpse</b> — 作者 GitHub 用户名 <code>Fank1</code>（即插件源码注释 "作者：Erik Fanki" 中的 Erik Fanki），项目 <a href="https://github.com/Fank1/glimpse">github.com/Fank1/glimpse</a>（Lua，★84）。描述：KOReader 插件，可在书中任意位置查看地图、族谱等参考图而不丢失阅读位置。</li>
+      <li><b>Illustrations</b> — 作者 <code>agaragou</code>，项目 <a href="https://github.com/agaragou/illustrations.koplugin">github.com/agaragou/illustrations.koplugin</a>（Lua，★33）。描述：浏览、预览、导航 EPUB 内全部插图的 KOReader 插件。</li>
+    </ul>
+    <p><b>落点</b>：<code>README.md</code> 的「致谢 / Credits」段由泛写（仅 "Erik Fanki（Glimpse、Illustrations 等）"）重写为中英双语、带两位原作者 GitHub 主页与项目链接的正式致谢；并注明本插件（原 Mirador）由 Erik Fanki 创作、当前 fork 由 ksaMask 维护发布于 <code>ksaMask123/artgallery.koplugin</code>。已复制回 KOReader 工作副本并推送仓库。</p>
+    <p><b>旁证</b>：插件 <code>main.lua:5457 / :5460</code> 注释 "基于 Glimpse 合并 Illustrations 的全屏看图能力" 与 "作者：Erik Fanki（fork: ksaMask）" 与上方溯源一致，确认 Glimpse/Illustrations 上游归属。</p>
+  </section>
+
   <div class="aside">
     本文件为 artgallery.koplugin 的<b>专属审计时间线</b>，按「每次修改即时追加」原则维护，就近存档于插件 <code>audit/</code> 目录。任何阶段改动完成后应立即补记对应条目，不得积压或事后补记失真。日志约定遵循用户「改前查日志、改后即时记」纪律。
   </div>
