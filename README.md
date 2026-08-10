@@ -85,9 +85,21 @@ The root `CHANGELOG.md` is a bilingual summary; the full chronological log lives
 
 ## 致谢 / Credits
 
-- 原作 / Original: **Erik Fanki**（Glimpse、Illustrations 等 KOReader 社区插件）
-- 本分支维护 / This fork: **ksaMask**
-- Based on Glimpse, merging the fullscreen image-viewing capability of Illustrations; originally named Mirador.
+本插件（美术馆 / ArtGallery，原名 **Mirador**）由 **Erik Fanki** 创作，是 **Glimpse** 与 **Illustrations** 两个 KOReader 社区插件能力的合并与延续。在此特别致谢两位原作者的开源贡献：
+
+- **Glimpse** — 作者 [Fank1（Erik Fanki）](https://github.com/Fank1) · 项目：[github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
+  > Glimpse is a plugin for KOReader that lets you peek at maps, family trees and other reference images from anywhere in a book without losing your reading position.
+- **Illustrations** — 作者 [agaragou](https://github.com/agaragou) · 项目：[github.com/agaragou/illustrations.koplugin](https://github.com/agaragou/illustrations.koplugin)
+  > A plugin for KOReader that allows you to browse, preview, and navigate through all illustrations contained in an EPUB book.
+
+当前分支（ArtGallery）由 **ksaMask** 维护并发布于 [ksaMask123/artgallery.koplugin](https://github.com/ksaMask123/artgallery.koplugin)。
+
+**English**: This plugin (ArtGallery, originally named **Mirador**) was created by **Erik Fanki**, merging and building upon two community KOReader plugins, **Glimpse** and **Illustrations**. Special thanks to both original authors for their open-source work:
+
+- **Glimpse** — by [Fank1 (Erik Fanki)](https://github.com/Fank1) · [github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
+- **Illustrations** — by [agaragou](https://github.com/agaragou) · [github.com/agaragou/illustrations.koplugin](https://github.com/agaragou/illustrations.koplugin)
+
+The current fork (ArtGallery) is maintained and published by **ksaMask** at [ksaMask123/artgallery.koplugin](https://github.com/ksaMask123/artgallery.koplugin).
 
 ## 许可证 / License
 
