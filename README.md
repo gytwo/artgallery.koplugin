@@ -29,15 +29,25 @@
 
 ## 安装 / Installation
 
+### 方式一：Release 安装包（推荐）/ Option 1: Release package (recommended)
+
 **中文**：
-1. 将本仓库整个 `artgallery.koplugin` 目录下载到你的设备；
-2. 复制到 KOReader 的插件目录 `koreader/plugins/`（即设备上的 `KOReader/plugins/artgallery.koplugin/`）；
-3. 重启 KOReader，即可在书籍内通过菜单「美术馆」打开看图。
+1. 前往 [Releases · v1.0.0](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.0)；
+2. 下载 `artgallery.koplugin-v1.0.0.zip`；
+3. 解压得到 `artgallery.koplugin` 文件夹，复制到 KOReader 的插件目录 `koreader/plugins/`（设备上路径为 `KOReader/plugins/artgallery.koplugin/`）；
+4. 重启 KOReader，即可在书籍内通过菜单「美术馆」打开看图。
 
 **English**:
-1. Download the whole `artgallery.koplugin` folder from this repository;
-2. Copy it into KOReader's plugin directory `koreader/plugins/` (i.e. `KOReader/plugins/artgallery.koplugin/` on your device);
-3. Restart KOReader. Open the viewer from the in-book menu item **美术馆 / ArtGallery**.
+1. Go to [Releases · v1.0.0](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.0);
+2. Download `artgallery.koplugin-v1.0.0.zip`;
+3. Extract the `artgallery.koplugin` folder and copy it into KOReader's plugin directory `koreader/plugins/` (i.e. `KOReader/plugins/artgallery.koplugin/` on your device);
+4. Restart KOReader. Open the viewer from the in-book menu item **美术馆 / ArtGallery**.
+
+### 方式二：手动复制源码 / Option 2: Copy source manually
+
+**中文**：直接下载本仓库的 `artgallery.koplugin` 目录（保持文件夹名不变），复制到 `koreader/plugins/`，然后重启 KOReader。
+
+**English**: Download the `artgallery.koplugin` folder from this repository (keep the folder name unchanged), copy it into `koreader/plugins/`, and restart KOReader.
 
 ## 使用 / Usage
 
