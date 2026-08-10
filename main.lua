@@ -332,6 +332,64 @@ function ArtGalleryBadge:free()
     if self._txt then self._txt:free() end
 end
 
+-- 取 BlitBuffer 某点的“显示亮度”（0=黑 / 255=白）。getPixel 已按帧缓冲
+-- 反相处理返回颜色；灰度缓冲（KPW3 为 BB8）用 getColor8().a，其他类型
+-- 退回 RGB 平均。用于决定右下角角标画黑还是画白（角点偏暗则反白）。
+local function _cornerLuma(bb, x, y)
+    local ok, c = pcall(function() return bb:getPixel(x, y) end)
+    if not (ok and c) then return 255 end
+    local ok8, g = pcall(function() return c:getColor8() end)
+    if ok8 and g then return g.a or 255 end
+    local ok32, rgb = pcall(function() return c:getColorRGB32() end)
+    if ok32 and rgb then return math.floor((rgb.r + rgb.g + rgb.b) / 3) end
+    return 255
+end
+
+-- 图库（全部）视图右下角的状态角标：⭐（已收藏）/ 划掉眼睛（已忽略）。
+-- 图标为预渲染 bb（按角点亮度决定黑或白），由 viewer 的图标缓存共享，
+-- 故此 widget 不持有图标所有权（free 不释放）。
+local ArtGalleryCornerBadge = Widget:extend{
+    icon = nil,   -- 已按角点亮度修正颜色的 bb
+    size = Screen:scaleBySize(18),
+}
+function ArtGalleryCornerBadge:getSize()
+    return Geom:new{ w = self.size, h = self.size }
+end
+function ArtGalleryCornerBadge:paintTo(bb, x, y)
+    self.dimen = Geom:new{ x = x, y = y, w = self.size, h = self.size }
+    if self.icon then
+        bb:alphablitFrom(self.icon, x, y, 0, 0, self.size, self.size)
+    end
+end
+function ArtGalleryCornerBadge:free() end  -- 图标归 _corner_icons 缓存所有，勿释放
+
+-- 渲染并缓存某 SVG 的黑色/白色两版；dark=true 时返回白色（反相）版本。
+function ArtGalleryViewer:_getCornerIcon(svg_path, size, dark)
+    self._corner_icons = self._corner_icons or {}
+    local entry = self._corner_icons[svg_path]
+    if not entry then
+        local ok, ibb = pcall(RenderImage.renderSVGImageFile, RenderImage,
+            svg_path, size, size)
+        if not (ok and ibb) then return nil end
+        entry = { black = ibb }
+        -- 白色版本：对黑色图标矩形反相（保留 alpha，仅反色）
+        local w, h = ibb:getWidth(), ibb:getHeight()
+        local inv = ibb:copy()
+        pcall(inv.invertRect, inv, 0, 0, w, h)
+        entry.white = inv
+        self._corner_icons[svg_path] = entry
+    end
+    return dark and entry.white or entry.black
+end
+
+-- 画廊循环过滤的当前中文标签（用于 ⋯ 按钮与底部 pill）。
+function ArtGalleryViewer:_galleryFilterLabel()
+    local f = self._gallery_filter or "all"
+    if f == "ignored" then return _("图库（忽略）") end
+    if f == "favorites" then return _("图库（收藏）") end
+    return _("图库（全部）")
+end
+
 -- The ⋯ button: solid white rounded square with an anti-aliased 2px black
 -- border, so it stays visible over any image. `disabled` grays the border
 -- and icon (used by prev/next at the ends of the image list); `inverted`
@@ -626,14 +684,16 @@ local ArtGalleryMenuRow = Widget:extend{
     icon_col = 0,       -- reserved icon+gap width (0 if no row has an icon)
     icon_size = Screen:scaleBySize(18),
     pad_left = Screen:scaleBySize(16),
+    enabled = true,     -- false → 灰显且点按无效（互斥态行置灰，见 ArtGalleryPopupMenu）
 }
 
 function ArtGalleryMenuRow:init()
+    self._enabled = (self.enabled ~= false)
     self._text_wg = TextWidget:new{
         text = self.text,
         face = Font:getFace("cfont", 15),
         bold = true,
-        fgcolor = Blitbuffer.COLOR_BLACK,
+        fgcolor = self._enabled and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_GRAY,
     }
 end
 
@@ -768,8 +828,10 @@ function ArtGalleryPopupMenu:init()
             text = it.text, icon_bb = icon_bb, lead_wg = lead_wg, width = row_w,
             height = self.row_h, icon_col = icon_col,
             icon_size = self.icon_size, pad_left = self.pad_left,
+            enabled = (it.enabled ~= false),
         }
         row._callback = it.callback
+        row._enabled = (it.enabled ~= false)
         self._rows[#self._rows + 1] = row
         table.insert(vg, row)
         if i < #self.items then
@@ -816,9 +878,11 @@ end
 function ArtGalleryPopupMenu:onTap(_, ges)
     for _, row in ipairs(self._rows) do
         if row.dimen and ges.pos:intersectWith(row.dimen) then
-            local cb = row._callback
-            self:dismiss()
-            if cb then cb() end
+            if row._enabled then
+                local cb = row._callback
+                self:dismiss()
+                if cb then cb() end
+            end
             return true
         end
     end
@@ -1927,20 +1991,11 @@ function ArtGalleryViewer:_buildPill()
     end
     self._pill_dots = nil -- only set back below when dots are actually built
     if self._gallery_mode then
-        -- Gallery bottom-center is the Shown/Ignored switch (only when there
-        -- IS an ignored pool). "Page X of Y" now lives top-left in the grid.
-        -- The button names the destination: from the collection it offers
-        -- "Show Ignored (n)", from the Ignored pool "Show Gallery (n)".
-        if self:_hasIgnoredTab() then
-            local label
-            if self._gallery_tab == "ignored" then
-                local shown_n = self.shown_metas and #self.shown_metas or 0
-                label = T(_("显示图库 (%1)"), shown_n)
-            else
-                label = T(_("显示忽略的 (%1)"), self:_ignoredCount())
-            end
-            self._pill_frame = ArtGalleryTextButton:new{ text = label, bold = true }
-        end
+        -- 画廊底部居中：三态循环按钮（全部 → 收藏 → 忽略 → 全部）。
+        -- 标签显示当前所处过滤态，点按切到下一态并就地刷新（见 _cycleGalleryFilter）；
+        -- “第 X / Y 页”已移到顶部网格左上方。循环可见性不依赖是否有忽略池。
+        self._pill_frame = ArtGalleryTextButton:new{
+            text = self:_galleryFilterLabel(), bold = true }
         return
     end
     if self:_isOverFit() then
@@ -2034,34 +2089,135 @@ end
 -- The list/metas/count for the active Gallery tab (shown vs ignored). The
 -- single-image view always uses _images_list/image_metas (= the primary pool).
 function ArtGalleryViewer:_tabList()
-    if self._gallery_tab == "ignored" then
+    local f = self._gallery_filter or "all"
+    if f == "ignored" then
         return self.ignored_list, self.ignored_metas,
             self.ignored_metas and #self.ignored_metas or 0
+    elseif f == "favorites" then
+        local list, metas = self:_favoritesLists()
+        return list, metas, #metas
     end
-    return self.shown_list, self.shown_metas,
-        self.shown_metas and #self.shown_metas or 0
+    -- all：shown ∪ ignored（已按防剧透范围裁剪），按阅读顺序合并
+    local list, metas = self:_allLists()
+    return list, metas, #metas
 end
 
 function ArtGalleryViewer:_ignoredCount()
     return self.ignored_metas and #self.ignored_metas or 0
 end
 
--- The Ignored tab (and hence the whole tab bar) only appears when there is
+-- The Ignored pool (and hence the whole tab bar) only appears when there is
 -- something ignored — otherwise the Gallery looks exactly as it did before.
 function ArtGalleryViewer:_hasIgnoredTab()
     return self:_ignoredCount() > 0
 end
 
-function ArtGalleryViewer:_switchGalleryTab(tab)
-    if tab == self._gallery_tab then return end
-    self._gallery_tab = tab
-    self._gallery_page = 1
-    self:update()
+-- 构建 shown/ignored 两个池到“解码闭包”的映射，以及“已忽略集合”，
+-- 供 全部/收藏 派生列表复用原池解码逻辑（避免重复解码）。
+function ArtGalleryViewer:_ensureDerived()
+    if self._derived_ok then return end
+    self._render_of = {}
+    if self.shown_metas and self.shown_list then
+        for i, im in ipairs(self.shown_metas) do
+            self._render_of[im] = self.shown_list[i]
+        end
+    end
+    if self.ignored_metas and self.ignored_list then
+        for i, im in ipairs(self.ignored_metas) do
+            self._render_of[im] = self.ignored_list[i]
+        end
+    end
+    self._ignored_set = {}
+    if self.ignored_metas then
+        for _, im in ipairs(self.ignored_metas) do
+            self._ignored_set[im] = true
+        end
+    end
+    self._derived_ok = true
 end
 
-function ArtGalleryViewer:_enterGallery(page, tab)
+-- 全部：shown ∪ ignored，按 spine_index 阅读顺序合并。
+function ArtGalleryViewer:_allLists()
+    self:_ensureDerived()
+    if self._all_cache then return self._all_cache.list, self._all_cache.metas end
+    local metas = {}
+    if self.shown_metas then
+        for _, im in ipairs(self.shown_metas) do metas[#metas + 1] = im end
+    end
+    if self.ignored_metas then
+        for _, im in ipairs(self.ignored_metas) do metas[#metas + 1] = im end
+    end
+    table.sort(metas, function(a, b)
+        return (a.spine_index or 0) < (b.spine_index or 0) end)
+    local list = { image_disposable = true }
+    for i, im in ipairs(metas) do list[i] = self._render_of[im] end
+    self._all_cache = { list = list, metas = metas }
+    return list, metas
+end
+
+-- 收藏：本书内已收藏的图片（shown ∪ ignored 中命中全局收藏记录者）。
+function ArtGalleryViewer:_favoritesLists()
+    self:_ensureDerived()
+    if self._fav_cache then return self._fav_cache.list, self._fav_cache.metas end
+    local doc = self.doc_ref
+        or (self.artgallery and self.artgallery.ui and self.artgallery.ui.document)
+    local zip = self.is_cbz and self._zip_path
+    local metas = {}
+    local function consider(im)
+        local key
+        if zip then key = "cbz:" .. zip .. "#" .. im.path
+        elseif doc then key = doc.file .. "#" .. im.path
+        else return end
+        if self.artgallery and self.artgallery:isFavoriteByKey(key) then
+            metas[#metas + 1] = im
+        end
+    end
+    if self.shown_metas then
+        for _, im in ipairs(self.shown_metas) do consider(im) end
+    end
+    if self.ignored_metas then
+        for _, im in ipairs(self.ignored_metas) do consider(im) end
+    end
+    table.sort(metas, function(a, b)
+        return (a.spine_index or 0) < (b.spine_index or 0) end)
+    local list = { image_disposable = true }
+    for i, im in ipairs(metas) do list[i] = self._render_of[im] end
+    self._fav_cache = { list = list, metas = metas }
+    return list, metas
+end
+
+-- 切换过滤（全部/收藏/忽略）或收藏/忽略状态变化后，清空派生列表、缩略图与
+-- 布局缓存，避免串图或显示过期数量。
+function ArtGalleryViewer:_invalidateGalleryCaches()
+    self._all_cache = nil
+    self._fav_cache = nil
+    self._gallery_layouts = nil
+    if self._thumb_bbs then
+        for _, t in pairs(self._thumb_bbs) do
+            if t.bb then t.bb:free() end
+        end
+        self._thumb_bbs = nil
+    end
+end
+
+-- 循环过滤：全部 → 收藏 → 忽略 → 全部 …（遵守防剧透范围，已在扫描阶段裁剪）。
+function ArtGalleryViewer:_cycleGalleryFilter()
+    local order = { all = "favorites", favorites = "ignored", ignored = "all" }
+    local next_f = order[self._gallery_filter or "all"] or "all"
+    if self._gallery_mode then
+        self._gallery_filter = next_f
+        self:_invalidateGalleryCaches()
+        self._gallery_page = 1
+        self:update()
+    else
+        self:_enterGallery(nil, next_f)
+    end
+end
+
+function ArtGalleryViewer:_enterGallery(page, filter)
     self._gallery_mode = true
-    self._gallery_tab = tab or self.primary_tab or "shown"
+    self._gallery_filter = filter or self._gallery_filter or "all"
+    self:_invalidateGalleryCaches()
     local layout = self:_galleryLayout()
     if page then
         self._gallery_page = math.min(math.max(page, 1), #layout.pages)
@@ -2107,35 +2263,70 @@ function ArtGalleryViewer:_galleryHit(pos)
     return nil
 end
 
--- Long-press popup: a single action anchored just above the thumbnail —
--- "Ignore this image" in the Gallery, "Add back to Gallery" in the
--- Ignored pile. Kept in its own method so the gettext `_` isn't shadowed by
--- the `_` first parameter of onHold/onTap (calling `_()` in those crashes).
-function ArtGalleryViewer:_openMoveMenu(cell, pos)
-    local metas = select(2, self:_tabList())
-    local meta = metas and metas[cell.idx]
+-- 长按图片（全屏单图 + 图库缩略图均适用）弹出的三选一菜单：
+--   收藏图片 / 取消收藏 / 忽略图片（已忽略态文案变「取消忽略」）。
+-- 互斥态的行按需置灰禁用（依赖 ArtGalleryPopupMenu 的 enabled 支持）。
+-- 独立于 onHold/onTap 的自有方法，避免 gettext 的 `_` 被首参遮蔽而崩溃。
+function ArtGalleryViewer:_openImageActionMenu(meta, pos)
     if not meta then return end
-    local ignored = self._gallery_tab == "ignored"
-    local label, cb
+    self:_ensureDerived()
+    local key = self:_favKeyFor(meta)
+    -- 外部收藏画廊（is_favorites，无文档/压缩包上下文）里的图必然已收藏；
+    -- 其余场景用 key 查询全局收藏记录判定。
+    local fav = self.is_favorites or (
+        key and self.artgallery
+        and self.artgallery:isFavoriteByKey(key) or false)
+    local ignored = self._ignored_set[meta] or false
+    local items = {}
+    items[#items + 1] = {
+        text = _("收藏图片"),
+        enabled = not fav,
+        callback = function()
+            if self.artgallery then self.artgallery:addFavorite(meta, self) end
+            self:_afterCollectionChange()
+        end,
+    }
+    items[#items + 1] = {
+        text = _("取消收藏"),
+        enabled = fav,
+        callback = function()
+            if self.is_favorites then
+                if self.artgallery then
+                    self.artgallery:removeFavoriteByFile(meta.path)
+                end
+            elseif key and self.artgallery then
+                self.artgallery:removeFavoriteByKey(key)
+            end
+            self:_afterCollectionChange()
+        end,
+    }
     if ignored then
-        label = _("添加回图库")
-        cb = function()
-            if self.on_unignore then
-                self.on_unignore(meta, "ignored", self._gallery_page)
-            end
-        end
+        items[#items + 1] = {
+            text = _("取消忽略"),
+            callback = function()
+                if self.on_unignore then
+                    self.on_unignore(meta, "ignored", self._gallery_page)
+                end
+                self:_afterCollectionChange()
+            end,
+        }
     else
-        label = _("忽略此图片")
-        cb = function()
-            if self.on_ignore then
-                self.on_ignore(meta, "shown", self._gallery_page)
-            end
-        end
+        items[#items + 1] = {
+            text = _("忽略图片"),
+            -- 已收藏 / 外部收藏画廊内不提供「忽略」（忽略在此无意义）
+            enabled = (not fav) and (not self.is_favorites),
+            callback = function()
+                if self.on_ignore then
+                    self.on_ignore(meta, "shown", self._gallery_page)
+                end
+                self:_afterCollectionChange()
+            end,
+        }
     end
     local menu
     menu = ArtGalleryPopupMenu:new{
-        items = { { text = label, callback = cb } },
-        -- compact: a single short action, so shrink the row from the ⋯ menu's
+        items = items,
+        -- compact: a few short actions, so shrink the row from the ⋯ menu's
         row_h = Screen:scaleBySize(38),
         pad_left = Screen:scaleBySize(12),
         pad_right = Screen:scaleBySize(12),
@@ -2160,13 +2351,29 @@ function ArtGalleryViewer:_openMoveMenu(cell, pos)
     UIManager:show(menu, function() return "ui", menu.movable.dimen end)
 end
 
+-- 收藏/忽略态变化后：派生列表与缩略图（含 ⭐/眼睛 角标）可能过期，清缓存刷新。
+function ArtGalleryViewer:_afterCollectionChange()
+    self:_invalidateGalleryCaches()
+    self:update()
+end
+
+-- 给定图片 meta，返回其在单图主池（image_metas / _images_list）中的序号；
+-- 找不到（如被忽略的图片）返回 nil —— 用于图库点按打开的正确索引重映射。
+function ArtGalleryViewer:_primaryIndexForMeta(meta)
+    if not self.image_metas then return nil end
+    for i, im in ipairs(self.image_metas) do
+        if im == meta then return i end
+    end
+    return nil
+end
+
 -- Masonry layout for ALL images, computed once per viewer (the image
 -- list and drawer size are fixed while it is open) from the scanner's
 -- header-sniffed dimensions — no decoding. Returns { pages = {
 -- {cell,...}, ... }, page_of = {idx -> page} }; cell = {idx,x,y,w,h}
 -- relative to the drawer content origin (the onTap hit-test space).
 function ArtGalleryViewer:_galleryLayout()
-    local tab = self._gallery_tab or "shown"
+    local tab = self._gallery_filter or "all"
     self._gallery_layouts = self._gallery_layouts or {}
     if self._gallery_layouts[tab] then return self._gallery_layouts[tab] end
     local _, metas, nb = self:_tabList()
@@ -2291,7 +2498,7 @@ function ArtGalleryViewer:_thumb(i, w, h)
     self._thumb_keys = self._thumb_keys or {}
     -- key by tab too: index i means different images across tabs, and we
     -- want a cached thumbnail to survive flipping tabs back and forth
-    local ckey = (self._gallery_tab or "shown") .. ":" .. i
+    local ckey = (self._gallery_filter or "all") .. ":" .. i
     local t = self._thumb_bbs[ckey]
     if t and t.w == w and t.h == h then
         return t.bb
@@ -2369,13 +2576,16 @@ function ArtGalleryViewer:_buildGallery()
         for _, b in ipairs(self._gallery_badges) do b:free() end
     end
     self._gallery_badges = {}
+    self:_ensureDerived()
+    local f = self._gallery_filter or "all"
+    local view_is_primary = (f ~= "ignored")  -- 全部/收藏 视图含主池图，可描当前图边框
+    local show_corner = (f == "all")           -- 仅「全部」视图显示 ⭐/眼睛 角标
+    local cur_meta = self.image_metas
+        and self.image_metas[self._images_list_cur or 1]
     local band_top = self:_headMetrics().band_top
-    local on_ignored_tab = self._gallery_tab == "ignored"
-    local active_is_primary = (self._gallery_tab or "shown")
-        == (self.primary_tab or "shown")
-    local count = select(3, self:_tabList())
+    local _, metas, count = self:_tabList()
     local title_wg = TextWidget:new{
-        text = on_ignored_tab and _("已忽略") or _("图库"),
+        text = self:_galleryFilterLabel(),
         face = Font:getFace("cfont", 16),
         bold = true,
         fgcolor = Blitbuffer.COLOR_BLACK,
@@ -2407,16 +2617,18 @@ function ArtGalleryViewer:_buildGallery()
     sub_wg.overlap_offset = { m.pad, band_top + th1 + self:_headMetrics().gap }
     addHead(sub_wg)
     self._gallery_cells = {}
+    local csize = Screen:scaleBySize(18)
+    local off = m.inset + Screen:scaleBySize(2)
     for _, c in ipairs(layout.pages[self._gallery_page] or {}) do
         local bb = self:_thumb(c.idx,
             c.w - 2 * m.inset, c.h - 2 * m.inset)
         if bb then
+            local meta = metas and metas[c.idx]
             -- every thumbnail gets a subtle rounded outline so adjacent
             -- images (which otherwise butt edge to edge) stay visually
             -- distinct; the current image gets a heavier black one on
             -- top of that (only on the pool the single-view is showing)
-            local is_cur = active_is_primary
-                and c.idx == (self._images_list_cur or 1)
+            local is_cur = view_is_primary and (meta == cur_meta)
             local cell = CenterContainer:new{
                 dimen = Geom:new{ w = c.w, h = c.h },
                 FrameContainer:new{
@@ -2439,10 +2651,9 @@ function ArtGalleryViewer:_buildGallery()
             table.insert(grid, cell)
             table.insert(self._gallery_cells,
                 { x = c.x, y = c.y, w = c.w, h = c.h, idx = c.idx })
-            -- reading-order number badge (top-left), added AFTER the cell so
-            -- it paints on top. Only in the Gallery grid — the Ignored
-            -- grid has no badge (order there isn't meaningful).
-            if not on_ignored_tab then
+            -- 阅读顺序序号角标（左上）：仅在含主池图的视图（全部/收藏）显示；
+            -- 明确的「忽略」视图不显示（顺序在此无意义）。
+            if view_is_primary then
                 local badge = ArtGalleryBadge:new{ num = c.idx }
                 badge.overlap_offset = {
                     c.x + m.inset + Screen:scaleBySize(3),
@@ -2450,6 +2661,35 @@ function ArtGalleryViewer:_buildGallery()
                 }
                 table.insert(grid, badge)
                 table.insert(self._gallery_badges, badge)
+            end
+            -- 右下角状态角标：仅「全部」视图，已收藏 ⭐ / 已忽略 划掉眼睛。
+            -- 角点偏暗则反白（见 _getCornerIcon / _cornerLuma）。
+            if show_corner and meta then
+                local fav = self.artgallery
+                    and self.artgallery:isFavoriteByKey(self:_favKeyFor(meta))
+                    or false
+                local ign = self._ignored_set[meta] or false
+                local svg
+                if fav then
+                    svg = _PLUGIN_DIR .. "/assets/favorite_on.svg"
+                elseif ign then
+                    svg = _PLUGIN_DIR .. "/assets/eyeclosed.svg"
+                end
+                if svg then
+                    local luma = _cornerLuma(bb,
+                        bb:getWidth() - 1, bb:getHeight() - 1)
+                    local icon = self:_getCornerIcon(svg, csize, luma < 128)
+                    if icon then
+                        local corner = ArtGalleryCornerBadge:new{
+                            icon = icon, size = csize }
+                        corner.overlap_offset = {
+                            c.x + c.w - off - csize,
+                            c.y + c.h - off - csize,
+                        }
+                        table.insert(grid, corner)
+                        table.insert(self._gallery_badges, corner)
+                    end
+                end
             end
         end
     end
@@ -2495,21 +2735,13 @@ function ArtGalleryViewer:_showMoreMenu()
             callback = function() self:_toggleFullscreen() end,
         }
     end
-    -- ★ 收藏（单图模式）：加入 / 移出收藏（全局可用，脱离书本也有效）
-    if not self._gallery_mode then
-        local fav = self:_currentFavoriteState()
-        items[#items + 1] = {
-            text = fav and _("移出收藏") or _("加入收藏"),
-            icon = _PLUGIN_DIR .. "/assets/"
-                .. (fav and "favorite_on.svg" or "favorite_off.svg"),
-            callback = function() self:_toggleFavorite() end,
-        }
-    end
+    -- 收藏/取消收藏已迁移到长按图片的三选一菜单（见 onHold / _openImageActionMenu），
+    -- 故 ⋯ 菜单不再单列「加入收藏」入口（需求②）。
     if _quick_enabled("gallery") then
         items[#items + 1] = {
-            text = _("图库"),
+            text = self:_galleryFilterLabel(),
             icon = _PLUGIN_DIR .. "/assets/gallery.svg",
-            callback = function() self:_enterGallery() end,
+            callback = function() self:_cycleGalleryFilter() end,
         }
     end
     if _quick_enabled("hide") then
@@ -2665,9 +2897,22 @@ function ArtGalleryViewer:_favKey()
     if not im then return nil end
     if self.is_cbz and self._zip_path then
         return "cbz:" .. self._zip_path .. "#" .. im.path
-    elseif self.artgallery and self.artgallery.ui and self.artgallery.ui.document then
-        return self.artgallery.ui.document.file .. "#" .. im.path
     end
+    local doc = self.doc_ref
+        or (self.artgallery and self.artgallery.ui and self.artgallery.ui.document)
+    if doc then return doc.file .. "#" .. im.path end
+    return nil
+end
+
+-- 为任意图片 meta 构造收藏 key（长按画廊缩略图时用，不限于当前单图）。
+function ArtGalleryViewer:_favKeyFor(im)
+    if not im then return nil end
+    if self.is_cbz and self._zip_path then
+        return "cbz:" .. self._zip_path .. "#" .. im.path
+    end
+    local doc = self.doc_ref
+        or (self.artgallery and self.artgallery.ui and self.artgallery.ui.document)
+    if doc then return doc.file .. "#" .. im.path end
     return nil
 end
 
@@ -2938,21 +3183,22 @@ function ArtGalleryViewer:onTap(_, ges)
         return true
     end
     if self._gallery_mode then
-        -- the Shown/Ignored toggle (bottom-center pill)
+        -- 三态循环按钮（底部居中 pill）：全部 → 收藏 → 忽略 → 全部
         if self._pill_frame and self._pill_frame.dimen
            and ges.pos:intersectWith(self._pill_frame.dimen) then
             self:_flashButton(self._pill_frame, function()
-                self:_switchGalleryTab(
-                    self._gallery_tab == "ignored" and "shown" or "ignored")
+                self:_cycleGalleryFilter()
             end)
             return true
         end
-        -- thumbnail: tap opens it ONLY when this pool is what the single-image
-        -- view shows (the primary/Gallery tab). A tap on an Ignored
-        -- thumbnail does nothing — adding it back is a long-press (see onHold).
+        -- 缩略图点按：仅主池（未被忽略）图片可打开到单图视图；忽略池图片
+        -- 点按无效（恢复需长按，见 onHold / _openImageActionMenu）。
         local cell = self:_galleryHit(ges.pos)
-        if cell and self._gallery_tab == (self.primary_tab or "shown") then
-            self:_exitGallery(cell.idx)
+        if cell then
+            local metas = select(2, self:_tabList())
+            local meta = metas and metas[cell.idx]
+            local pi = meta and self:_primaryIndexForMeta(meta)
+            if pi then self:_exitGallery(pi) end
         end
         return true -- no zoom surface in the gallery
     end
@@ -3088,14 +3334,24 @@ function ArtGalleryViewer:onMultiSwipe(_, ges)
     return true
 end
 
--- Long-press a Gallery thumbnail opens a small anchored menu with the one
--- move action for that pool (Ignore this image / Add back to Gallery);
--- see _openMoveMenu. Outside the gallery, defer to upstream (long-press
--- starts a pan on a zoomed image).
+-- Long-press a Gallery thumbnail — or a full-screen single image in fit
+-- mode — opens the three-choice action menu (收藏 / 取消收藏 / 忽略);
+-- see _openImageActionMenu. A zoomed single image keeps upstream pan-on-hold.
 function ArtGalleryViewer:onHold(_, ges)
     if self._gallery_mode then
         local cell = self:_galleryHit(ges.pos)
-        if cell then self:_openMoveMenu(cell, ges.pos) end
+        if cell then
+            local metas = select(2, self:_tabList())
+            local meta = metas and metas[cell.idx]
+            if meta then self:_openImageActionMenu(meta, ges.pos) end
+        end
+        return true
+    end
+    -- 单图（全屏/抽屉）态：fit 态长按弹三选一菜单；缩放态保留上游平移手势。
+    if self.scale_factor == 0 then
+        local meta = self.image_metas
+            and self.image_metas[self._images_list_cur or 1]
+        if meta then self:_openImageActionMenu(meta, ges.pos) end
         return true
     end
     return ImageViewer.onHold(self, _, ges)
@@ -3511,8 +3767,8 @@ end
 -- Returns read_file(path) -> data|nil, plus a close() for the fallback
 -- archive handle. Primary path is crengine's own archive access; libarchive
 -- is the fallback for entries crengine won't hand over.
-function ArtGallery:_makeReader()
-    local doc = self.ui.document
+function ArtGallery:_makeReader(doc)
+    doc = doc or self.ui.document
     local arc
     local function read_file(path)
         local ok, data = pcall(doc.getDocumentFileContent, doc, path)
@@ -3844,12 +4100,23 @@ function ArtGallery:_favFileName(im)
 end
 
 function ArtGallery:addFavorite(im, viewer)
-    local key
+    local key, doc, zip
     if viewer and viewer.is_cbz and viewer._zip_path then
-        key = "cbz:" .. viewer._zip_path .. "#" .. im.path
-    elseif self.ui and self.ui.document then
-        key = self.ui.document.file .. "#" .. im.path
+        zip = viewer._zip_path
+        key = "cbz:" .. zip .. "#" .. im.path
     else
+        -- 优先用画廊打开时捕获的文档引用（此时 self.ui 必然有效），再回退到
+        -- 插件实例自身 / viewer 透传的 ui，彻底消除“稍后点击收藏时 self.ui
+        -- 已不可用（如经文件管理器/调度器实例处理事件）”的脆弱依赖。
+        doc = (viewer and viewer.doc_ref)
+            or (viewer and viewer.artgallery and viewer.artgallery.ui
+                and viewer.artgallery.ui.document)
+            or (self.ui and self.ui.document)
+        if doc then
+            key = doc.file .. "#" .. im.path
+        end
+    end
+    if not key then
         UIManager:show(InfoMessage:new{ text = _("无法收藏此图片。") })
         return
     end
@@ -3858,10 +4125,10 @@ function ArtGallery:addFavorite(im, viewer)
         return
     end
     local read_file, close = nil, nil
-    if viewer and viewer.is_cbz and viewer._zip_path then
-        read_file, close = self:_makeZipReader(viewer._zip_path)
-    elseif self.ui and self.ui.document then
-        read_file, close = self:_makeReader()
+    if zip then
+        read_file, close = self:_makeZipReader(zip)
+    else
+        read_file, close = self:_makeReader(doc)
     end
     if not read_file then
         UIManager:show(InfoMessage:new{ text = _("无法读取该图片。") })
@@ -4070,7 +4337,7 @@ function ArtGallery:_showExternalGallery(imgs, read_file, close, opts)
         end
         if orig_close then return orig_close(v) end
     end
-    viewer:_enterGallery(1, "shown")
+    viewer:_enterGallery(1, "all")
     viewer._suppress_refresh = nil
     viewer.alpha = false
     UIManager:show(viewer)
@@ -4554,6 +4821,11 @@ function ArtGallery:showViewer(whole_book_once)
         -- for the gallery heading: images the chapter scope holds back
         gallery_hidden_count = scope_hidden,
         images_keep_pan_and_zoom = false,
+        -- 打开画廊时 self.ui 必然有效（打开流程已用 self.ui.doc_settings），
+        -- 此处把文档引用捕获到 viewer 上，供后续“收藏”动作使用，避免稍后
+        -- 点击收藏时 self.ui 不再是文档实例（如经文件管理器/调度器实例
+        -- 处理事件）导致收藏失效。
+        doc_ref = self.ui and self.ui.document,
         artgallery = self,
         -- hold refreshes until the initial state is fully built (see below)
         _suppress_refresh = true,
@@ -4735,10 +5007,11 @@ function ArtGallery:showViewer(whole_book_once)
         local pg = self._pending_gallery
         self._pending_gallery = nil
         local tab = pg.tab
+        if tab == "shown" then tab = "all" end   -- 旧主池语义映射到「全部」视图
         -- if the tab we were on emptied out (moved its last image), show
         -- the other one instead of a blank grid
         local n = (tab == "ignored") and #ignored_metas or #shown_metas
-        if n == 0 then tab = (tab == "ignored") and "shown" or "ignored" end
+        if n == 0 then tab = (tab == "ignored") and "all" or "ignored" end
         viewer:_enterGallery(pg.page, tab)
     elseif primary_tab == "ignored" then
         -- opened via "Review filtered-out": land in the Ignored grid

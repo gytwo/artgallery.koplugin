@@ -975,6 +975,42 @@
     <span class="chip warn">⚠ 待 KPW3 实机验证：运行「美术馆 → 更新 → 检查更新」应检出 v1.0.1 并成功下载安装；安装后「关于 美术馆」显示 ksaMask123 与正确仓库链接</span>
   </div>
 
+  <section class="stage">
+    <h2>阶段十八 · 收藏交互重构（修复收藏失效 + 长按三选一菜单 + 图库三态循环 + ⭐/眼睛角标）</h2>
+    <div class="meta">触发：用户提出 5 项图库交互重构——① 修复「无法收藏此图片。」；② 移除 ⋯ 的「加入收藏」、改为长按图片弹「收藏图片 / 取消收藏 / 忽略图片」三选一（全屏 + 图库均适用）；③「图库」按钮改为三态循环（全部 → 收藏 → 忽略 → 全部）；④ 已收藏图右下角黑色 ⭐；⑤ 已忽略图右下角划掉眼睛。遵守防剧透范围（扫描阶段已裁剪）。</div>
+    <div class="card">
+      <p><b>① 收藏失效根因与修复</b>：<code>addFavorite</code> / <code>_makeReader</code> 原仅依赖 <code>self.ui.document</code>；若「稍后点收藏」时插件的 <code>self.ui</code> 已非文档实例（如经文件管理器/调度器实例处理事件）即落空报「无法收藏此图片。」。修复：打开画廊时把 <code>doc_ref</code> 捕获进 viewer（showViewer 注入）；<code>addFavorite</code> / <code>_favKey</code> / 新增 <code>_favKeyFor(im)</code> 优先用 <code>viewer.doc_ref</code> / <code>viewer.artgallery.ui.document</code> 再回退 <code>self.ui.document</code>，仅当三者皆空才报失败。</p>
+      <p><b>② 长按三选一菜单</b>：</p>
+      <ul>
+        <li><span class="tag mod">改</span>移除 ⋯ 菜单的「加入收藏 / 移出收藏」独立行（原 <code>_currentFavoriteState</code> + <code>_toggleFavorite</code> 行），收藏动作统一收归长按菜单。</li>
+        <li><span class="tag add">新</span><code>_openImageActionMenu(meta, pos)</code>：弹出三选项——<code>收藏图片</code>（未收藏时可用）、<code>取消收藏</code>（已收藏时可用）、<code>忽略图片</code>/<code>取消忽略</code>（按忽略态切换文案）。互斥态行按需置灰。</li>
+        <li><span class="tag mod">改</span><code>ArtGalleryPopupMenu</code> / <code>ArtGalleryMenuRow</code> 新增 <code>enabled</code> 支持：置灰且不响应点按（原菜单无此能力）。</li>
+        <li><span class="tag mod">改</span><code>onHold</code>：图库缩略图长按 → 三选一菜单；全屏单图 fit 态长按 → 同样弹菜单（缩放态保留上游平移手势）。撤回旧的 <code>_openMoveMenu</code>。</li>
+        <li><span class="tag mod">修</span>外部收藏画廊（<code>is_favorites</code>，无文档上下文）<code>_favKeyFor</code> 无人返回 nil → 改为 <code>is_favorites</code> 直接判定 fav=true，取消收藏走 <code>removeFavoriteByFile(meta.path)</code>，避免移除能力回归。</li>
+      </ul>
+      <p><b>③ 图库三态循环</b>：</p>
+      <ul>
+        <li><span class="tag mod">改</span>移除旧 <code>_gallery_tab</code> / <code>_switchGalleryTab</code> 体系；新增 <code>_galleryFilterLabel()</code>（图库（全部）/（收藏）/（忽略））、<code>_cycleGalleryFilter()</code>（顺序 all→favorites→ignored→all，画廊内就地刷新、外则进入画廊）、<code>_enterGallery(page, filter)</code> 新签名。</li>
+        <li><span class="tag add">新</span><code>_tabList()</code> 派生三池：<code>ignored</code> 直接用忽略池；<code>favorites</code> 由 <code>_favoritesLists()</code> 按全局收藏记录筛；<code>all</code> 由 <code>_allLists()</code> 合并 shown∪ignored 按 <code>spine_index</code> 排序。配套 <code>_ensureDerived()</code>（建 <code>_render_of</code> 映射 + <code>_ignored_set</code>）、<code>_invalidateGalleryCaches()</code>（清派生/缩略图/布局缓存）。</li>
+        <li><span class="tag mod">改</span>底部 pill（画廊内）与 ⋯「图库」项均改为循环控制（标签随 <code>_galleryFilterLabel()</code>）；<code>onTap</code> pill 命中 → <code>_cycleGalleryFilter()</code>；缩略图点按重映射主池序号（<code>_primaryIndexForMeta</code>）后再 <code>_exitGallery</code>，忽略池点按无效。</li>
+        <li><span class="tag mod">改</span>外部画廊入口 <code>_showExternalGallery</code> 改传 <code>"all"</code>；<code>showViewer</code> 的 <code>_pending_gallery</code> 旧 <code>"shown"</code> 语义映射为 <code>"all"</code>。</li>
+      </ul>
+      <p><b>④⑤ ⭐ / 眼睛 右下角角标（仅「全部」视图）</b>：</p>
+      <ul>
+        <li><span class="tag add">新</span>素材 <code>assets/eyeclosed.svg</code>（源自 formkit，归一为 <code>fill="black"</code>，viewBox 0 0 16 16）。</li>
+        <li><span class="tag add">新</span><code>ArtGalleryCornerBadge</code>（右下角状态角标 widget，图标归缓存不释放）、<code>_getCornerIcon(svg, size, dark)</code>（渲染并缓存黑/白两版，dark 时返回反相白版）、<code>_cornerLuma(bb, x, y)</code>（用 <code>getPixel→getColor8().a</code> 取角点亮度，0=黑/255=白）。</li>
+        <li><span class="tag mod">改</span><code>_buildGallery</code>：仅 <code>_gallery_filter == "all"</code> 时为每个 cell 取角点亮度决定黑/白，绘制 ⭐（<code>favorite_on.svg</code>，已收藏）或划掉眼睛（已忽略）；当前图描边、序号角标条件改为「含主池图的视图」。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code>（两轮，全量编辑后复核）</span>
+      <span class="chip ok">✓ grep 核验：main.lua 已无 <code>_gallery_tab</code> / <code>_switchGalleryTab</code> / <code>_openMoveMenu</code> 残留引用；其余 <code>primary_tab</code> 引用均为单图主池语义（未受影响）</span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.2</code></span>
+      <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-10T225500</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机验证：① 稍后点收藏不再报「无法收藏此图片。」；② 全屏/图库长按弹三选一且互斥行置灰；③ 图库按钮三态循环切换且计数正确；④⑤ 全部视图 ⭐/眼睛 角标显示且深色角点反白</span>
+    </div>
+  </section>
+
   <div class="aside">
     本文件为 artgallery.koplugin 的<b>专属审计时间线</b>，按「每次修改即时追加」原则维护，就近存档于插件 <code>audit/</code> 目录。任何阶段改动完成后应立即补记对应条目，不得积压或事后补记失真。日志约定遵循用户「改前查日志、改后即时记」纪律。
   </div>
