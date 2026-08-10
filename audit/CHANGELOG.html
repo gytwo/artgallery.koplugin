@@ -953,6 +953,27 @@
     <span class="chip warn">⚠ 待 KPW3 实机复测：全屏拉伸填满、双击/双指缩放、回弹归 0 照常；退出全屏后抽屉图不再变形（关键回归点）；cover/contain 抽屉态仍 contain 无裁切</span>
   </div>
 
+  <section>
+    <h2>阶段十八 · GitHub 仓库创建与 v1.0.0 Release 发布</h2>
+    <div class="meta">日期：2026-08-10 | 作者：ksaMask | 类型：发布 / 仓库</div>
+    <p><b>需求</b>：在 GitHub 新建仓库 <code>artgallery.koplugin</code>，上传插件代码，并提供中英双语 <code>README.md</code> 与 <code>CHANGELOG.md</code>；最重要的是发行版不能空，要让用户能打包下载插件。</p>
+    <p><b>实施</b>：</p>
+    <ul>
+      <li>使用 GitHub PAT MCP 创建公开仓库：<code>ksaMask123/artgallery.koplugin</code>（注意 GitHub 用户名为 <code>ksaMask123</code>）。</li>
+      <li>将插件工作副本复制到独立干净目录（排除本地 <code>Backup/</code> 历史），初始化 git 并推送 <code>main</code> 分支。</li>
+      <li>新增中英双语 <code>README.md</code>（简介 / 功能 / 安装 / 使用 / 兼容 / 目录结构 / 许可证）与 <code>CHANGELOG.md</code>（阶段一 ~ 十七摘要）。</li>
+      <li>用 Python <code>zipfile</code> 打包为 <code>artgallery.koplugin-v1.0.0.zip</code>（25 项，约 147 KB，顶层目录 <code>artgallery.koplugin/</code>，解压到 <code>koreader/plugins/</code> 即可）。</li>
+      <li>通过 GitHub Releases API 创建 <code>v1.0.0</code> release，并上传 zip asset；浏览器下载地址：<a href="https://github.com/ksaMask123/artgallery.koplugin/releases/download/v1.0.0/artgallery.koplugin-v1.0.0.zip">artgallery.koplugin-v1.0.0.zip</a>。</li>
+      <li>在 <code>README.md</code> 中新增「方式一：Release 安装包（推荐）」与「方式二：手动复制源码」中英双语安装指引，并推送更新。</li>
+    </ul>
+    <p><b>仓库与发行版地址</b>：</p>
+    <ul>
+      <li>仓库：<a href="https://github.com/ksaMask123/artgallery.koplugin">https://github.com/ksaMask123/artgallery.koplugin</a></li>
+      <li>Release：<a href="https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.0">https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.0</a></li>
+    </ul>
+    <p><b>安装方式</b>：下载 <code>artgallery.koplugin-v1.0.0.zip</code> → 解压得到 <code>artgallery.koplugin</code> 文件夹 → 复制到 KOReader 的 <code>plugins/</code> 目录 → 重启 KOReader。</p>
+  </section>
+
   <div class="aside">
     本文件为 artgallery.koplugin 的<b>专属审计时间线</b>，按「每次修改即时追加」原则维护，就近存档于插件 <code>audit/</code> 目录。任何阶段改动完成后应立即补记对应条目，不得积压或事后补记失真。日志约定遵循用户「改前查日志、改后即时记」纪律。
   </div>
