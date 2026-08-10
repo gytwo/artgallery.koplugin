@@ -5,6 +5,18 @@
 
 ---
 
+## 阶段二十 / Phase 20 — 内置更新器指向本仓库 + 关于/作者更正（2026-08-10）
+- **中文**：内置更新器（移植自 Footcream）机制完整，唯一缺陷是 `github_repo` 仍指向旧仓库名 `ksaMask/mirador`，已改为真实仓库 `ksaMask123/artgallery.koplugin`，更新器现指向本仓库且确实可用（已实时核验 release API 可达）。「关于 美术馆」对话框插件名更正为「美术馆 / ArtGallery」、作者更正为 ksaMask123、更新链接同步更正；`_meta.lua` 同步（fullname/author/version 升 1.0.1）。为可真实验证更新，发布 v1.0.1 release 并上传 zip，设备内「检查更新」即可安装。代码改动已推送本仓库。
+- **English**: The built-in updater (ported from Footcream) was complete; its only defect was `github_repo` still pointing to the old `ksaMask/mirador`, now changed to the real repo `ksaMask123/artgallery.koplugin` (release API reachability verified live). The "About" dialog name is corrected to "美术馆 / ArtGallery", author to ksaMask123, and the update link synced; `_meta.lua` updated (fullname/author/version→1.0.1). To make the updater genuinely testable, a v1.0.1 release with the zip was published so "Check for updates" can install it. Code changes pushed to the repo.
+
+## 阶段十九 / Phase 19 — README 致谢溯源（2026-08-10）
+- **中文**：在 README 中补全上游作者与项目链接致谢——Glimpse（作者 Fank1 / Erik Fanki）、Illustrations（作者 agaragou），中英双语对照。
+- **English**: Added bilingual credits to README for upstream authors and project links — Glimpse (Fank1 / Erik Fanki) and Illustrations (agaragou).
+
+## 阶段十八 / Phase 18 — 创建 GitHub 仓库并发布 v1.0.0（2026-08-10）
+- **中文**：在 GitHub 新建公开仓库 `ksaMask123/artgallery.koplugin`，上传插件本体，配中英双语 README.md 与 CHANGELOG.md，并发布 v1.0.0 release（含打包 zip 供直接下载安装）。
+- **English**: Created the public GitHub repo `ksaMask123/artgallery.koplugin`, uploaded the plugin with bilingual README.md and CHANGELOG.md, and published v1.0.0 with a downloadable zip.
+
 ## 阶段十七 / Phase 17 — 代码缺陷审查（2026-08-10）
 - **中文**：聚焦阶段十六的拉伸缩放手势，逐段核查。修复一处真实缺陷：拉伸/铺满分支未门控 `_fullscreen`，会导致退出全屏后抽屉小图被非均匀拉伸变形；已加 `self._fullscreen and` 门控，守住"抽屉态恒为 contain"契约。并更正一处过时注释。其余（nil 兜底、手势路由、沉浸式取消链路、缩放回弹不变量）均健康。
 - **English**: Reviewed the Phase-16 stretch zoom gestures line by line. Fixed a real defect: the stretch/cover fit branches were not gated by `_fullscreen`, which distorted the drawer thumbnail after exiting fullscreen; added a `self._fullscreen and` gate to honor the "drawer is always contain" contract. Also corrected a stale comment. The rest (nil fallbacks, gesture routing, immersive cancel chain, zoom-rebound invariants) were healthy.

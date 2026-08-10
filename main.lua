@@ -3367,7 +3367,7 @@ local ArtGallery = WidgetContainer:extend{
     is_doc_only = false,
     -- GitHub repo the in-plugin updater checks (class field so tests can
     -- point it at a repo with known releases)
-    github_repo = "ksaMask/mirador",
+    github_repo = "ksaMask123/artgallery.koplugin",
 }
 
 function ArtGallery:onDispatcherRegisterActions()
@@ -5457,7 +5457,7 @@ function ArtGallery:_menuItems()
             help_text = _("基于 Glimpse 合并 Illustrations 的全屏看图能力。"),
             callback = function()
                 UIManager:show(InfoMessage:new{
-                    text = T(_("美术馆 v%1\n\n基于 Glimpse 合并 Illustrations 的全屏看图能力。\n作者：Erik Fanki（fork: ksaMask）\n更新：GitHub ksaMask/mirador"),
+                    text = T(_("美术馆 / ArtGallery v%1\n\n基于 Glimpse 合并 Illustrations 的全屏看图能力。\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
                         _installed_version()),
                 })
             end,
