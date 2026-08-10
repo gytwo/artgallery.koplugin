@@ -122,6 +122,36 @@ Fullscreen view automatically picks the optimal screen orientation based on imag
 
 ---
 
+## 相比上游的改进 / Improvements over the upstreams
+
+**中文**：美术馆（ArtGallery）并非简单堆叠两个插件，而是在合并 **Glimpse** 与 **Illustrations** 能力的基础上做了针对性增强。两个上游插件均**仅支持 EPUB**；本插件在保留其优良特性的同时，补齐了以下短板并新增能力：
+
+| 维度 | Glimpse / Illustrations（上游） | 美术馆 / ArtGallery |
+| --- | --- | --- |
+| 支持格式 | 仅 EPUB | **EPUB + CBZ / DjVu / PDF**（分页文档同样可看图、可翻页） |
+| 全屏填充 | Illustrations 仅单一全屏模式 | 新增 **铺满 / 适配 / 拉伸** 三态，可长按设为默认；全屏自动隐藏按钮/页码/标题，单击底部显隐 |
+| 拉伸模式手势 | 无独立"拉伸"模式 | 拉伸态下仍完整支持双击放大、双指缩放、按住平移 |
+| 阅读进度 | Glimpse"不丢失你的位置"、Illustrations 可"跳回书中页码" | 进一步**主动同步书籍自身进度**（分页/滚动分别开关），看漫画不再"书还停在第一页" |
+| 界面语言 | 全英文 | 全中文菜单与「关于美术馆」对话框（含双语元数据） |
+| 更新维护 | 各插件各自指向自己的仓库 | 内置更新器统一指向本仓库 `ksaMask123/artgallery.koplugin`，一处维护 |
+
+同时，上游的优秀特性被完整保留并延续：图书内一键入口、抽屉/画廊缩略图、收藏、按书清缓存、防剧透（仅显示当前位置之前）、缩放/平移、手势与内置更新器——你不再需要同时安装两个插件。
+
+**English**: ArtGallery is not a simple stacking of two plugins; it merges **Glimpse** and **Illustrations** and adds targeted enhancements. Both upstreams support **EPUB only**; this plugin keeps their strengths while closing gaps and adding capabilities:
+
+| Aspect | Glimpse / Illustrations (upstream) | ArtGallery (美术馆) |
+| --- | --- | --- |
+| Formats | EPUB only | **EPUB + CBZ / DjVu / PDF** (paged docs are viewable & pageable) |
+| Fullscreen fit | Illustrations: single fullscreen mode | New **cover / contain / stretch** three-mode fit; long-press to set default; auto-hide buttons/dots/title, tap bottom to toggle |
+| Stretch gestures | No dedicated "stretch" mode | Stretch mode still fully supports double-tap zoom, pinch/spread, and hold-pan |
+| Reading progress | Glimpse "doesn't lose your place"; Illustrations "jump back to page" | Further **actively syncs the book's own progress** (separate toggles for paged vs scrolling) — comics no longer leave the book stuck on page one |
+| UI language | English only | Fully Chinese menus and About dialog (with bilingual metadata) |
+| Updates | Each plugin points to its own repo | Built-in updater uniformly points to this repo `ksaMask123/artgallery.koplugin` |
+
+Meanwhile, the upstream's good features are preserved: in-book entry, drawer/gallery thumbnails, favorites, per-book cache clearing, spoiler protection (show only up to current position), zoom/pan, gestures, and the built-in updater — so you no longer need both plugins installed.
+
+---
+
 ## 安装 / Installation
 
 ### 方式一：Release 安装包（推荐）/ Option 1: Release package (recommended)
