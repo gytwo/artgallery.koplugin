@@ -2662,7 +2662,7 @@ function ArtGalleryViewer:_buildGallery()
     sub_wg.overlap_offset = { m.pad, band_top + th1 + self:_headMetrics().gap }
     addHead(sub_wg)
     self._gallery_cells = {}
-    local csize = Screen:scaleBySize(18)
+    local csize = Screen:scaleBySize(36)  -- 收藏⭐/忽略眼睛角标：放大为原两倍，缩略图中更清晰
     local off = m.inset + Screen:scaleBySize(2)
     for _, c in ipairs(layout.pages[self._gallery_page] or {}) do
         local bb = self:_thumb(c.idx,
@@ -5881,17 +5881,26 @@ function ArtGallery:_menuItems()
                 -- ① 长文可完整滚动阅读、不裁切；② 避开 BookLoadCover Plus 对
                 --    InfoMessage 的补丁（patchInfoMessage）在 height/ScrollTextWidget
                 --    路径上的兼容问题，确保弹窗稳定显示。
-                -- 关键时序：先用 touchmenu_instance:closeMenu() 关闭菜单，再延迟
-                -- 0.3s 显示——与「打开美术馆」同一竞态规避。若同步 show 后立即由
-                -- onMenuSelect 调 closeMenu()，菜单关闭重绘会盖住新弹窗 → 表现为
-                -- 「无弹窗」，且随后上半屏点击命中顶区 on_show_menu 唤起菜单造成闪烁。
+                -- 关键时序：先 closeMenu() 关闭菜单，再延迟 0.3s 显示——与「打开美术馆」
+                --   同一竞态规避；但本项与「打开美术馆」不同：彼时 viewer 尚未显示，
+                --   本项是在「viewer 已全屏显示」之上叠加说明。viewer 作为全屏组件会
+                --   持续刷新自身、把刚显示的说明覆盖掉（表现为「无弹窗 / 白色矩形闪
+                --   烁」）。故额外置 modal=true 独占输入，使 viewer 在说明显示期间
+                --   收不到点击、不再刷新覆盖；关闭后由 close_callback 恢复 viewer 刷新。
                 if touchmenu_instance then touchmenu_instance:closeMenu() end
+                local viewer = self._viewer
                 UIManager:scheduleIn(0.3, function()
                     UIManager:show(TextViewer:new{
                         title = _("关于 美术馆"),
                         text = guide .. "\n\n--------\n\n" ..
                             T(_("美术馆 / ArtGallery v%1\n\n基于 Glimpse 合并 Illustrations 的全屏看图能力。\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
                                 _installed_version()),
+                        modal = true,
+                        close_callback = function()
+                            if viewer then
+                                UIManager:setDirty(viewer, "ui")
+                            end
+                        end,
                     })
                 end)
             end,

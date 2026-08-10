@@ -1201,6 +1201,31 @@
     </div>
   </section>
 
+  <section>
+    <h2>阶段二十六 · 修复「关于弹窗被全屏 viewer 覆盖」与「放大图库收藏/忽略角标」· v1.0.10</h2>
+    <div class="meta">触发：KPW3 实机复测（用户更新 crash.log）反馈 2 项——①「关于 美术馆」点击后仍无任何弹窗，但点击屏幕会出现一个未覆盖全屏的白色矩形闪烁、多次点击后停止；② 要求将图库缩略图中的收藏 / 忽略标记放大为当前两倍以便看清。阶段二十五对①的「菜单关闭竞态」修复（closeMenu + scheduleIn 0.3）经本次复测证实仍不完整。</div>
+    <div class="card">
+      <p><b>① 关于弹窗仍不显示（白闪）</b></p>
+      <ul>
+        <li><span class="tag ok">核</span>crash.log 仍干净（无关于 / TextViewer 相关 ERROR 或堆栈），确认回调未抛错、TextViewer 已被构造并显示——白色矩形即 TextViewer 的近全屏白底 frame（screen_w-30 × screen_h-30，故「未覆盖全屏」）。说明弹窗确实生成，却被快速盖掉。</li>
+        <li><span class="tag ok">核</span>回查 KOReader <code>UIManager</code>：<code>onRefresh</code> 并不因 <code>modal</code> 跳过绘制下层（grep 确认 <code>modal</code> 仅出现在 <code>show()</code> 的入栈逻辑，无绘制跳过）。故阶段二十五消除了「菜单关闭重绘盖住」竞态，但遗漏了第二种覆盖：本项是在「viewer 已全屏显示」之上叠加 TextViewer，而 viewer 作为全屏组件在 About 显示期间仍会在其后刷新周期把刚显示的说明覆盖掉（TextViewer 的 <code>onShow</code> 仅把自己标脏一次）→ 白闪一下即消失；用户乱点触发 viewer 反复刷新 → 多次闪烁后 viewer 静置才停止。</li>
+        <li><span class="tag fix">修</span>给关于回调的 <code>TextViewer</code> 加 <code>modal = true</code>：modal 在 KOReader 中独占输入（置于非 modal viewer 之上并吞掉所有手势），使 viewer 在说明显示期间收不到点击、不再刷新覆盖；关闭后由 <code>close_callback</code> 调 <code>UIManager:setDirty(viewer, "ui")</code> 恢复 viewer 刷新。保留 closeMenu + scheduleIn(0.3) 以越过菜单关闭动画。</li>
+      </ul>
+      <p><b>② 放大图库收藏 / 忽略角标</b></p>
+      <ul>
+        <li><span class="tag mod">改</span>图库（全部）视图缩略图右下角的收藏 ⭐ / 忽略（划掉眼睛）状态角标尺寸由 <code>csize = Screen:scaleBySize(18)</code>（main.lua:2665）放大为 <code>Screen:scaleBySize(36)</code>，即当前两倍。<code>csize</code> 同时用于 SVG 图标渲染分辨率（<code>_getCornerIcon(svg, csize, …)</code>），故放大后图标仍清晰、不糊。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 静态类顺序检查：未检测到 method 早于类名声明</span>
+      <span class="chip ok">✓ 代理加载测试：<code>LOAD_OK</code></span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.10</code></span>
+      <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-11T002128</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复测：①「关于 美术馆」点击后约 0.3s 弹出可滚动说明且稳定显示（不再被白闪覆盖）；② 图库（全部）缩略图右下角 ⭐ / 划掉眼睛角标约为原两倍、清晰可辨</span>
+    </div>
+  </section>
+
   <div class="aside">
     本文件为 artgallery.koplugin 的<b>专属审计时间线</b>，按「每次修改即时追加」原则维护，就近存档于插件 <code>audit/</code> 目录。任何阶段改动完成后应立即补记对应条目，不得积压或事后补记失真。日志约定遵循用户「改前查日志、改后即时记」纪律。
   </div>
