@@ -5027,7 +5027,13 @@ function ArtGallery:showViewer(whole_book_once)
             ds:saveSetting("artgallery_hidden", h)
             ds:saveSetting("artgallery_forced", next(f) and f or nil)
             self:_safeFlush(ds)
-            self._pending_gallery = { tab = tab, page = page }
+            -- 保留忽略/取消忽略前的全屏态：关闭当前 viewer 前记录，经
+            -- _pending_gallery.fullscreen 传入 showViewer，在 _enterGallery 前
+            -- 直接置位 _fullscreen 与 panel_ratio，避免「在全屏图库中忽略 /
+            -- 取消忽略」后画廊退回半屏（抽屉）态（_toggleFullscreen 在画廊态
+            -- 直接 return，无法事后 toggle 恢复）。
+            local was_fullscreen = self._viewer and self._viewer._fullscreen
+            self._pending_gallery = { tab = tab, page = page, fullscreen = was_fullscreen }
             if self._viewer then self._viewer:onClose() end
             self:showViewer(whole_book_once)
             UIManager:show(Notification:new{ text = _("已移动到忽略列表") })
@@ -5045,7 +5051,13 @@ function ArtGallery:showViewer(whole_book_once)
             ds:saveSetting("artgallery_forced", f)
             ds:saveSetting("artgallery_hidden", next(h) and h or nil)
             self:_safeFlush(ds)
-            self._pending_gallery = { tab = tab, page = page }
+            -- 保留忽略/取消忽略前的全屏态：关闭当前 viewer 前记录，经
+            -- _pending_gallery.fullscreen 传入 showViewer，在 _enterGallery 前
+            -- 直接置位 _fullscreen 与 panel_ratio，避免「在全屏图库中忽略 /
+            -- 取消忽略」后画廊退回半屏（抽屉）态（_toggleFullscreen 在画廊态
+            -- 直接 return，无法事后 toggle 恢复）。
+            local was_fullscreen = self._viewer and self._viewer._fullscreen
+            self._pending_gallery = { tab = tab, page = page, fullscreen = was_fullscreen }
             if self._viewer then self._viewer:onClose() end
             self:showViewer(whole_book_once)
             UIManager:show(Notification:new{ text = _("已添加回图库") })
@@ -5110,6 +5122,15 @@ function ArtGallery:showViewer(whole_book_once)
         -- the other one instead of a blank grid
         local n = (tab == "ignored") and #ignored_metas or #shown_metas
         if n == 0 then tab = (tab == "ignored") and "all" or "ignored" end
+        -- 保留忽略 / 取消忽略前的全屏态：_toggleFullscreen 在画廊态直接
+        -- return，无法事后 toggle，故此处直接置位 _fullscreen 与 panel_ratio
+        -- （update() 依 panel_ratio 重算面板宽度），使重开画廊维持全屏而非
+        -- 退回半屏（抽屉）态。
+        if pg.fullscreen then
+            viewer._fullscreen = true
+            viewer.panel_ratio = viewer.panel_ratio_full
+            viewer._chrome_hidden = false
+        end
         viewer:_enterGallery(pg.page, tab)
     elseif primary_tab == "ignored" then
         -- opened via "Review filtered-out": land in the Ignored grid
@@ -5825,7 +5846,7 @@ function ArtGallery:_menuItems()
         },
         {
             text = _("关于 美术馆"),
-            callback = function()
+            callback = function(touchmenu_instance)
                 -- 使用说明（新增）：介绍插件的各项功能、按钮与菜单及用法。
                 -- 文本较长，故设置 height 启用 ScrollTextWidget 滚动，避免溢出屏幕。
                 local guide = _(
@@ -5860,12 +5881,19 @@ function ArtGallery:_menuItems()
                 -- ① 长文可完整滚动阅读、不裁切；② 避开 BookLoadCover Plus 对
                 --    InfoMessage 的补丁（patchInfoMessage）在 height/ScrollTextWidget
                 --    路径上的兼容问题，确保弹窗稳定显示。
-                UIManager:show(TextViewer:new{
-                    title = _("关于 美术馆"),
-                    text = guide .. "\n\n--------\n\n" ..
-                        T(_("美术馆 / ArtGallery v%1\n\n基于 Glimpse 合并 Illustrations 的全屏看图能力。\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
-                            _installed_version()),
-                })
+                -- 关键时序：先用 touchmenu_instance:closeMenu() 关闭菜单，再延迟
+                -- 0.3s 显示——与「打开美术馆」同一竞态规避。若同步 show 后立即由
+                -- onMenuSelect 调 closeMenu()，菜单关闭重绘会盖住新弹窗 → 表现为
+                -- 「无弹窗」，且随后上半屏点击命中顶区 on_show_menu 唤起菜单造成闪烁。
+                if touchmenu_instance then touchmenu_instance:closeMenu() end
+                UIManager:scheduleIn(0.3, function()
+                    UIManager:show(TextViewer:new{
+                        title = _("关于 美术馆"),
+                        text = guide .. "\n\n--------\n\n" ..
+                            T(_("美术馆 / ArtGallery v%1\n\n基于 Glimpse 合并 Illustrations 的全屏看图能力。\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
+                                _installed_version()),
+                    })
+                end)
             end,
         },
     }

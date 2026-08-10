@@ -1175,6 +1175,32 @@
     </div>
   </section>
 
+  <section class="stage">
+    <h2>阶段二十五 · 修复「全屏图库忽略后退半屏」与「关于弹窗仍不显示」· v1.0.9</h2>
+    <div class="meta">触发：KPW3 实机复测（用户更新 crash.log）反馈 2 个 bug——① 全屏视图下打开图库后，对忽略图片长按「取消忽略」生效，但会从全屏图库跳回半屏图库；②「关于 美术馆」点击后仍无弹窗，且上半屏点击闪烁、下半屏正常。阶段二十四对②的研判（「TextViewer 逻辑正确、仅移除冗余 help_text」）经本次复测证实有误，重新定位真实根因。</div>
+    <div class="card">
+      <p><b>① 全屏图库忽略 / 取消忽略后退半屏</b></p>
+      <ul>
+        <li><span class="tag fix">修</span>根因：<code>on_ignore</code> / <code>on_unignore</code> 关闭当前 viewer 后调用 <code>showViewer</code> 重开；新 viewer 的 <code>_fullscreen</code> 默认 <code>false</code>（抽屉态），而 <code>_toggleFullscreen</code> 在画廊态直接 <code>return</code>（line 1011「图库态无意义」），无法事后 toggle 恢复全屏 → 全屏图库忽略 / 取消忽略后重开画廊退回半屏。</li>
+        <li><span class="tag mod">改</span>关闭 viewer 前记录 <code>was_fullscreen = self._viewer._fullscreen</code>，经 <code>_pending_gallery.fullscreen</code> 传入 <code>showViewer</code>；在 <code>_enterGallery</code> 前直接置位 <code>viewer._fullscreen = true</code> 与 <code>viewer.panel_ratio = viewer.panel_ratio_full</code>（update() 依 panel_ratio 重算面板宽度，1.0 = 铺满整屏）、<code>_chrome_hidden = false</code>，使重开画廊维持全屏。</li>
+      </ul>
+      <p><b>② 关于弹窗仍不显示 + 上半屏闪烁</b></p>
+      <ul>
+        <li><span class="tag ok">核</span>crash.log 干净（本次会话无关于 / TextViewer 相关 ERROR 或堆栈），确认回调未抛错。回查 KOReader <code>TouchMenu:onMenuSelect</code>：tap 跑 <code>callback(self)</code>，随后若非 <code>keep_menu_open</code> 则 <code>self:closeMenu()</code>（line 900-901）。</li>
+        <li><span class="tag fix">修</span>真实根因 = <b>菜单关闭竞态</b>：关于回调同步 <code>UIManager:show(TextViewer)</code> 后，<code>onMenuSelect</code> 立即 <code>closeMenu()</code>，菜单关闭重绘把刚显示的 TextViewer <b>盖住</b> → 表现为「无弹窗」；随后用户在上半屏乱点，命中顶区 <code>on_show_menu</code> 唤起顶部菜单 → 闪烁。阶段二十四漏判此竞态（当时误判「弹窗逻辑正确」）。</li>
+        <li><span class="tag mod">改</span>照搬本插件「打开美术馆」项已验证模式（其注释明确：「let the menu-close animation finish, or the page repaint lands on top of the viewer」）：关于回调改为 <code>function(touchmenu_instance)</code>，先 <code>touchmenu_instance:closeMenu()</code>，再 <code>UIManager:scheduleIn(0.3, 显示 TextViewer)</code>，等菜单关闭动画结束后再显示，消除竞态。下半屏点击本就正常，与此无关。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 静态类顺序检查：未检测到 method 早于类名声明</span>
+      <span class="chip ok">✓ 代理加载测试：<code>LOAD_OK</code></span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.9</code></span>
+      <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-11T000055</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复测：① 全屏图库内忽略 / 取消忽略后画廊仍保持全屏（不退回半屏）；②「关于 美术馆」点击后约 0.3s 弹出可滚动说明、上半屏不再因弹窗失败而闪烁</span>
+    </div>
+  </section>
+
   <div class="aside">
     本文件为 artgallery.koplugin 的<b>专属审计时间线</b>，按「每次修改即时追加」原则维护，就近存档于插件 <code>audit/</code> 目录。任何阶段改动完成后应立即补记对应条目，不得积压或事后补记失真。日志约定遵循用户「改前查日志、改后即时记」纪律。
   </div>
