@@ -1011,6 +1011,40 @@
     </div>
   </section>
 
+  <section class="stage">
+    <h2>阶段十九 · 忽略并入长按菜单 + 全屏三态循环按钮 + 忽略健壮性核查</h2>
+    <div class="meta">触发：用户 4 项细化——① 将 ⋯ 的「忽略此图片」行并入长按图片菜单；② 全屏三种模式（铺满/适配/拉伸）仿「图库」改为导航栏循环按钮（铺满→适配→拉伸→铺满）；③ 核查「忽略此图片」是否会像修复前的「收藏」一样失效；④ 长按菜单新增常驻「取消忽略」选项。</div>
+    <div class="card">
+      <p><b>① 忽略并入长按菜单</b>：</p>
+      <ul>
+        <li><span class="tag mod">改</span>移除 ⋯ 菜单独立的「忽略此图片」行（及 QUICK_ACTIONS 的 <code>hide</code> 开关与标签）——忽略动作统一收归长按图片菜单，与收藏保持一致。</li>
+        <li><span class="tag mod">改</span>长按菜单「忽略图片」按上下文分支：图库态 → <code>on_ignore</code>（移入忽略池并重开画廊）；单图态 → <code>_hideCurrentImage()</code>（移除当前图并前进到下一张）。二者刷新由被调函数自管，避免对可能已关闭的查看器实例重复 <code>update()</code>。</li>
+      </ul>
+      <p><b>② 全屏三态循环按钮</b>：</p>
+      <ul>
+        <li><span class="tag mod">改</span>撤回 ⋯ 菜单里「全屏铺满/适配/拉伸」三条单选项（含其长按设默认）。</li>
+        <li><span class="tag add">新</span>导航栏专属循环按钮 <code>_fill_frame</code>（单图态显示，沉浸式隐藏态一并隐藏）：短按 → <code>_cycleFullscreenFill()</code>（cover→contain→stretch→cover）即时套用；长按 → <code>_setDefaultFill()</code> 设为默认全屏看图模式（沿用旧长按设默认能力）。</li>
+        <li><span class="tag mod">改</span><code>onTap</code> 新增 <code>_fill_frame</code> 命中（短按循环）；<code>onHold</code> 新增 <code>_fill_frame</code> 命中（长按设默认）；pill 左边界避让新增按钮；<code>onCloseWidget</code> 释放 <code>_fill_frame</code>；按钮文案随 <code>_fullscreen_fill</code> 经 <code>_fillLabel()</code> 显示（铺满/适配/拉伸）。</li>
+      </ul>
+      <p><b>③ 忽略健壮性核查（需求③结论）</b>：</p>
+      <ul>
+        <li><span class="tag ok">核</span>忽略持久化走 <code>self.ui.doc_settings</code>，<b>仅写入图片路径串</b>，<b>绝不读取图片字节</b>；旧「收藏」失效根因是稍后点收藏时文档已关闭、无法读取字节 → 报「无法收藏」。忽略不依赖读取字节，故<b>在正常读书看图场景不会像旧收藏那样失效</b>。</li>
+        <li><span class="tag mod">改</span>为覆盖 cbz/文件管理器等 <code>self.ui</code> 可能为空（无 reader ui）的边缘场景，给 <code>on_hide</code> / <code>on_ignore</code> / <code>on_unignore</code> 加 <code>self.ui and self.ui.doc_settings</code> 空兜底：为空时弹「无法忽略此图片。」通知而非崩溃（与收藏修复哲学一致）。</li>
+      </ul>
+      <p><b>④ 长按菜单常驻「取消忽略」</b>：</p>
+      <ul>
+        <li><span class="tag mod">改</span><code>_openImageActionMenu</code> 中「忽略图片」与「取消忽略」二者常驻，按当前状态互斥置灰（<code>ignored</code>/<code>fav</code>/<code>is_favorites</code> 共同决定 enabled）；取消忽略不再仅在已忽略态才出现。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ grep 核验：main.lua 已无 <code>_quick_enabled("hide")</code> 残留；<code>_fill_frame</code> 创建/命中/释放/左边界避让齐全</span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.3</code></span>
+      <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-10T222000</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机验证：① ⋯ 不再有「忽略此图片」、长按单图/图库弹含「取消忽略」的四项菜单且互斥置灰；② 导航栏全屏按钮短按循环铺满/适配/拉伸、长按设默认；③ 忽略在 cbz 等边缘场景优雅降级不崩</span>
+    </div>
+  </section>
+
   <div class="aside">
     本文件为 artgallery.koplugin 的<b>专属审计时间线</b>，按「每次修改即时追加」原则维护，就近存档于插件 <code>audit/</code> 目录。任何阶段改动完成后应立即补记对应条目，不得积压或事后补记失真。日志约定遵循用户「改前查日志、改后即时记」纪律。
   </div>

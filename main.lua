@@ -80,7 +80,6 @@ local GESTURE_TIP_KEY = "artgallery_gesture_tip_shown" -- one-time menu-open nud
 local QUICK_ACTIONS_KEY = "artgallery_quick_actions"
 local QUICK_ACTIONS = {
     { key = "gallery",    default = true  },
-    { key = "hide",       default = true  },
     { key = "mode",       default = true  },
     { key = "rotate",     default = true  },
     { key = "showinbook", default = true  },
@@ -100,7 +99,6 @@ end
 local function _quick_label(key)
     return ({
         gallery    = _("图库"),
-        hide       = _("忽略此图片"),
         mode       = _("模式切换"),
         rotate     = _("旋转90°"),
         showinbook = _("在书中定位"),
@@ -1058,6 +1056,14 @@ function ArtGalleryViewer:_fillLabel(mode)
     return _("铺满")  -- cover
 end
 
+-- 全屏填充模式三态循环（短按导航栏按钮用）：铺满 → 适配 → 拉伸 → 铺满。
+-- 套用走 _setFullscreenFill（拉伸首次选用弹出一次性变形确认，见其实现）。
+function ArtGalleryViewer:_cycleFullscreenFill()
+    local order = { cover = "contain", contain = "stretch", stretch = "cover" }
+    local next_mode = order[self._fullscreen_fill or "cover"] or "contain"
+    self:_setFullscreenFill(next_mode)
+end
+
 -- 设置全屏填充模式（「右 ⋯」菜单三态项入口；拉伸首选用弹一次性变形确认）。
 -- stretch 首次选用弹出一次性确认（说明会变形），确认后持久化为"已告知"，
 -- 之后不再弹；取消则保持原模式不变。
@@ -1249,8 +1255,25 @@ function ArtGalleryViewer:update()
         }
         table.insert(overlay, self._fs_frame)
     end
-    -- 全屏填充模式三态（铺满 / 适配 / 拉伸）已收纳进「右 ⋯」菜单（见 _getQuickActionItems），
-    -- 不在导航栏单独绘制按钮簇；长按菜单项即可设为默认全屏看图模式。
+    -- 全屏填充模式三态循环按钮（铺满 / 适配 / 拉伸）：短按循环切换并即时套用，
+    -- 长按设为默认全屏看图模式（见 onTap / onHold）。仅单图态显示；沉浸式隐藏态一同隐藏。
+    -- 每次 update() 重建以刷新当前模式文案；先释放旧实例避免泄漏。
+    if self._fill_frame then self._fill_frame:free(); self._fill_frame = nil end
+    if not self._gallery_mode and not (self._fullscreen and self._chrome_hidden) then
+        self._fill_frame = ArtGalleryTextButton:new{
+            text = self:_fillLabel(self._fullscreen_fill),
+            bold = true,
+        }
+        local fill_x = Screen:scaleBySize(16)
+        if self._fs_frame and self._fs_frame.overlap_offset then
+            fill_x = self._fs_frame.overlap_offset[1]
+                + self._fs_frame.size + btn_gap
+        end
+        self._fill_frame.overlap_offset = {
+            fill_x, self.height - self._fill_frame:getSize().h - btn_inset,
+        }
+        table.insert(overlay, self._fill_frame)
+    end
     -- ⋯ (single-image) / Back (gallery) both live at the BOTTOM row, just
     -- left of the next/page-forward button (or in that same slot when
     -- nav buttons are off) — kept out of the top strip entirely so it
@@ -1312,6 +1335,11 @@ function ArtGalleryViewer:update()
         if self._fs_frame and self._fs_frame.overlap_offset then
             left_bound = math.max(left_bound,
                 self._fs_frame.overlap_offset[1] + self._fs_frame.size)
+        end
+        -- 全屏填充循环按钮（贴左，紧随全屏按钮右侧）同样让出空间
+        if self._fill_frame and self._fill_frame.overlap_offset then
+            left_bound = math.max(left_bound,
+                self._fill_frame.overlap_offset[1] + self._fill_frame:getSize().w)
         end
         local right_bound = image_area_w
         for _, f in ipairs({ self._more_frame, self._close_frame,
@@ -1759,6 +1787,7 @@ function ArtGalleryViewer:onCloseWidget()
     if self._nav_prev_frame then self._nav_prev_frame:free() end
     if self._nav_next_frame then self._nav_next_frame:free() end
     if self._fs_frame then self._fs_frame:free() end
+    if self._fill_frame then self._fill_frame:free() end
     if self._close_frame then self._close_frame:free() end
     -- _pill_frame 仅在 _new_image_wg 被插入覆盖层时由 frame_elements 统一释放；
     -- 全屏沉浸式隐藏态下它不被插入，故此处显式释放，避免关查看器时泄漏。
@@ -2300,29 +2329,32 @@ function ArtGalleryViewer:_openImageActionMenu(meta, pos)
             self:_afterCollectionChange()
         end,
     }
-    if ignored then
-        items[#items + 1] = {
-            text = _("取消忽略"),
-            callback = function()
-                if self.on_unignore then
-                    self.on_unignore(meta, "ignored", self._gallery_page)
-                end
-                self:_afterCollectionChange()
-            end,
-        }
-    else
-        items[#items + 1] = {
-            text = _("忽略图片"),
-            -- 已收藏 / 外部收藏画廊内不提供「忽略」（忽略在此无意义）
-            enabled = (not fav) and (not self.is_favorites),
-            callback = function()
+    -- 忽略图片 / 取消忽略：二者常驻长按菜单，按当前状态互斥置灰（需求④新增「取消忽略」常驻）。
+    -- 单图态忽略走 _hideCurrentImage（移除当前图并前进）；图库态忽略走 on_ignore（移入忽略池并重开画廊）。
+    -- 二者各自的刷新由被调函数自管（_hideCurrentImage / on_ignore 重开），故此处不再额外 _afterCollectionChange，
+    -- 避免在查看器已关闭（如隐藏最后一张触发 onClose）后再对旧实例 update() 出错。
+    items[#items + 1] = {
+        text = _("忽略图片"),
+        enabled = (not ignored) and (not fav) and (not self.is_favorites),
+        callback = function()
+            if self._gallery_mode then
                 if self.on_ignore then
                     self.on_ignore(meta, "shown", self._gallery_page)
                 end
-                self:_afterCollectionChange()
-            end,
-        }
-    end
+            else
+                self:_hideCurrentImage()
+            end
+        end,
+    }
+    items[#items + 1] = {
+        text = _("取消忽略"),
+        enabled = ignored,
+        callback = function()
+            if self.on_unignore then
+                self.on_unignore(meta, "ignored", self._gallery_page)
+            end
+        end,
+    }
     local menu
     menu = ArtGalleryPopupMenu:new{
         items = items,
@@ -2744,13 +2776,8 @@ function ArtGalleryViewer:_showMoreMenu()
             callback = function() self:_cycleGalleryFilter() end,
         }
     end
-    if _quick_enabled("hide") then
-        items[#items + 1] = {
-            text = _("忽略此图片"),
-            icon = _PLUGIN_DIR .. "/assets/hide.svg",
-            callback = function() self:_hideCurrentImage() end,
-        }
-    end
+    -- 「忽略此图片」已并入长按图片的三选一菜单（见 onHold / _openImageActionMenu），
+    -- 故 ⋯ 菜单不再单列该行（需求①）；hide 快捷动作开关亦已裁撤。
     if _quick_enabled("mode") and not self.is_favorites and not self.is_cbz then
         items[#items + 1] = {
             -- scope switch: reflects the current view, tap flips it and reopens
@@ -2780,29 +2807,9 @@ function ArtGalleryViewer:_showMoreMenu()
             }
         end
     end
-    if self._fullscreen then
-        -- 全屏填充模式三态（收纳于「右 ⋯」菜单）：单击切换、长按设为默认全屏看图模式。
-        -- 拉伸首选用会弹出一次性变形确认（见 _setFullscreenFill）。
-        items[#items + 1] = {
-            text = _("全屏铺满（裁切溢出）"),
-            checked_func = function() return self._fullscreen_fill == "cover" end,
-            callback = function() self:_setFullscreenFill("cover") end,
-            hold_callback = function() self:_setDefaultFill("cover") end,
-            separator = true,
-        }
-        items[#items + 1] = {
-            text = _("全屏适配（整图可见）"),
-            checked_func = function() return self._fullscreen_fill == "contain" end,
-            callback = function() self:_setFullscreenFill("contain") end,
-            hold_callback = function() self:_setDefaultFill("contain") end,
-        }
-        items[#items + 1] = {
-            text = _("全屏拉伸（填满不变形提示）"),
-            checked_func = function() return self._fullscreen_fill == "stretch" end,
-            callback = function() self:_setFullscreenFill("stretch") end,
-            hold_callback = function() self:_setDefaultFill("stretch") end,
-        }
-    end
+    -- 全屏填充模式三态（铺满 / 适配 / 拉伸）已改为导航栏专属循环按钮（见 _buildViewerControls
+    -- 的 _fill_frame 与 onTap/onHold）：短按循环切换并即时套用，长按设为默认全屏看图模式。
+    -- ⋯ 菜单不再单列三条单选项（需求②）。
     if _quick_enabled("showinbook") and not self.is_favorites and not self.is_cbz then
         items[#items + 1] = {
             text = _("在书中定位"),
@@ -3182,6 +3189,14 @@ function ArtGalleryViewer:onTap(_, ges)
         end)
         return true
     end
+    -- 全屏填充模式三态循环按钮（铺满 → 适配 → 拉伸 → 铺满）：短按循环并即时套用
+    if self._fill_frame and self._fill_frame.dimen
+       and ges.pos:intersectWith(self._fill_frame.dimen) then
+        self:_flashButton(self._fill_frame, function()
+            self:_cycleFullscreenFill()
+        end)
+        return true
+    end
     if self._gallery_mode then
         -- 三态循环按钮（底部居中 pill）：全部 → 收藏 → 忽略 → 全部
         if self._pill_frame and self._pill_frame.dimen
@@ -3338,6 +3353,12 @@ end
 -- mode — opens the three-choice action menu (收藏 / 取消收藏 / 忽略);
 -- see _openImageActionMenu. A zoomed single image keeps upstream pan-on-hold.
 function ArtGalleryViewer:onHold(_, ges)
+    -- 全屏填充循环按钮：长按设为默认全屏看图模式（短按循环在 onTap）
+    if self._fill_frame and self._fill_frame.dimen
+       and ges.pos:intersectWith(self._fill_frame.dimen) then
+        self:_setDefaultFill(self._fullscreen_fill)
+        return true
+    end
     if self._gallery_mode then
         local cell = self:_galleryHit(ges.pos)
         if cell then
@@ -4840,9 +4861,18 @@ function ArtGallery:showViewer(whole_book_once)
             self:_syncReadingProgress(meta)
         end,
         on_hide = function(meta)
+            -- 忽略只写路径串到 doc_settings，绝不读图片字节，故不像旧「收藏」
+            -- 那样因文档关闭而失败；此处仍对 self.ui 为空做兜底（cbz 等边缘场景），
+            -- 失败给通知而非崩（需求③）。
+            local ds = self.ui and self.ui.doc_settings
+            if not ds then
+                UIManager:show(Notification:new{ text = _("无法忽略此图片。") })
+                return
+            end
             local h = self:_hiddenPaths()
             h[meta.path] = true
-            self.ui.doc_settings:saveSetting("artgallery_hidden", h)
+            ds:saveSetting("artgallery_hidden", h)
+            self:_safeFlush(ds)
         end,
         get_pref = function(meta)
             return self:_imgPrefs()[meta.path] or {}
@@ -4929,11 +4959,16 @@ function ArtGallery:showViewer(whole_book_once)
         -- and drop any force-add). Persist, then reopen back into the Gallery
         -- on the same tab/page (the scan is cached, so the reopen is cheap).
         on_ignore = function(meta, tab, page)
+            local ds = self.ui and self.ui.doc_settings
+            if not ds then
+                UIManager:show(Notification:new{ text = _("无法忽略此图片。") })
+                return
+            end
             local h = self:_hiddenPaths(); h[meta.path] = true
             local f = self:_forcedPaths(); f[meta.path] = nil
-            self.ui.doc_settings:saveSetting("artgallery_hidden", h)
-            self.ui.doc_settings:saveSetting("artgallery_forced", next(f) and f or nil)
-            self:_safeFlush(self.ui.doc_settings)
+            ds:saveSetting("artgallery_hidden", h)
+            ds:saveSetting("artgallery_forced", next(f) and f or nil)
+            self:_safeFlush(ds)
             self._pending_gallery = { tab = tab, page = page }
             if self._viewer then self._viewer:onClose() end
             self:showViewer(whole_book_once)
@@ -4942,11 +4977,16 @@ function ArtGallery:showViewer(whole_book_once)
         -- Gallery long-press, Ignored tab: add this image back to Shown
         -- (force-include it and clear any hide). Same reopen-into-gallery.
         on_unignore = function(meta, tab, page)
+            local ds = self.ui and self.ui.doc_settings
+            if not ds then
+                UIManager:show(Notification:new{ text = _("无法忽略此图片。") })
+                return
+            end
             local f = self:_forcedPaths(); f[meta.path] = true
             local h = self:_hiddenPaths(); h[meta.path] = nil
-            self.ui.doc_settings:saveSetting("artgallery_forced", f)
-            self.ui.doc_settings:saveSetting("artgallery_hidden", next(h) and h or nil)
-            self:_safeFlush(self.ui.doc_settings)
+            ds:saveSetting("artgallery_forced", f)
+            ds:saveSetting("artgallery_hidden", next(h) and h or nil)
+            self:_safeFlush(ds)
             self._pending_gallery = { tab = tab, page = page }
             if self._viewer then self._viewer:onClose() end
             self:showViewer(whole_book_once)
