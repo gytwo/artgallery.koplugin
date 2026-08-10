@@ -199,5 +199,20 @@ The current fork (ArtGallery) is maintained and published by **ksaMask123** at [
 
 ## 许可证 / License
 
-本插件继承自上游社区插件的许可；具体以插件源文件头注释为准。
-Inherited from the upstream community plugins; see the license headers in the source files.
+本插件（美术馆 / ArtGallery）整体采用 **GNU Affero General Public License v3.0 or later（AGPL-3.0-or-later）** 发布。许可证全文见仓库根目录 [`LICENSE`](LICENSE)。
+
+This plugin (ArtGallery / 美术馆) is released under the **GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)**. The full text is in [`LICENSE`](LICENSE) at the repository root.
+
+### 授权来源 / Provenance
+
+本插件由 **Glimpse** 与 **Illustrations** 两个 KOReader 社区插件合并而来，其授权状况如下：
+
+This plugin merges two KOReader community plugins, **Glimpse** and **Illustrations**, with the following licensing status:
+
+- **Illustrations**（作者 [agaragou](https://github.com/agaragou)）明确以 **AGPL-3.0** 发布；由于本插件包含了其代码，根据 AGPL-3.0 条款，整个衍生作品必须在 AGPL-3.0（或更高版本）下发布。
+  **Illustrations** (by [agaragou](https://github.com/agaragou)) is explicitly released under **AGPL-3.0**; because this plugin contains its code, the AGPL-3.0 terms require the entire derivative work to be released under AGPL-3.0 (or later).
+- **Glimpse**（作者 [Fank1 / Erik Fanki](https://github.com/Fank1)）仓库未附带 LICENSE 文件、源码头亦无许可证声明；本插件作为该 fork 链（Glimpse → Mirador → ArtGallery）的延续，统一以 **AGPL-3.0-or-later** 发布以兼容上游强 copyleft 要求，并保持开源。
+  **Glimpse** (by [Fank1 / Erik Fanki](https://github.com/Fank1)) ships without a LICENSE file or in-source license header; as a continuation of its fork chain (Glimpse → Mirador → ArtGallery), this plugin adopts **AGPL-3.0-or-later** to satisfy upstream copyleft compatibility and remain open source.
+
+如 Glimpse 原作者对本插件的再分发另有授权意愿，请通过仓库 Issues 联系维护者 **ksaMask123** 协调。
+If the Glimpse original author has a different licensing intent for redistribution, please contact the maintainer **ksaMask123** via repository Issues.
