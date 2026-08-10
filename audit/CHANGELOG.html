@@ -1226,6 +1226,26 @@
     </div>
   </section>
 
+  <section>
+    <h2>阶段二十七 · 关于弹窗借鉴 poker24 加 show_menu=false · v1.0.11</h2>
+    <div class="meta">触发：用户要求参考 poker24.koplugin 的「游戏规则」说明弹窗（大面积纯文本，同为 TextViewer）实现，与 artgallery 修复后的「关于 美术馆」弹窗作比对，取更合适的写法。经实测对比两处源码得出结论：两套写法各自适配自身栈场景——poker24 经由自建 ButtonDialog 菜单（modal）主动 close 后同步 show、且下层 GameUI 为按钮驱动不持续刷新，故无需延迟；artgallery 经由读者主菜单 TouchMenu（callback 后才 closeMenu + 关闭动画整屏重绘），且下层 ArtGalleryViewer 为非 modal 的全屏图片查看器、交互会刷新自身，故必须保留 closeMenu + scheduleIn(0.3) + modal + close_callback（照搬 poker24 同步写法会退回 v1.0.8「无弹窗」）。两者共同精髓（先关菜单 + modal）artgallery 已吸收。唯一值得借鉴 poker24 的是其 <code>show_menu = false</code>：关于说明为纯只读文档，顶部再挂 ⋯ 菜单（复制 / 搜索）多余，且 poker24 注释指出 TextViewer 内部菜单（ButtonDialog）若 modal 处理不当会被遮蔽——<code>show_menu=false</code> 从根上消除这层冗余与隐患。</div>
+    <div class="card">
+      <p><b>关于弹窗加 <code>show_menu = false</code></b></p>
+      <ul>
+        <li><span class="tag fix">修</span>在「关于 美术馆」回调的 <code>TextViewer</code> 中，于 <code>modal = true</code> 之后新增 <code>show_menu = false</code>（main.lua:5898 附近）。弹窗顶部不再显示 ⋯ 菜单图标，仅保留标题栏与关闭，UI 更干净；同时消除 TextViewer 内部菜单潜在的遮蔽风险。延迟（scheduleIn 0.3）与 <code>close_callback</code> 恢复 viewer 刷新均保持不变。</li>
+        <li><span class="tag ok">核</span>比对要点：poker24 <code>showRules()</code>（poker24ui.lua:2297-2395）使用 <code>TextViewer:new{ ..., modal=true, show_menu=false }</code> 且同步显示无延迟；artgallery 关于回调（main.lua:5849-5913）使用 <code>closeMenu()</code> + <code>scheduleIn(0.3)</code> + <code>modal=true</code> + <code>close_callback</code>。机理差异源于触发栈与下层组件刷新行为不同，不能简单说谁更优，但 <code>show_menu=false</code> 这一项明确值得采纳。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 静态类顺序检查：未检测到 method 早于类名声明</span>
+      <span class="chip ok">✓ 代理加载测试：<code>LOAD_OK</code></span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.11</code></span>
+      <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-11T002829</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复测：①「关于 美术馆」点击后约 0.3s 弹出可滚动说明、稳定显示且顶部无冗余 ⋯ 菜单；② 图库角标两倍、清晰可辨（阶段二十六遗留项）</span>
+    </div>
+  </section>
+
   <div class="aside">
     本文件为 artgallery.koplugin 的<b>专属审计时间线</b>，按「每次修改即时追加」原则维护，就近存档于插件 <code>audit/</code> 目录。任何阶段改动完成后应立即补记对应条目，不得积压或事后补记失真。日志约定遵循用户「改前查日志、改后即时记」纪律。
   </div>

@@ -5896,6 +5896,10 @@ function ArtGallery:_menuItems()
                             T(_("美术馆 / ArtGallery v%1\n\n基于 Glimpse 合并 Illustrations 的全屏看图能力。\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
                                 _installed_version()),
                         modal = true,
+                        -- 参考 poker24 的 showRules：关于说明为纯只读文档，关闭顶部
+                        -- 冗余菜单图标；同时消除 TextViewer 内部菜单（ButtonDialog）
+                        -- 潜在的遮蔽隐患。
+                        show_menu = false,
                         close_callback = function()
                             if viewer then
                                 UIManager:setDirty(viewer, "ui")
