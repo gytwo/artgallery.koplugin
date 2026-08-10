@@ -1064,6 +1064,24 @@
     </div>
   </section>
 
+  <section class="stage">
+    <h2>阶段二十一 · 全屏三态循环按钮新增共用图标</h2>
+    <div class="meta">触发：用户要求为「全屏填充模式」三态循环按钮（铺满/适配/拉伸）添加一个图标，且三态共用同一个图标。</div>
+    <div class="card">
+      <p><b>改动</b>：</p>
+      <ul>
+        <li><span class="tag add">新</span>新增素材 <code>assets/fillmode.svg</code>——经典「图像/照片」描边图标（外框 + 山脊 + 太阳实心圆），与现有 <code>zoom.svg</code> / <code>fullscreen.svg</code> 统一采用 <code>fill="none"</code> + <code>stroke="black"</code> + <code>stroke-width="2"</code> + <code>viewBox="0 0 18 18"</code> 的线条风格。</li>
+        <li><span class="tag mod">改</span><code>_fill_frame</code> 创建处（<code>ArtGalleryViewer:_buildViewerControls</code>）为 <code>ArtGalleryTextButton</code> 增加 <code>icon = _PLUGIN_DIR .. "/assets/fillmode.svg"</code>。因按钮每次 <code>update()</code> 重建时固定引用同一图标路径，故三态（铺满/适配/拉伸）天然共用同一图标，仅右侧文字随当前模式变化。</li>
+        <li><span class="tag ok">核验</span>图标经 <code>ArtGalleryTextButton</code> 既有路径渲染：黑线透明底 → <code>alphablitFrom</code> 叠加 → 自动继承白底按钮与夜间模式反相（与 <code>prev.svg</code>/<code>next.svg</code>/<code>back.svg</code> 等按钮图标同一机制），无需改底层。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.5</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机验证：单图态底部应显示「[图标] 铺满 / 适配 / 拉伸」，图标清晰、与文字并排不破版</span>
+    </div>
+  </section>
+
   <div class="aside">
     本文件为 artgallery.koplugin 的<b>专属审计时间线</b>，按「每次修改即时追加」原则维护，就近存档于插件 <code>audit/</code> 目录。任何阶段改动完成后应立即补记对应条目，不得积压或事后补记失真。日志约定遵循用户「改前查日志、改后即时记」纪律。
   </div>

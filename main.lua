@@ -1263,6 +1263,9 @@ function ArtGalleryViewer:update()
         self._fill_frame = ArtGalleryTextButton:new{
             text = self:_fillLabel(self._fullscreen_fill),
             bold = true,
+            -- 三态（铺满/适配/拉伸）共用同一「图像适配」图标：外框+山脊+太阳，
+            -- 仅标记这是「全屏填充模式」选择器；具体模式由右侧文字标明。
+            icon = _PLUGIN_DIR .. "/assets/fillmode.svg",
         }
         local fill_x = Screen:scaleBySize(16)
         if self._fs_frame and self._fs_frame.overlap_offset then
