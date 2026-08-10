@@ -1045,6 +1045,25 @@
     </div>
   </section>
 
+  <section class="stage">
+    <h2>阶段二十 · 扩充「关于 美术馆」使用说明</h2>
+    <div class="meta">触发：用户要求「关于 美术馆」菜单展示的文本扩充，新增对插件各项功能、按钮和菜单的介绍与使用说明，原文本内容置于末尾展示。</div>
+    <div class="card">
+      <p><b>改动</b>：改写 <code>main.lua</code> 插件菜单「关于 美术馆」的回调——</p>
+      <ul>
+        <li><span class="tag add">新</span>新增一段使用说明（中文），按顺序覆盖：① 单图浏览（◀▶ 翻页 / ⤢ 全屏切换 / 全屏填充模式三态循环按钮 / 缩放平移手势）；② ⋯ 更多菜单（全屏查看、图库三态循环、防剧透模式范围、旋转、在书中定位、恢复被忽略、三个开关项）；③ 长按图片三选一菜单（收藏/取消收藏/忽略/取消忽略，互斥置灰）；④ 图库网格视图（底部圆点跳转、三态循环、序号角标、⭐/眼睛 角标自动反白）；⑤ 收藏与忽略机制；⑥ CBZ 漫画浏览；⑦ 快捷动作自定义。</li>
+        <li><span class="tag mod">改</span>原文本（「美术馆 / ArtGallery v{n} / 基于 Glimpse… / 作者 / 更新」）通过 <code>T()</code> 版本占位符保留，置于末尾，上方以分隔线 <code>--------</code> 隔开，确保「原文本内容放在最后展示」。</li>
+        <li><span class="tag mod">改</span>因说明文本变长，给 <code>InfoMessage</code> 设置 <code>height = Screen:getHeight() * 0.85</code>，以启用 <code>ScrollTextWidget</code> 滚动（未设 height 时仅用 <code>TextBoxWidget</code> 且不滚动、过长只会缩字号甚至溢出）——保证墨水屏上完整可读、可滚动。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.4</code></span>
+      <span class="chip ok">✓ 回溯核验：纯净树 <code>infomessage.lua</code> 确认 height 触发滚动路径</span>
+      <span class="chip warn">⚠ 待 KPW3 实机验证：打开「关于 美术馆」应显示完整说明并可滚动，末尾为原作者/版本/仓库信息</span>
+    </div>
+  </section>
+
   <div class="aside">
     本文件为 artgallery.koplugin 的<b>专属审计时间线</b>，按「每次修改即时追加」原则维护，就近存档于插件 <code>audit/</code> 目录。任何阶段改动完成后应立即补记对应条目，不得积压或事后补记失真。日志约定遵循用户「改前查日志、改后即时记」纪律。
   </div>
