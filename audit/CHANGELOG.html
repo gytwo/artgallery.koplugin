@@ -1227,6 +1227,26 @@
   </section>
 
   <section>
+    <h2>阶段二十八 · 根治「关于 美术馆」白闪/无弹窗（KPW3 时序日志锁根为残留 tap 误关）· v1.0.12</h2>
+    <div class="meta">触发：用户反馈 v1.0.11 关于弹窗仍为老问题。按路线 C 在关于回调注入临时 [AG_DEBUG] 时序日志，经 KPW3 真机复测回传 crash.log 锁定真正根因，推翻 v1.0.9~1.0.11「viewer 覆盖弹窗」的错误前提。日志铁证：点击「关于 美术馆」时 <code>self._viewer</code> 为 nil（图库态本就无 ArtGalleryViewer，所谓"在其上叠加"的前提不成立）；TextViewer 确实显示（About showing）但仅存活 0.119s 即被框架关闭（close_callback 执行），期间无任何其他 widget 压顶（无 SHOW-OTHER）。源码定位：TextViewer 在整屏范围注册 TapClose（frontend/ui/widget/textviewer.lua:144-149），其 <code>onTapClose</code>（:532-537）在落点不在 <code>self.frame</code> 内时立即 <code>onClose()</code>；读者菜单项 tap 的残留抬起手势在菜单关闭动画期间、弹窗 frame 尚未布局完成时到达，被误判为「frame 外点击」从而秒关弹窗——即用户所见的白闪/无弹窗，且「多次点击并闪烁后该现象停止」完全吻合（残留手势被消耗后不再误关）。poker24 不闪的真相亦由此厘清：其规则弹窗由 GameUI 按钮触发（按钮 tap 已完成、GameUI 持续 modal 拦截），不存在菜单项残留手势到达弹窗的问题。修复：移除 <code>scheduleIn(0.3)</code> 延迟、改为 closeMenu 后同步显示 TextViewer，并在显示后 0.3s 极短时窗内忽略 TapClose（wrap <code>onTapClose</code>），吸收菜单项残留抬起手势，确保弹窗稳定呈现。诊断埋点已移除，未污染发版。</div>
+    <div class="card">
+      <p><b>「关于 美术馆」弹窗根治</b></p>
+      <ul>
+        <li><span class="tag fix">修</span>彻底移除 v1.0.9~1.0.11 残留的 <code>scheduleIn(0.3)</code> 延迟显示逻辑，改为 <code>closeMenu()</code> 后同步 <code>UIManager:show(TextViewer)</code>，消除"延迟窗口内残留手势命中未布局 frame"的误关时机。</li>
+        <li><span class="tag fix">修</span>新增显示后 0.3s 的 TapClose 吸收窗口：wrap TextViewer 实例的 <code>onTapClose</code>，在 <code>os.clock() - _tv_shown_at &lt; 0.3</code> 期间直接 <code>return true</code>（仅消费事件、不关闭），0.3s 后恢复原行为。彻底消除菜单项 tap 残留抬起手势误关弹窗。</li>
+        <li><span class="tag fix">修</span>移除路线 C 临时诊断埋点（包裹 UIManager.show/setDirty 的 [AG_DEBUG] 时序日志），保持发版代码干净。</li>
+        <li><span class="tag ok">核</span>根因推翻记录：v1.0.9「菜单关闭竞态」、v1.0.10「modal 防 viewer 覆盖」、v1.0.11「show_menu 冗余」三版假设均被真机日志证伪——点击时 <code>self._viewer == nil</code>，不存在"viewer 覆盖"的对象。此前的修复打在了错误的目标上。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 静态类顺序检查：未检测到 method 早于类名声明</span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.12</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复测：①「关于 美术馆」点击后稳定弹出可滚动说明、不再白闪/瞬间消失；② 图库（全部）缩略图右下角 ⭐ / 划掉眼睛角标约为原两倍、清晰可辨（阶段二十六遗留项，本轮未动）</span>
+    </div>
+  </section>
+
+  <section>
     <h2>阶段二十七 · 关于弹窗借鉴 poker24 加 show_menu=false · v1.0.11</h2>
     <div class="meta">触发：用户要求参考 poker24.koplugin 的「游戏规则」说明弹窗（大面积纯文本，同为 TextViewer）实现，与 artgallery 修复后的「关于 美术馆」弹窗作比对，取更合适的写法。经实测对比两处源码得出结论：两套写法各自适配自身栈场景——poker24 经由自建 ButtonDialog 菜单（modal）主动 close 后同步 show、且下层 GameUI 为按钮驱动不持续刷新，故无需延迟；artgallery 经由读者主菜单 TouchMenu（callback 后才 closeMenu + 关闭动画整屏重绘），且下层 ArtGalleryViewer 为非 modal 的全屏图片查看器、交互会刷新自身，故必须保留 closeMenu + scheduleIn(0.3) + modal + close_callback（照搬 poker24 同步写法会退回 v1.0.8「无弹窗」）。两者共同精髓（先关菜单 + modal）artgallery 已吸收。唯一值得借鉴 poker24 的是其 <code>show_menu = false</code>：关于说明为纯只读文档，顶部再挂 ⋯ 菜单（复制 / 搜索）多余，且 poker24 注释指出 TextViewer 内部菜单（ButtonDialog）若 modal 处理不当会被遮蔽——<code>show_menu=false</code> 从根上消除这层冗余与隐患。</div>
     <div class="card">

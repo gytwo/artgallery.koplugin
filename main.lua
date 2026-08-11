@@ -5881,32 +5881,42 @@ function ArtGallery:_menuItems()
                 -- ① 长文可完整滚动阅读、不裁切；② 避开 BookLoadCover Plus 对
                 --    InfoMessage 的补丁（patchInfoMessage）在 height/ScrollTextWidget
                 --    路径上的兼容问题，确保弹窗稳定显示。
-                -- 关键时序：先 closeMenu() 关闭菜单，再延迟 0.3s 显示——与「打开美术馆」
-                --   同一竞态规避；但本项与「打开美术馆」不同：彼时 viewer 尚未显示，
-                --   本项是在「viewer 已全屏显示」之上叠加说明。viewer 作为全屏组件会
-                --   持续刷新自身、把刚显示的说明覆盖掉（表现为「无弹窗 / 白色矩形闪
-                --   烁」）。故额外置 modal=true 独占输入，使 viewer 在说明显示期间
-                --   收不到点击、不再刷新覆盖；关闭后由 close_callback 恢复 viewer 刷新。
+                -- 根因（v1.0.12 锁定，经 KPW3 真机 [AG_DEBUG] 时序日志证伪旧假设）：
+                -- TextViewer 在整屏范围注册 TapClose（frontend/ui/widget/textviewer.lua:144-149），
+                -- 其 onTapClose 在落点不在 frame 内时立即 onClose()（同文件:532-537）。
+                -- 读者菜单项 tap 的残留抬起手势，会在菜单关闭动画期间、弹窗 frame 尚未
+                -- 布局完成时到达，被误判为「frame 外点击」从而秒关弹窗——表现为白闪/无弹窗。
+                -- 旧版 v1.0.9~1.0.11 误判为「viewer 覆盖弹窗」，但其前提（viewer 存在）
+                -- 在真机实测时为 nil（图库态本就无 viewer），已全部推翻。
+                -- 修复：移除 scheduleIn(0.3) 延迟、立即显示，并在显示后 0.3s 极短时窗内
+                -- 忽略 TapClose，吸收菜单项残留抬起手势，确保弹窗稳定呈现。
                 if touchmenu_instance then touchmenu_instance:closeMenu() end
-                local viewer = self._viewer
-                UIManager:scheduleIn(0.3, function()
-                    UIManager:show(TextViewer:new{
-                        title = _("关于 美术馆"),
-                        text = guide .. "\n\n--------\n\n" ..
-                            T(_("美术馆 / ArtGallery v%1\n\n基于 Glimpse 合并 Illustrations 的全屏看图能力。\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
-                                _installed_version()),
-                        modal = true,
-                        -- 参考 poker24 的 showRules：关于说明为纯只读文档，关闭顶部
-                        -- 冗余菜单图标；同时消除 TextViewer 内部菜单（ButtonDialog）
-                        -- 潜在的遮蔽隐患。
-                        show_menu = false,
-                        close_callback = function()
-                            if viewer then
-                                UIManager:setDirty(viewer, "ui")
-                            end
-                        end,
-                    })
-                end)
+                local tv = TextViewer:new{
+                    title = _("关于 美术馆"),
+                    text = guide .. "\n\n--------\n\n" ..
+                        T(_("美术馆 / ArtGallery v%1\n\n基于 Glimpse 合并 Illustrations 的全屏看图能力。\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
+                            _installed_version()),
+                    modal = true,
+                    -- 参考 poker24 的 showRules：关于说明为纯只读文档，关闭顶部
+                    -- 冗余菜单图标；同时消除 TextViewer 内部菜单（ButtonDialog）
+                    -- 潜在的遮蔽隐患。
+                    show_menu = false,
+                    close_callback = function()
+                        if self._viewer then
+                            UIManager:setDirty(self._viewer, "ui")
+                        end
+                    end,
+                }
+                -- KPW3 输入时序保护：显示后 0.3s 内忽略 TapClose，吸收菜单项残留抬起手势
+                local _tv_shown_at = os.clock()
+                local _tv_orig_onTapClose = tv.onTapClose
+                tv.onTapClose = function(self, arg, ges_ev)
+                    if os.clock() - _tv_shown_at < 0.3 then
+                        return true
+                    end
+                    return _tv_orig_onTapClose(self, arg, ges_ev)
+                end
+                UIManager:show(tv)
             end,
         },
     }
