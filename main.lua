@@ -3708,6 +3708,7 @@ function ArtGallery:onDispatcherRegisterActions()
 end
 
 function ArtGallery:init()
+    logger.dbg("ArtGallery: init (merge of Glimpse + Illustrations)")
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
 end
@@ -3971,6 +3972,7 @@ end
 -- 炸掉调用链（典型：只读书里点「旋转」「忽略图片」即崩）。失败仅记日志。
 function ArtGallery:_safeFlush(settings)
     if settings then
+        logger.dbg("ArtGallery: flushing settings")
         pcall(settings.flush, settings)
     end
 end
@@ -4037,6 +4039,9 @@ function ArtGallery:_getScan(force, cache_only)
     cache:saveSetting("size", size)
     cache:saveSetting("scan", result)
     self:_safeFlush(cache)
+    -- 一次完整扫描（读 EPUB/ZIP、解析图片元数据）会产生大量临时表与字节串；
+    -- 扫描结束即释放，避免大本书在 KPW3 低内存下堆积（安全点：非热路径、单次）。
+    pcall(collectgarbage, "collect")
     return result
 end
 
@@ -4143,6 +4148,7 @@ end
 function ArtGallery:_saveFavRecords(t)
     local s = self:_favSettings()
     s:saveSetting("favorites", t)
+    logger.dbg("ArtGallery: saved " .. #t .. " favorite records")
     self:_safeFlush(s)
 end
 
@@ -5083,6 +5089,10 @@ function ArtGallery:showViewer(whole_book_once)
         end
         self.ui.doc_settings:saveSetting("artgallery_view", view)
         self._viewer = nil
+        -- 全屏 viewer 拆除：其解码的全屏位图（≈0.8MB/张）随之可回收。
+        -- 在 KPW3 低内存下及时显式 GC，避免退出看图后内存仍居高不下（安全点：
+        -- 关闭流程末尾、close_reader 之前，不在绘制热路径）。
+        pcall(collectgarbage, "collect")
         -- 看图期间若推进了书籍阅读进度（漫画翻页），关闭画廊时立即落盘，
         -- 以免 KOReader 在关书前被杀导致进度未保存（onGotoPage 已触发自动落盘，
         -- 此处仅作双保险）。
@@ -5351,12 +5361,15 @@ function ArtGallery:_runUpdateCheck(Trapper)
     local pre = G_reader_settings:isTrue(PRERELEASE_KEY)
     local api = "https://api.github.com/repos/" .. self.github_repo
         .. (pre and "/releases?per_page=10" or "/releases/latest")
+    logger.dbg("ArtGallery: update check start -> " .. api)
     -- fetch in a subprocess so the UI stays responsive and dismissable
     local completed, body = Trapper:dismissableRunInSubprocess(function()
         local b, err = _http_fetch(api)
         return b or ("ERR:" .. tostring(err))
     end, _("正在检查更新…"), true)
     if not completed then return end -- dismissed by the user
+    logger.dbg("ArtGallery: update check returned, completed="
+        .. tostring(completed) .. ", body_len=" .. (body and #body or 0))
     if not body or body:match("^ERR:") then
         UIManager:show(InfoMessage:new{
             text = _("更新检查失败：") .. "\n"

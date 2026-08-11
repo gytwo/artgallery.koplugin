@@ -1227,58 +1227,76 @@
   </section>
 
   <section>
-    <h2>阶段二十八 · 根治「关于 美术馆」白闪/无弹窗（KPW3 时序日志锁根为残留 tap 误关）· v1.0.12</h2>
-    <div class="meta">触发：用户反馈 v1.0.11 关于弹窗仍为老问题。按路线 C 在关于回调注入临时 [AG_DEBUG] 时序日志，经 KPW3 真机复测回传 crash.log 锁定真正根因，推翻 v1.0.9~1.0.11「viewer 覆盖弹窗」的错误前提。日志铁证：点击「关于 美术馆」时 <code>self._viewer</code> 为 nil（图库态本就无 ArtGalleryViewer，所谓"在其上叠加"的前提不成立）；TextViewer 确实显示（About showing）但仅存活 0.119s 即被框架关闭（close_callback 执行），期间无任何其他 widget 压顶（无 SHOW-OTHER）。源码定位：TextViewer 在整屏范围注册 TapClose（frontend/ui/widget/textviewer.lua:144-149），其 <code>onTapClose</code>（:532-537）在落点不在 <code>self.frame</code> 内时立即 <code>onClose()</code>；读者菜单项 tap 的残留抬起手势在菜单关闭动画期间、弹窗 frame 尚未布局完成时到达，被误判为「frame 外点击」从而秒关弹窗——即用户所见的白闪/无弹窗，且「多次点击并闪烁后该现象停止」完全吻合（残留手势被消耗后不再误关）。poker24 不闪的真相亦由此厘清：其规则弹窗由 GameUI 按钮触发（按钮 tap 已完成、GameUI 持续 modal 拦截），不存在菜单项残留手势到达弹窗的问题。修复：移除 <code>scheduleIn(0.3)</code> 延迟、改为 closeMenu 后同步显示 TextViewer，并在显示后 0.3s 极短时窗内忽略 TapClose（wrap <code>onTapClose</code>），吸收菜单项残留抬起手势，确保弹窗稳定呈现。诊断埋点已移除，未污染发版。</div>
+    <h2>阶段三十一 · 验收整改：补 logger.dbg 关键路径日志 + 主动 collectgarbage · v1.0.15</h2>
+    <div class="meta">触发：依「合并插件验收标准」(koplugin-merge-acceptance 技能) 静态体检后，对未达标的两项（二.4 主动 GC / 五.1 关键路径日志）执行 hardening；并对技能 pending 项"2.2 进度保存防抖"做源码复核纠偏。</div>
     <div class="card">
-      <p><b>「关于 美术馆」弹窗根治</b></p>
+      <p><b>① 关键路径日志（五.1）</b></p>
       <ul>
-        <li><span class="tag fix">修</span>彻底移除 v1.0.9~1.0.11 残留的 <code>scheduleIn(0.3)</code> 延迟显示逻辑，改为 <code>closeMenu()</code> 后同步 <code>UIManager:show(TextViewer)</code>，消除"延迟窗口内残留手势命中未布局 frame"的误关时机。</li>
-        <li><span class="tag fix">修</span>新增显示后 0.3s 的 TapClose 吸收窗口：wrap TextViewer 实例的 <code>onTapClose</code>，在 <code>os.clock() - _tv_shown_at &lt; 0.3</code> 期间直接 <code>return true</code>（仅消费事件、不关闭），0.3s 后恢复原行为。彻底消除菜单项 tap 残留抬起手势误关弹窗。</li>
-        <li><span class="tag fix">修</span>移除路线 C 临时诊断埋点（包裹 UIManager.show/setDirty 的 [AG_DEBUG] 时序日志），保持发版代码干净。</li>
-        <li><span class="tag ok">核</span>根因推翻记录：v1.0.9「菜单关闭竞态」、v1.0.10「modal 防 viewer 覆盖」、v1.0.11「show_menu 冗余」三版假设均被真机日志证伪——点击时 <code>self._viewer == nil</code>，不存在"viewer 覆盖"的对象。此前的修复打在了错误的目标上。</li>
+        <li><span class="tag fix">修</span>在 <code>init</code>（main.lua:3711）、网络更新检查开始/结束（<code>_runUpdateCheck</code> :5356 / :5361）、配置持久化（<code>_safeFlush</code> :3973、<code>_saveFavRecords</code> :4146）补 <code>logger.dbg</code> 埋点。debug 级别常态静默，便于真机按 <code>[ArtGallery]</code> 过滤取证 init / 网络起止 / 持久化路径。</li>
+      </ul>
+      <p><b>② 主动内存释放（二.4）</b></p>
+      <ul>
+        <li><span class="tag fix">修</span>在全屏 viewer 拆除（<code>onCloseWidget</code> :5086 置 nil 后）与一次完整扫描结束（<code>_getScan</code> :4040 后）两处安全点显式 <code>pcall(collectgarbage, "collect")</code>，及时回收全屏位图（≈0.8MB/张）与扫描临时表，缓解 KPW3 低内存压力。</li>
+      </ul>
+      <p><b>③ 源码复核纠偏</b></p>
+      <ul>
+        <li><span class="tag ok">核</span>技能 pending 项"2.2 进度保存防抖"经核查不成立：<code>_syncReadingProgress</code>（:3905）本身不写 settings，仅经核心推进阅读位置；唯一落盘是 <code>on_image_shown</code> 的 <code>doc_settings:saveSetting("artgallery_last")</code>（:4912），仅画廊内翻新图触发一次，底层持久化由 KOReader 核心节流 → 由硬 ⚠ 降级为可选优化，本轮不改。</li>
       </ul>
     </div>
     <div class="card">
       <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
       <span class="chip ok">✓ 静态类顺序检查：未检测到 method 早于类名声明</span>
+      <span class="chip ok">✓ 代理加载测试：<code>LOAD_OK</code></span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.15</code></span>
+      <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-11T1233</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复测：低内存下退出全屏看图后内存回落是否更及时（GC 生效验证）</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>阶段三十 · 关于文档菜单项配图标（轻量 Unicode）+ 眼睛 emoji 占位 · v1.0.14</h2>
+    <div class="meta">触发：用户实机确认 v1.0.13 关于弹窗已稳定弹出；要求「关于」文档各带图标菜单项配真实图标（凡有图标菜单必配）。核验：插件菜单图标实为 <code>assets/*.svg</code>，TextViewer 用 <code>x_smallinfofont</code>=NotoSans-Regular 渲染，无法内联 SVG / 不渲染彩色 emoji（KOReader 缺 emoji 字体易变方框）→ 采用轻量 Unicode 近似。</div>
+    <div class="card">
+      <ul>
+        <li><span class="tag fix">修</span>给每个带图标菜单项加 Noto Sans 收录字形（⤢▦◎↻↺➤↩☑⭐）；眼睛行加 👁 图标 + 保留文字「划掉眼睛」，依赖用户自行安装 emoji 字体渲染。</li>
+        <li><span class="tag ok">核</span>菜单图标 = SVG，TextViewer 字体 = NotoSans-Regular，不能内联 SVG/emoji；文档配图标只能 Unicode 近似或自定义控件。「划掉眼睛」是 SVG 专属，永远无法在 TextViewer 以字形呈现。</li>
+        <li><span class="tag warn">发</span>用户授权"不升版本号、改完直接更新发行版" → GitHub Release v1.0.14（含 BLC 修复 + 图标文档）。未装 emoji 字体设备眼睛行 👁 显方框（其余菜单项不受影响）。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.14</code></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>阶段二十九 · 根治「关于」弹窗：锁定真凶 BookLoadCover Plus · v1.0.13</h2>
+    <div class="meta">触发：KPW3 真机带调用栈日志彻底锁定「关于」弹窗白闪/无弹窗真凶——同机安装的 BookLoadCover Plus 补丁误判。→ 推翻阶段二十八「残留 tap 误关」结论（v1.0.12 假设被此真因掩盖）。</div>
+    <div class="card">
+      <ul>
+        <li><span class="tag fix">修</span>移除 v1.0.12 的 <code>scheduleIn(0.3)</code>/TapClose 吸收和全部诊断埋点；<code>UIManager:show(tv)</code> 后检测 <code>tv._bookloadcover_suppressed</code>，恢复 <code>tv.paintTo</code>/<code>visible</code>/<code>hasVisibleContent</code> 并 <code>setDirty</code> 强制重绘；未装该补丁时分支跳过（防御性）。</li>
+        <li><span class="tag ok">核</span>BookLoadCover Plus 的 <code>patchUIManagerShow</code>（:1203-1219）对文本同时含「关闭」+「书」的 widget 命中 <code>textLooksLikeClosingBookNotice</code>（:486），将 <code>paintTo</code> 清空静默吞掉弹窗。本「关于」长文本恰含「关闭全部」「在书中定位」命中误判。</li>
+        <li><span class="tag warn">纪</span>未 push、未发版（依"发版须经同意"纪律）。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.13</code></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>阶段二十八 · 路线 C 真机日志锁定根因·初步根治关于弹窗 · v1.0.12</h2>
+    <div class="meta">触发：在关于回调注入 <code>[AG_DEBUG]</code> 时序日志，KPW3 真机回传后锁定当时修复方向：viewer 实测为 nil（排除"叠加覆盖"），弹窗被 TextViewer 自身 TapClose 残留抬起手势秒关（存活仅 0.119s）。⚠ 事后被阶段二十九推翻（v1.0.12 实为失败修复）。</div>
+    <div class="card">
+      <ul>
+        <li><span class="tag fix">修</span>移除旧延迟、加 0.3s TapClose 吸收窗。</li>
+        <li><span class="tag warn">纪</span>该"残留 tap 误关"假设被 BookLoadCover Plus 误判真因掩盖；用户已立"发版须经同意"纪律，未再擅自发版。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
       <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.12</code></span>
-      <span class="chip warn">⚠ 待 KPW3 实机复测：①「关于 美术馆」点击后稳定弹出可滚动说明、不再白闪/瞬间消失；② 图库（全部）缩略图右下角 ⭐ / 划掉眼睛角标约为原两倍、清晰可辨（阶段二十六遗留项，本轮未动）</span>
-    </div>
-  </section>
-
-  <section>
-    <h2>阶段三十 · 「关于 美术馆」说明文档为菜单项配图标（轻量 Unicode 方案）· v1.0.14</h2>
-    <div class="meta">触发：用户要求「关于 美术馆」说明文档中为各菜单项配上其在菜单中对应的真实图标；并明确「凡是有图标的菜单，说明文档中就一定要配上正确图标」。核实结论：菜单图标实为插件 <code>assets/*.svg</code>（gallery/mode/rotate/navigate/restore/reset-rotation…）与角标 <code>eyeclosed.svg</code>（睁眼加斜杠），而 TextViewer 用 <code>x_smallinfofont</code>=<code>NotoSans-Regular.ttf</code> 渲染——无法内联 SVG、也不渲染彩色 emoji（KPW3 缺 emoji 字体，会变方框）。故采用轻量方案（用户确认可接受）：给每个带图标的菜单项配 Noto Sans 收录的字形——⤢ 全屏查看、▦ 图库、◎ 模式（防剧透范围，图标为书本/范围形）、↻ 旋转 90° / ↺ 重置旋转、➤ 在书中定位、↩ 恢复被忽略、☑ 三个开关项（菜单中以勾选框标记）；长按菜单的「收藏图片」配 ⭐。「划掉眼睛」此前为唯一缺口：既无对应 Unicode，其近似 emoji 👁 又不在 Noto Sans（KPW3 上易变方框）。最终按用户决定：在眼睛行保留文字「划掉的眼睛」的同时，于其前追加眼睛 emoji 👁 作为图标占位（即「👁 划掉的眼睛」），由用户自行在 KPW3 安装 emoji 字体（如 Noto Color Emoji）并让 KOReader 字体回退生效后方能在墨水屏渲染；未装 emoji 字体的设备会显示成方框，但文字仍清晰表达含义。其余带图标菜单项均已配 Noto Sans 安全字形。已确认「清除收藏」在子菜单无 <code>icon</code> 字段、属纯文字项，未强行配图标。</div>
-    <div class="card">
-      <p><b>说明文档菜单项配图标（轻量 Unicode）</b></p>
-      <ul>
-        <li><span class="tag mod">改</span>「关于 美术馆」<code>guide</code> 文案：逐项在菜单项前加 Noto Sans 字形（⤢ ▦ ◎ ↻ ↺ ➤ ↩ ☑ ⭐），与菜单真实图标语义对应；开关项注明"菜单中以勾选框标记"。</li>
-        <li><span class="tag mod">改</span>眼睛行：由「划掉的眼睛（无法以字形呈现）」改为「👁 划掉的眼睛」——保留文字、前加眼睛 emoji 作图标占位；依赖用户设备安装 emoji 字体后由 KOReader 字体回退渲染，未装则显示方框（文字仍表意）。</li>
-        <li><span class="tag ok">核</span>不影响 BLC 抑制兜底：指南仍含「关闭」+「书」组合，v1.0.13 的恢复逻辑继续生效；「清除收藏」无 icon 字段，未配。</li>
-      </ul>
-    </div>
-    <div class="card">
-      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
-      <span class="chip warn">⚠ 待 KPW3 实机复核：各 Unicode 字形在 NotoSans-Regular 下是否正常渲染（尤其 ➤ ◎ ↺ 等较少用字形）；若某字形变方框，回报后改为相近字形或走忠实重构（自定义 SVG 控件）。</span>
-    </div>
-  </section>
-
-  <section>
-    <h2>阶段二十九 · 根治「关于 美术馆」白闪/无弹窗（锁定真凶为 BookLoadCover Plus 文本误判）· v1.0.13</h2>
-    <div class="meta">触发：用户在 v1.0.12 真机复测反馈「弹窗问题依然如旧」——连续第六轮被证伪。吸取 v1.0.12 误删取证埋点的教训，重新注入带 <code>debug.traceback()</code> 的强诊断埋点，经 KPW3 回传 crash.log 彻底锁定真凶：根本不是本插件弹窗逻辑，而是同机安装的 BookLoadCover Plus 补丁（<code>patches/2-bookloadcover-plus.lua</code>）。其 <code>patchUIManagerShow</code>（:1203-1219）在 <code>shouldSuppressClosingNotice()</code> 为真时，对文本同时含「关闭」与「书」的 widget 调用 <code>textLooksLikeClosingBookNotice</code> 命中（中文判定 <code>{ "关闭", "书" }</code>，:486），误判为「关闭书籍」弹窗，并将 widget 的 <code>paintTo</code> 清空为 <code>function() end</code>、<code>visible=false</code>、<code>hasVisibleContent=false</code> 静默吞掉——<code>onShow</code> 仍会触发，但 <code>paintTo</code> 永不调用，故屏幕上看不到弹窗（用户感知的白闪/无弹窗）。本「关于」长文本恰好同时含这两字（功能说明中的「关闭全部」「在书中定位 / 跨书本」），命中误判。<b>这同时推翻了阶段二十八被证伪的旧结论</b>：v1.0.12 假设「残留 tap 秒关」被这一真因掩盖——<code>paintTo</code> 被清空后弹窗本就从不绘制，残留 tap 是否发生都无关紧要；且日志显示本次 <code>onTapClose</code> 调用栈是 5 秒后 uimanager 主循环分发的真实 tap，并非菜单残留手势。早期 InfoMessage 短文本能弹（文本不含该组合）、poker24 规则弹窗不闪（文本未命中）均由该真因统一解释。</div>
-    <div class="card">
-      <p><b>「关于 美术馆」弹窗真正根治（兼容 BookLoadCover Plus 误判）</b></p>
-      <ul>
-        <li><span class="tag fix">修</span>移除 v1.0.12 的 <code>scheduleIn(0.3)</code> 延迟、显示后 0.3s 忽略 TapClose、以及路线 C 全部 <code>[AG_DEBUG]</code> 带调用栈诊断埋点——它们都打在了错误目标上。</li>
-        <li><span class="tag fix">修</span>在 <code>UIManager:show(tv)</code> 之后新增兼容恢复逻辑：若检测到 BookLoadCover Plus 写入的 <code>tv._bookloadcover_suppressed</code> 标记，则恢复被清空的 <code>tv.paintTo = tv._original_paintTo_bookloadcover</code>、置 <code>tv.visible=true</code>、<code>tv.hasVisibleContent=true</code>，并 <code>UIManager:setDirty(tv, "ui")</code> 强制重绘。防御性：仅当 <code>_original_paintTo_bookloadcover</code> 仍是函数时才恢复，避免补丁字段更名导致崩溃；未装该补丁（字段不存在）时此分支自然跳过，正常显示。</li>
-        <li><span class="tag ok">核</span>根因推翻记录：阶段二十八「残留 tap 误关」结论被 v1.0.13 真机日志证伪——<code>onShow</code> 触发但 <code>paintTo</code>（FIRST）从未打印、<code>onTapClose</code> 调用栈显示为 5 秒后主循环分发的真实 tap。真凶定位为第三方补丁文本误判，而非本插件弹窗逻辑。</li>
-        <li><span class="tag note">注</span>长效建议（非本插件范围）：BookLoadCover Plus 的 <code>textLooksLikeClosingBookNotice</code> 用宽松双子串匹配（「关闭」+「书」）易误伤任何含该组合的正常弹窗；若其后续版本收紧判定（如限定 widget 类型或匹配完整句），本兼容恢复逻辑可一并移除。当前以插件侧自愈最稳。</li>
-      </ul>
-    </div>
-    <div class="card">
-      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
-      <span class="chip ok">✓ 静态类顺序检查：未检测到 method 早于类名声明</span>
-      <span class="chip ok">✓ 已确认（用户本轮实机反馈）：①「关于 美术馆」稳定弹出可滚动说明、不再白闪/无弹窗；② 图库（全部）缩略图右下角 ⭐ / 划掉眼睛角标约为原两倍、清晰可辨。仍未发版（须经用户同意）。</span>
     </div>
   </section>
 
