@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>artgallery.koplugin 验收报告 v1.0.14</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --line:#262b36; --txt:#e6e9ef;
+    --mut:#9aa4b2; --ok:#39d98a; --warn:#ffb454; --na:#5b6573;
+    --accent:#6aa3ff; --red:#ff6b6b;
+  }
+  html,body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:"Noto Sans CJK SC","Microsoft YaHei",system-ui,sans-serif;
+    line-height:1.6;font-size:14px;}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 20px 60px;}
+  h1{font-size:23px;margin:0 0 4px;letter-spacing:.5px;}
+  h2{font-size:18px;margin:30px 0 12px;padding-left:10px;
+     border-left:4px solid var(--accent);}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:6px;}
+  .meta{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 4px;}
+  .pill{background:var(--card);border:1px solid var(--line);border-radius:8px;
+    padding:6px 11px;font-size:12.5px;color:var(--mut);}
+  .pill b{color:var(--txt);font-weight:600;}
+  table{width:100%;border-collapse:collapse;margin:10px 0 4px;background:var(--card);
+    border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);
+    vertical-align:top;font-size:13px;}
+  th{background:#1c2029;color:var(--mut);font-weight:600;font-size:12.5px;}
+  tr:last-child td{border-bottom:none;}
+  td.code{font-family:"Cascadia Code",Consolas,monospace;color:var(--accent);
+    white-space:nowrap;font-size:12px;}
+  .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;
+    font-weight:600;white-space:nowrap;}
+  .t-ok{background:rgba(57,217,138,.15);color:var(--ok);}
+  .t-warn{background:rgba(255,180,84,.15);color:var(--warn);}
+  .t-na{background:rgba(91,101,115,.2);color:var(--na);}
+  .note{color:var(--mut);font-size:12.5px;margin:4px 0 0;}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;margin:12px 0;}
+  .box h3{margin:0 0 8px;font-size:15px;}
+  .box.warn{border-color:rgba(255,180,84,.4);}
+  ul{margin:6px 0 6px 2px;padding-left:18px;}
+  li{margin:4px 0;}
+  .verdict{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;}
+  .vcard{flex:1;min-width:180px;background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:14px;}
+  .vcard .n{font-size:30px;font-weight:700;}
+  .vcard .l{color:var(--mut);font-size:12.5px;}
+  .kbd{font-family:Consolas,monospace;background:#1c2029;border:1px solid var(--line);
+    border-radius:5px;padding:1px 6px;font-size:12px;}
+  .sep{height:1px;background:var(--line);margin:26px 0 0;}
+  .foot{color:var(--mut);font-size:12px;margin-top:24px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>artgallery.koplugin 插件验收报告</h1>
+  <div class="sub">基于「KOReader 合并插件验收标准 v1」静态体检 · 目标设备 Kindle Paperwhite 3</div>
+
+  <div class="meta">
+    <span class="pill">插件 <b>美术馆 / ArtGallery</b></span>
+    <span class="pill">版本 <b>v1.0.15</b></span>
+    <span class="pill">合并来源 <b>Glimpse + Illustrations</b></span>
+    <span class="pill">验收日期 <b>2026-08-11</b></span>
+    <span class="pill">仓库 <b>ksaMask123/artgallery.koplugin</b></span>
+  </div>
+
+  <p class="note">本报告由 <span class="kbd">koplugin-merge-acceptance</span> 技能驱动，逐条对照 checklist 对当前工作副本
+  <span class="code">E:\Download\AIWorkshop\koreader\plugins\artgallery.koplugin\main.lua</span> 做源码定位核验。
+  真机实测（步骤 3）与设备装载核验（步骤 2）需由用户在 KPW3 上执行，本报告已给出 SOP 与观测点。</p>
+
+  <!-- 〇 -->
+  <h2>〇、合并来源事实（验收前必查）</h2>
+  <table>
+    <tr><th style="width:42%">验收项</th><th style="width:12%">结论</th><th style="width:46%">定位 / 说明</th></tr>
+    <tr>
+      <td>合并来源自证（Glimpse + Illustrations）</td>
+      <td><span class="tag t-ok">✓</span></td>
+      <td class="code">_meta.lua:7</td>
+    </tr>
+    <tr>
+      <td>自包含，无 <span class="code">require("glimpse"/"illustrations")</span></td>
+      <td><span class="tag t-ok">✓</span></td>
+      <td>全文 grep 无旧插件 require；合并体不依赖旧插件源码</td>
+    </tr>
+    <tr>
+      <td>装载红线：设备只装 artgallery，无三者并存</td>
+      <td><span class="tag t-na">需真机核验</span></td>
+      <td>设备侧约束，静态无法判定；请在 KPW3 上确认已禁用/移除 glimpse、illustrations</td>
+    </tr>
+  </table>
+
+  <!-- 一 -->
+  <h2>一、代码架构</h2>
+  <table>
+    <tr><th>验收项</th><th>结论</th><th>定位 / 说明</th></tr>
+    <tr><td>1.1 单入口（仅 main + _meta + 子模块）</td><td><span class="tag t-ok">✓</span></td>
+      <td class="code">addToMainMenu 唯一 :5480</td></tr>
+    <tr><td>1.2 去重依赖（公共库单一来源）</td><td><span class="tag t-ok">✓</span></td>
+      <td class="code">socketutil 单处 :5242</td></tr>
+    <tr><td>1.3 模块拆分（子模块由主入口调度）</td><td><span class="tag t-ok">✓</span></td>
+      <td class="code">scanner 经 pcall(dofile) :52</td></tr>
+  </table>
+
+  <!-- 二 -->
+  <h2>二、性能与内存（硬性）</h2>
+  <table>
+    <tr><th>验收项</th><th>结论</th><th>定位 / 说明</th></tr>
+    <tr><td>2.1 禁止同步阻塞（网络异步 + 超时）</td><td><span class="tag t-ok">✓</span></td>
+      <td class="code">runWhenOnline :5344 + Trapper:wrap :5346；socketutil 10s/30s 超时 :5265</td></tr>
+    <tr><td>2.2 防抖（频繁事件合并写入）</td><td><span class="tag t-warn">⚠ 低风险</span></td>
+      <td>源码复核：<span class="code">_syncReadingProgress :3905</span> 仅经核心
+        <span class="code">onGotoPage/onGotoXPointer</span> 推进阅读位置，<b>本身不写 settings</b>；
+        真正落盘的是 <span class="code">on_image_shown</span> 中的
+        <span class="code">doc_settings:saveSetting("artgallery_last",...) :4912</span>，
+        仅在画廊内翻到新图时触发一次（非书籍每页翻动）；底层阅读位置持久化由 KOReader 核心节流。
+        故"快速翻页频繁写设置"场景不成立 → 由硬 ⚠ 降级为<b>可选优化</b>。</td></tr>
+    <tr><td>2.3 懒加载（非核心点击才实例化）</td><td><span class="tag t-ok">✓</span></td>
+      <td>"关于"TextViewer 在回调内 :new；scanner pcall dofile</td></tr>
+    <tr><td>2.4 内存释放（大块数据置 nil + 主动 GC）</td><td><span class="tag t-ok">✓</span></td>
+      <td>已在两处安全点显式 <span class="code">pcall(collectgarbage,"collect")</span>：全屏 viewer 拆除（<span class="code">onCloseWidget</span> :5086 置 nil 后）与一次完整扫描结束（<span class="code">_getScan</span> :4040 后），及时回收全屏位图与扫描临时表。</td></tr>
+  </table>
+
+  <!-- 三 -->
+  <h2>三、事件与 UI 交互</h2>
+  <table>
+    <tr><th>验收项</th><th>结论</th><th>定位 / 说明</th></tr>
+    <tr><td>3.1 统一事件监听（单一注册、集中分发）</td><td><span class="tag t-ok">✓</span></td>
+      <td class="code">onCloseDocument :3725；Dispatcher.registerAction ×2 :3695/:3701；addToMainMenu 唯一</td></tr>
+    <tr><td>3.2 UI 组件规范（继承 InputContainer）</td><td><span class="tag t-ok">✓</span></td>
+      <td class="code">ArtGalleryPopupMenu :752</td></tr>
+    <tr><td>3.3 配置菜单整合（单配置域）</td><td><span class="tag t-ok">✓</span></td>
+      <td>合并后即为单插件单配置域</td></tr>
+  </table>
+
+  <!-- 四 -->
+  <h2>四、数据与用户配置</h2>
+  <table>
+    <tr><th>验收项</th><th>结论</th><th>定位 / 说明</th></tr>
+    <tr><td>4.1 数据迁移兼容（旧数据自动转新格式）</td><td><span class="tag t-ok">✓</span></td>
+      <td class="code">_legacyFavoritesDir :4434 / _migrateLegacyFavorites :4477 / _offerLegacyMigration :4517</td></tr>
+    <tr><td>　└ 防重复 / 防撞名</td><td><span class="tag t-ok">✓</span></td>
+      <td class="code">taken 去重 :4482；同名追加 _legacyN :4487-4496</td></tr>
+    <tr><td>4.2 配置统一管理（单 settings 后端）</td><td><span class="tag t-ok">✓</span></td>
+      <td>全局 <span class="code">G_reader_settings</span> + 按书 <span class="code">doc_settings</span>，
+        键名统一 <span class="code">artgallery_*</span> 前缀</td></tr>
+  </table>
+
+  <!-- 五 -->
+  <h2>五、调试与验证</h2>
+  <table>
+    <tr><th>验收项</th><th>结论</th><th>定位 / 说明</th></tr>
+    <tr><td>5.1 关键路径日志（init/网络起止/保存加 logger.dbg）</td><td><span class="tag t-ok">✓</span></td>
+      <td>已在 <span class="code">init</span> (:3711)、网络更新检查起止（<span class="code">_runUpdateCheck</span> :5356/:5361）、
+        持久化 chokepoint（<span class="code">_safeFlush</span> :3973 / <span class="code">_saveFavRecords</span> :4146）补 <span class="code">logger.dbg</span>；常态静默，真机按 <span class="code">[ArtGallery]</span> 过滤取证。</td></tr>
+    <tr><td>5.2 自检清单（合并前后对比 + 极端策略）</td><td><span class="tag t-ok">✓</span></td>
+      <td>已在验收方案模板化（见下方「自检清单」节）</td></tr>
+  </table>
+
+  <!-- 待整改 -->
+  <div class="box">
+    <h3>✓ 整改完成（v1.0.15）</h3>
+    <ul>
+      <li><b>2.4 主动 collectgarbage</b> ✓ 已在 viewer 拆除 / 扫描结束两处安全点显式 GC（<span class="code">pcall</span> 包裹）。</li>
+      <li><b>5.1 logger.dbg 关键路径日志</b> ✓ 已在 init / 网络起止 / 持久化 chokepoint 补埋点。</li>
+      <li><b>2.2 进度保存防抖</b>（可选优化，未改）：源码复核确认 `_syncReadingProgress` 不写 settings，仅画廊内翻新图落一次盘，底层持久化由 KOReader 核心节流，不构成高频写场景。</li>
+    </ul>
+  </div>
+
+  <!-- 自检清单 -->
+  <h2>自检清单（每次验收必填）</h2>
+  <div class="box">
+    <h3>资源占用估算对比</h3>
+    <p class="note">合并前：glimpse + illustrations 双插件常驻 ≈ 2×单份内存、双份 init。
+    合并后：单份 init、单配置域；内存峰值由图片缓存主导（全屏图 ≈0.8MB/张），与合并无关。
+    预期合并后更省资源、单入口。</p>
+    <h3 style="margin-top:14px;">极端情况策略</h3>
+    <ul>
+      <li>弱网 + 快速翻页：网络经 <span class="code">runWhenOnline+Trapper</span> 异步不阻塞；防抖合并（见 2.2）。</li>
+      <li>大图多图本书：scanner 懒加载、退出即释放。</li>
+      <li>旧数据迁移冲突：<span class="code">taken</span> 去重 + 同名 <span class="code">_legacyN</span> 防撞名。</li>
+    </ul>
+    <h3 style="margin-top:14px;">签字栏</h3>
+    <p class="note">静态体检：<b>已完成（本报告）</b>　真机实测：<b>待用户执行</b>　日期：2026-08-11　版本：v1.0.15</p>
+  </div>
+
+  <!-- 真机 SOP -->
+  <h2>KPW3 真机实测 SOP（请用户执行）</h2>
+  <div class="box">
+    <ol>
+      <li><b>装载核验</b>：进入 KOReader 插件管理，确认 <b>只启用 artgallery</b>，
+        glimpse / illustrations 已禁用或移除（红线）。</li>
+      <li><b>冷启动</b>：彻底退出 KOReader 重启 → 打开一本含图书籍 → 经菜单/手势打开美术馆。</li>
+      <li><b>压力翻页</b>：画廊内快速连续翻图 30 次，观察有无卡顿/白闪。</li>
+      <li><b>弱网功能</b>：开启飞行模式后再触发"检查更新"，确认不冻结、超时优雅退出。</li>
+      <li><b>功能走查</b>：收藏/忽略角标（2×大小）、抽屉↔全屏三态、长按设默认、眼睛标记。</li>
+      <li><b>持久化</b>：退出画廊再进、退出书籍再进，确认收藏/忽略/进度保留。</li>
+      <li><b>日志取证</b>：取出 <span class="code">crash.log</span>，按 <span class="code">[ArtGallery]</span> 过滤，
+        核对有无 Lua 报错 / 内存告警。</li>
+    </ol>
+  </div>
+
+  <div class="verdict">
+    <div class="vcard"><div class="n" style="color:var(--ok)">17</div><div class="l">静态体检达标项（✓）</div></div>
+    <div class="vcard"><div class="n" style="color:var(--warn)">0</div><div class="l">真实待整改</div></div>
+    <div class="vcard"><div class="n" style="color:var(--na)">1</div><div class="l">可选优化（防抖）</div></div>
+    <div class="vcard"><div class="n" style="color:var(--accent)">1</div><div class="l">需真机核验（红线）</div></div>
+  </div>
+
+  <div class="sep"></div>
+  <p class="foot">
+    结论：artgallery v1.0.15 已完成静态体检全部整改项——合并架构、异步网络、懒加载、统一事件/配置、数据迁移均达标，
+    且二.4（主动 GC）与五.1（关键路径 dbg 日志）两项加固已落地；仅剩 1 项已降级的可选优化（进度保存防抖，经源码复核确认非高频写场景）
+    与 1 项需真机核验（装载红线三者互斥）。当前可判定为<b>基本达标、待真机实测复核后建议发版</b>。
+    依纪律：代码与更新日志已推送 GitHub main（commit 53a1d8f），但<b>未发 Release</b>；发版须经用户明确同意。
+  </p>
+
+</div>
+</body>
+</html>
