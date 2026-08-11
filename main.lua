@@ -5856,19 +5856,19 @@ function ArtGallery:_menuItems()
                     "· 全屏填充模式（铺满 / 适配 / 拉伸）：底部按钮，短按在三种模式间循环——铺满（裁切溢出、填满屏幕）/ 适配（留白全图、完整显示）/ 拉伸（变形填充、铺满屏幕）；长按可将当前模式设为默认全屏看图方式。\n" ..
                     "· 缩放与平移：双指或双击放大，放大后拖动平移；双击或点按底部圆点恢复 100%。\n" ..
                     "\n【⋯ 更多菜单】\n" ..
-                    "· 全屏查看 / 退出全屏：进入或退出全屏沉浸式。\n" ..
-                    "· 图库（全部 / 收藏 / 忽略）：查看本书筛选后的全部图片、仅收藏、仅忽略；点按在三者间循环。\n" ..
-                    "· 模式（防剧透范围）：在「所有图片 / 仅显示已读到的图片 / 仅当前章节之前」间切换，控制美术馆扫描到的图片范围。\n" ..
-                    "· 旋转 90° / 重置旋转：旋转当前图片（旋转后会出现「重置旋转」项）。\n" ..
-                    "· 在书中定位：跳回图片在书中的原始位置（插图文字书适用）。\n" ..
-                    "· 恢复被忽略的图片：把被忽略的图片重新放回图库（存在被忽略图片时才出现）。\n" ..
-                    "· 显示导航按钮 / 显示图片标题 / 夜间模式反转图片：均为开关项，勾选即时生效（分别显示 ◀▶、图片标题、夜间反转图片明暗）。\n" ..
+                    "· ⤢ 全屏查看 / 退出全屏：进入或退出全屏沉浸式。\n" ..
+                    "· ▦ 图库（全部 / 收藏 / 忽略）：查看本书筛选后的全部图片、仅收藏、仅忽略；点按在三者间循环。\n" ..
+                    "· ◎ 模式（防剧透范围）：在「所有图片 / 仅显示已读到的图片 / 仅当前章节之前」间切换，控制美术馆扫描到的图片范围。\n" ..
+                    "· ↻ 旋转 90° / ↺ 重置旋转：旋转当前图片（旋转后会出现「重置旋转」项）。\n" ..
+                    "· ➤ 在书中定位：跳回图片在书中的原始位置（插图文字书适用）。\n" ..
+                    "· ↩ 恢复被忽略的图片：把被忽略的图片重新放回图库（存在被忽略图片时才出现）。\n" ..
+                    "· ☑ 显示导航按钮 / 显示图片标题 / 夜间模式反转图片：均为开关项（菜单中以勾选框标记），勾选即时生效（分别显示 ◀▶、图片标题、夜间反转图片明暗）。\n" ..
                     "\n【长按图片】\n" ..
-                    "· 长按任意图片弹出三选一菜单：收藏图片、取消收藏、忽略图片 / 取消忽略。已处于对应状态的选项会自动置灰（不可用）。\n" ..
+                    "· 长按任意图片弹出三选一菜单：⭐ 收藏图片 / 取消收藏、忽略图片 / 取消忽略。已处于对应状态的选项会自动置灰（不可用）。\n" ..
                     "\n【图库（网格视图）】\n" ..
                     "· 底部圆点表示当前页码，可点按快速跳转；底部按钮为「图库（全部 / 收藏 / 忽略）」三态循环。\n" ..
                     "· 点按缩略图回到对应的单图查看；右上角数字为该图在全部图片中的序号。\n" ..
-                    "· 「全部」视图下：已收藏图片右下角显示 ⭐，已忽略图片右下角显示划掉的眼睛；角标会按所在位置明暗自动反白以保证可见。\n" ..
+                    "· 「全部」视图下：已收藏图片右下角显示 ⭐，已忽略图片右下角显示 👁 划掉的眼睛。角标会按所在位置明暗自动反白以保证可见。\n" ..
                     "\n【收藏与忽略】\n" ..
                     "· 收藏：图片存入设备收藏夹，跨书本持久保存；可在「图库（收藏）」回顾，或在插件菜单「清除收藏」批量移除。\n" ..
                     "· 忽略：将被剧透或不想要的图片移出图库（防剧透），可在「图库（忽略）」查看，或长按「取消忽略」放回图库。\n" ..
@@ -5877,19 +5877,20 @@ function ArtGallery:_menuItems()
                     "\n【快捷动作设置】\n" ..
                     "· 插件的「快捷动作」可自定义 ⋯ 菜单与按钮中显示哪些功能；关闭全部后 ⋯ 按钮会自动隐藏。"
                 )
-                -- 改用 TextViewer（全屏可滚动长文本）而非 InfoMessage：
-                -- ① 长文可完整滚动阅读、不裁切；② 避开 BookLoadCover Plus 对
-                --    InfoMessage 的补丁（patchInfoMessage）在 height/ScrollTextWidget
-                --    路径上的兼容问题，确保弹窗稳定显示。
-                -- 根因（v1.0.12 锁定，经 KPW3 真机 [AG_DEBUG] 时序日志证伪旧假设）：
-                -- TextViewer 在整屏范围注册 TapClose（frontend/ui/widget/textviewer.lua:144-149），
-                -- 其 onTapClose 在落点不在 frame 内时立即 onClose()（同文件:532-537）。
-                -- 读者菜单项 tap 的残留抬起手势，会在菜单关闭动画期间、弹窗 frame 尚未
-                -- 布局完成时到达，被误判为「frame 外点击」从而秒关弹窗——表现为白闪/无弹窗。
-                -- 旧版 v1.0.9~1.0.11 误判为「viewer 覆盖弹窗」，但其前提（viewer 存在）
-                -- 在真机实测时为 nil（图库态本就无 viewer），已全部推翻。
-                -- 修复：移除 scheduleIn(0.3) 延迟、立即显示，并在显示后 0.3s 极短时窗内
-                -- 忽略 TapClose，吸收菜单项残留抬起手势，确保弹窗稳定呈现。
+                -- 说明文本较长，用 TextViewer（全屏可滚动长文本）承载，不裁切。
+                -- 根因（v1.0.12 后由 KPW3 真机带调用栈日志彻底锁定）：
+                -- 白闪/无弹窗的真凶不是本插件弹窗逻辑，而是同机安装的
+                -- BookLoadCover Plus 补丁（patches/2-bookloadcover-plus.lua）。其
+                -- patchUIManagerShow 在 shouldSuppressClosingNotice() 为真时，对文本
+                -- 同时含「关闭」与「书」的 widget 误判为「关闭书籍」弹窗，并将它的
+                -- paintTo 清空为 function() end、visible=false 静默吞掉——onShow 仍会
+                -- 触发，但 paintTo 永不调用，故屏幕上看不到弹窗（用户感知为白闪/无弹窗）。
+                -- 本「关于」长文本恰好同时含这两字（如「关闭全部」「在书中定位」），
+                -- 命中其 { "关闭", "书" } 中文判定（textLooksLikeClosingBookNotice）。
+                -- 这也呼应两点：早期 InfoMessage 短文本能弹（文本不含该组合）；
+                -- poker24 的规则弹窗不闪（其文本未命中）。
+                -- 修复：show 后检测其写入的 _bookloadcover_suppressed 标记，若存在则
+                -- 恢复被篡改的 paintTo / visible / hasVisibleContent 并触发重绘。
                 if touchmenu_instance then touchmenu_instance:closeMenu() end
                 local tv = TextViewer:new{
                     title = _("关于 美术馆"),
@@ -5897,9 +5898,8 @@ function ArtGallery:_menuItems()
                         T(_("美术馆 / ArtGallery v%1\n\n基于 Glimpse 合并 Illustrations 的全屏看图能力。\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
                             _installed_version()),
                     modal = true,
-                    -- 参考 poker24 的 showRules：关于说明为纯只读文档，关闭顶部
-                    -- 冗余菜单图标；同时消除 TextViewer 内部菜单（ButtonDialog）
-                    -- 潜在的遮蔽隐患。
+                    -- 关于说明为纯只读文档，关闭顶部冗余菜单图标（参考 poker24 的
+                    -- showRules）；同时消除 TextViewer 内部菜单（ButtonDialog）遮蔽隐患。
                     show_menu = false,
                     close_callback = function()
                         if self._viewer then
@@ -5907,16 +5907,16 @@ function ArtGallery:_menuItems()
                         end
                     end,
                 }
-                -- KPW3 输入时序保护：显示后 0.3s 内忽略 TapClose，吸收菜单项残留抬起手势
-                local _tv_shown_at = os.clock()
-                local _tv_orig_onTapClose = tv.onTapClose
-                tv.onTapClose = function(self, arg, ges_ev)
-                    if os.clock() - _tv_shown_at < 0.3 then
-                        return true
-                    end
-                    return _tv_orig_onTapClose(self, arg, ges_ev)
-                end
                 UIManager:show(tv)
+                -- 兼容 BookLoadCover Plus 补丁的「关闭书籍」误判：若本弹窗被其静默，
+                -- 恢复被清空的 paintTo 与被置否的可见标记，并强制重绘。
+                -- 防御性：仅当原始 paintTo 仍是函数时才恢复，避免字段名变更导致崩溃。
+                if tv._bookloadcover_suppressed and type(tv._original_paintTo_bookloadcover) == "function" then
+                    tv.paintTo = tv._original_paintTo_bookloadcover
+                    tv.visible = true
+                    tv.hasVisibleContent = true
+                    UIManager:setDirty(tv, "ui")
+                end
             end,
         },
     }
