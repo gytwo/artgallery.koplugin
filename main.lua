@@ -2677,7 +2677,7 @@ function ArtGalleryViewer:_showMoreMenu()
         items[#items + 1] = {
             text = self:_galleryFilterLabel(),
             icon = _PLUGIN_DIR .. "/assets/gallery.svg",
-            callback = function() self:_cycleGalleryFilter() end,
+            callback = function() self:_enterGallery(nil, self._gallery_filter or "shown") end,
         }
     end
     if _quick_enabled("mode") and not self.is_favorites and not self.is_cbz then
