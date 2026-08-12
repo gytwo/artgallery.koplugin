@@ -828,7 +828,7 @@ function ArtGalleryViewer:_galleryFilterLabel()
     if f == "shown" then return _("图库（过滤后）") end
     if f == "favorites" then return _("图库（已收藏）") end
     if f == "ignored" then return _("图库（已忽略）") end
-    return _("图库（全部）")
+    return _("图库（过滤后）")
 end
 
 function ArtGalleryViewer:init()
@@ -840,6 +840,7 @@ function ArtGalleryViewer:init()
     self._smart_failed_for = {}
     self._thumb_keys = {}
     self._chrome_hidden = true
+    self._gallery_filter = "shown"
     ImageViewer.init(self)
     self:_buildMoreButton()
     self:update()
@@ -2164,21 +2165,65 @@ function ArtGalleryViewer:_invalidateGalleryCaches()
 end
 
 function ArtGalleryViewer:_cycleGalleryFilter()
-    local order = { all = "shown", shown = "favorites", favorites = "ignored", ignored = "all" }
-    local next_f = order[self._gallery_filter or "all"] or "all"
+    local order = { shown = "favorites", favorites = "ignored", ignored = "all", all = "shown" }
+    local next_f = order[self._gallery_filter or "shown"] or "shown"
+    self._gallery_filter = next_f
+    self:_syncImagesListFromFilter()
     if self._gallery_mode then
-        self._gallery_filter = next_f
         self:_invalidateGalleryCaches()
         self._gallery_page = 1
         self:update()
     else
-        self:_enterGallery(nil, next_f)
+        self:update()
     end
+end
+
+function ArtGalleryViewer:_syncImagesListFromFilter()
+    local f = self._gallery_filter or "shown"
+    local list, metas
+    if f == "ignored" then
+        list, metas = self.ignored_list, self.ignored_metas
+    elseif f == "favorites" then
+        list, metas = self:_favoritesLists()
+    elseif f == "shown" then
+        -- 改这里：动态构建 shown
+        local all_list, all_metas = self:_allLists()
+        local shown_metas = {}
+        for _, im in ipairs(all_metas) do
+            if not self._ignored_set[im] then
+                table.insert(shown_metas, im)
+            end
+        end
+        list = { image_disposable = true }
+        for i, im in ipairs(shown_metas) do
+            list[i] = self._render_of[im]
+        end
+        metas = shown_metas
+    else  -- "all"
+        list, metas = self:_allLists()
+    end
+    -- 后续赋值不变
+    local current_meta = self.image_metas and self.image_metas[self._images_list_cur or 1]
+    self.image_metas = metas
+    self._images_list = list
+    self._images_list_nb = #metas
+    if current_meta then
+        for i, meta in ipairs(metas) do
+            if meta == current_meta then
+                self._images_list_cur = i
+                return
+            end
+        end
+    end
+    self._images_list_cur = 1
 end
 
 function ArtGalleryViewer:_enterGallery(page, filter)
     self._gallery_mode = true
-    self._gallery_filter = filter or self._gallery_filter or "all"
+    if filter then
+        self._gallery_filter = filter
+        self:_syncImagesListFromFilter()
+    end
     self:_invalidateGalleryCaches()
     local layout = self:_galleryLayout()
     if page then
@@ -3119,12 +3164,13 @@ function ArtGalleryViewer:onTap(_, ges)
         end)
         return true
     end
+    -- 图库按钮：直接进入图库，保持当前过滤态
     if self._gallery_btn_frame and self._gallery_btn_frame.dimen
        and ges.pos:intersectWith(self._gallery_btn_frame.dimen) then
         self:_flashButton(self._gallery_btn_frame, function()
-            self:_cycleGalleryFilter()
+           self:_enterGallery(nil, self._gallery_filter or "shown")
         end)
-        return true
+       return true
     end
     if self._close_btn and self._close_btn.dimen
        and ges.pos:intersectWith(self._close_btn.dimen) then
