@@ -67,6 +67,7 @@ local SHADOW_KEY = "artgallery_disable_shadow"
 local DARK_BG_KEY = "artgallery_dark_background"
 local GESTURE_TIP_KEY = "artgallery_gesture_tip_shown"
 local NO_RESIDUE_KEY = "artgallery_no_residue"
+local REVIEW_MODE_KEY = "artgallery_review_mode" 
 local NOTE_KEY = "artgallery_note"
 
 -- 面板比例配置（3种比例可供选择）
@@ -803,7 +804,12 @@ local ArtGalleryViewer = ImageViewer:extend{
     image_padding = Screen:scaleBySize(2),
     alpha = 0.25,
     disable_double_tap = true,
-}
+    -- 复习模式
+    review_mode = false,
+    review_show_note = true,
+    _original_image_metas = nil,
+    _original_images_list = nil,
+    }
 
 function ArtGalleryViewer:_getCornerIcon(svg_path, size, dark)
     self._corner_icons = self._corner_icons or {}
@@ -992,10 +998,14 @@ function ArtGalleryViewer:update()
 
     self.img_container_h = self.height
     if self._gallery_mode then
-        self:_buildGallery()
+    self:_buildGallery()
     else
         self._gallery_cells = nil
-        self:_new_image_wg()
+        if self.review_mode and self.review_show_note then
+            self:_new_review_wg()
+        else
+            self:_new_image_wg()
+        end
     end
 
     -- 先创建 _smart_frame（让 _pillAvailWidth 能读到宽度），位置稍后计算
@@ -1450,6 +1460,10 @@ function ArtGalleryViewer:update()
         right_bound = math.min(right_bound, self._close_btn.overlap_offset[1])
     end
 
+    if self.review_mode then
+        self._chrome_hidden = false
+    end
+    
     -- 页码：根据 show_pill 决定是否显示
     if self._gallery_mode then
         -- 画廊模式：永远显示过滤切换按钮
@@ -1510,6 +1524,10 @@ function ArtGalleryViewer:update()
     if self._note_wg then
         self._note_wg:free()
         self._note_wg = nil
+    end
+    if self._review_text_wg then
+        self._review_text_wg:free()
+        self._review_text_wg = nil
     end
     if G_reader_settings:nilOrTrue(CAPTIONS_KEY) and not self._gallery_mode
         and not self._chrome_hidden then
@@ -1882,6 +1900,11 @@ function ArtGalleryViewer:onCloseWidget()
 end
 
 function ArtGalleryViewer:_new_image_wg()
+    -- 清理备注资源
+    if self._review_text_wg then
+        self._review_text_wg:free()
+        self._review_text_wg = nil
+    end
     if G_reader_settings:nilOrTrue(SMART_ROTATION_KEY) and self._images_list_cur and self._auto_rotated_for ~= self._images_list_cur
        and not self._smart_failed_for[self._images_list_cur] then
         local pref_rot = self:_prefFor(self._images_list_cur or 1).rotation
@@ -1938,6 +1961,32 @@ function ArtGalleryViewer:_new_image_wg()
     self.image_container = CenterContainer:new{
         dimen = Geom:new{ w = avail_w, h = self.img_container_h },
         self._image_wg,
+    }
+end
+
+function ArtGalleryViewer:_new_review_wg()
+    local meta = self.image_metas and self.image_metas[self._images_list_cur or 1]
+    local note = meta and self:_getNoteFromFav(meta.path) or _("无备注")
+
+    local avail_w = self.width
+    local max_image_h = self.img_container_h - self.image_padding * 2
+    local max_image_w = avail_w - self.image_padding * 2
+
+    -- 先确认文字颜色和背景
+    local text_wg = TextBoxWidget:new{
+        text = note,
+        face = Font:getFace("infofont", 24),  -- 换个大字体试试
+        bold = true,
+        color = Blitbuffer.COLOR_BLACK,       -- 改成 color
+        alignment = "center",
+        width = max_image_w,
+        height = max_image_h,
+    }
+    self._review_text_wg = text_wg
+
+    self.image_container = CenterContainer:new{
+        dimen = Geom:new{ w = avail_w, h = self.img_container_h },
+        text_wg,
     }
 end
 
@@ -2179,6 +2228,61 @@ function ArtGalleryViewer:_cycleGalleryFilter()
 end
 
 function ArtGalleryViewer:_syncImagesListFromFilter()
+    -- 复习模式：基于 _review_metas 构建
+    if self.review_mode and self._review_metas then
+        local f = self._gallery_filter or "shown"
+        local list, metas
+        if f == "favorites" then
+            metas = {}
+            for _, im in ipairs(self._review_metas) do
+                local key = self:_favKeyFor(im)
+                if key and self.artgallery and self.artgallery:isFavoriteByKey(key) then
+                    table.insert(metas, im)
+                end
+            end
+        elseif f == "ignored" then
+            metas = {}
+            for _, im in ipairs(self._review_metas) do
+                if self._ignored_set[im] then
+                    table.insert(metas, im)
+                end
+            end
+        else
+            metas = self._review_metas
+        end
+        -- 用原始 _images_list 找到对应的 render 闭包
+        list = { image_disposable = true }
+        for i, im in ipairs(metas) do
+            local found = false
+            if self._original_images_list then
+                for j, orig_im in ipairs(self._original_image_metas or {}) do
+                    if orig_im == im and self._original_images_list[j] then
+                        list[i] = self._original_images_list[j]
+                        found = true
+                        break
+                    end
+                end
+            end
+            if not found then
+                for j, sim in ipairs(self.shown_metas or {}) do
+                    if sim == im and self.shown_list and self.shown_list[j] then
+                        list[i] = self.shown_list[j]
+                        found = true
+                        break
+                    end
+                end
+            end
+            if not found then
+                list[i] = function() return nil end
+            end
+        end
+        self.image_metas = metas
+        self._images_list = list
+        self._images_list_nb = #metas
+        return
+    end
+
+    -- 正常模式：原有逻辑
     local f = self._gallery_filter or "shown"
     local list, metas
     if f == "ignored" then
@@ -2186,7 +2290,6 @@ function ArtGalleryViewer:_syncImagesListFromFilter()
     elseif f == "favorites" then
         list, metas = self:_favoritesLists()
     elseif f == "shown" then
-        -- 改这里：动态构建 shown
         local all_list, all_metas = self:_allLists()
         local shown_metas = {}
         for _, im in ipairs(all_metas) do
@@ -2202,7 +2305,7 @@ function ArtGalleryViewer:_syncImagesListFromFilter()
     else  -- "all"
         list, metas = self:_allLists()
     end
-    -- 后续赋值不变
+
     local current_meta = self.image_metas and self.image_metas[self._images_list_cur or 1]
     self.image_metas = metas
     self._images_list = list
@@ -2769,6 +2872,26 @@ function ArtGalleryViewer:_showMoreMenu()
             callback = function() self:_toggleInvert() end,
         }
     end
+    -- 复习模式
+    if not self._gallery_mode then
+        local has_notes = false
+        if self.image_metas then
+            for _, meta in ipairs(self.image_metas) do
+                if self:_getNoteFromFav(meta.path) then
+                    has_notes = true
+                    break
+                end
+            end
+        end
+        items[#items + 1] = {
+            text = _("复习模式"),
+            check = self.review_mode,
+            enabled = has_notes or self.review_mode,
+            callback = function()
+                self:_toggleReviewMode()
+            end,
+        }
+    end
     if #items == 0 then return end
     local menu
     menu = ArtGalleryPopupMenu:new{
@@ -2898,6 +3021,51 @@ function ArtGalleryViewer:_addNote()
     }
     UIManager:show(dialog)
     dialog:onShowKeyboard()
+end
+
+function ArtGalleryViewer:_toggleReviewMode()
+    self.review_mode = not self.review_mode
+    if self.review_mode then
+        -- 进入复习模式
+        self.review_show_note = true
+        self._saved_gallery_filter = self._gallery_filter or "shown"
+        -- 构建复习列表
+        self._review_metas = {}
+        for _, meta in ipairs(self.image_metas) do
+            if self:_getNoteFromFav(meta.path) then
+                table.insert(self._review_metas, meta)
+            end
+        end
+        -- 切换到复习列表
+        self._gallery_filter = "shown"
+        self:_syncImagesListFromFilter()
+        self._images_list_nb = #self._review_metas
+        -- 重置当前索引：如果当前图片在复习列表中，保持；否则跳到第一张
+        local current_meta = self._original_image_metas and self._original_image_metas[self._images_list_cur or 1]
+        local found = false
+        if current_meta then
+            for i, meta in ipairs(self._review_metas) do
+                if meta == current_meta then
+                    self._images_list_cur = i
+                    found = true
+                    break
+                end
+            end
+        end
+        if not found and #self._review_metas > 0 then
+            self._images_list_cur = 1
+        end
+        self:update()
+    else
+        -- 退出复习模式
+        self.review_show_note = false
+        self._review_metas = nil
+        -- 恢复之前的过滤态
+        self._gallery_filter = self._saved_gallery_filter or "shown"
+        self._saved_gallery_filter = nil
+        self:_syncImagesListFromFilter()
+        self:update()
+    end
 end
 
 function ArtGalleryViewer:_saveNoteWithFavorite(meta, note)
@@ -3241,6 +3409,15 @@ function ArtGalleryViewer:onTap(_, ges)
         end
         return true
     end
+    -- 复习模式：点击图片/备注区域切换（放在这里，所有按钮检测之后）
+    if self.review_mode and not self._gallery_mode then
+        if ges.pos:intersectWith(self.image_container.dimen) then
+            self.review_show_note = not self.review_show_note
+            self:update()
+            return true
+        end
+    end
+    -- 普通模式的显隐切换
     if not self._chrome_hidden and self.scale_factor == 0 then
         if self._chrome_hide_action then
             UIManager:unschedule(self._chrome_hide_action)
@@ -3248,7 +3425,9 @@ function ArtGalleryViewer:onTap(_, ges)
         end
         self._chrome_hide_action = function()
             self._chrome_hide_action = nil
-            self:_setChrome(true)
+            if not self.review_mode then
+                self:_setChrome(true)
+            end
         end
         UIManager:scheduleIn(0.35, self._chrome_hide_action)
     end
@@ -3273,6 +3452,9 @@ function ArtGalleryViewer:onShowPrevImage()
 end
 
 function ArtGalleryViewer:switchToImageNum(image_num)
+    if self.review_mode then
+        self.review_show_note = true
+    end
     if not self._images_list
        or image_num < 1 or image_num > self._images_list_nb then
         return
