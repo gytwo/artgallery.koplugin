@@ -66,6 +66,7 @@ local SMART_ROTATION_KEY = "artgallery_smart_rotation"
 local SHADOW_KEY = "artgallery_disable_shadow"
 local DARK_BG_KEY = "artgallery_dark_background"
 local GESTURE_TIP_KEY = "artgallery_gesture_tip_shown"
+local NO_RESIDUE_KEY = "artgallery_no_residue"
 
 -- 面板比例配置（3种比例可供选择）
 local PANEL_RATIO_KEY = "artgallery_panel_ratio"
@@ -78,12 +79,13 @@ local QUICK_ACTIONS = {
     { key = "mode",       default = true  },
     { key = "rotate",     default = true  },
     { key = "showinbook", default = true  },
+    { key = "noresidue",  default = true },
     { key = "smartrotate", default = true },
-    { key = "restore",    default = false },
-    { key = "prevnext",   default = false },
-    { key = "captions",   default = false },
+    { key = "restore",    default = true },
+    { key = "prevnext",   default = true },
+    { key = "captions",   default = true },
     { key = "invert",     default = true  },
-    { key = "darkbg",     default = false },
+    { key = "darkbg",     default = true },
 }
 
 local function _quick_enabled(key)
@@ -101,6 +103,7 @@ local function _quick_label(key)
         mode       = _("模式切换"),
         rotate     = _("旋转90°"),
         showinbook = _("在书中定位"),
+        noresidue  = _("切换比例无残留模式"),
         smartrotate = _("智能自动旋转"),
         restore    = _("恢复被忽略的图片"),
         prevnext   = _("显示导航按钮开关"),
@@ -851,23 +854,30 @@ function ArtGalleryViewer:_cyclePanelRatio()
         if math.abs(v - current) < 0.01 then idx = i; break end
     end
     local next_idx = idx % #options + 1
-    self.panel_ratio = options[next_idx]
+    local new_ratio = options[next_idx]
+    local old_ratio = self.panel_ratio
+    self.panel_ratio = new_ratio
     
     G_reader_settings:saveSetting(PANEL_RATIO_KEY, self.panel_ratio)
 
+    -- 无残留模式：从大比例切小比例时，关闭重开
+    local no_residue = G_reader_settings:isTrue(NO_RESIDUE_KEY)
+    if no_residue and new_ratio < old_ratio then
+        if self.on_rotate then
+            self:onClose()
+            self.on_rotate(nil, true)
+        end
+        return
+    end
+
+    -- 其他情况：原地更新
     if self.scale_factor and self.scale_factor ~= 0 then
         self.scale_factor = 0
         self._center_x_ratio, self._center_y_ratio = 0.5, 0.5
     end
     self._fit_scale_factor = nil
     self._scale_factor_0 = nil
-    
-    -- 先完全清除屏幕
-    UIManager:forceRePaint()
-    -- 再更新面板
     self:update()
-    -- 再刷新一次确保显示
-    UIManager:forceRePaint()
 end
 
 function ArtGalleryViewer:_setChrome(hidden)
@@ -2611,6 +2621,16 @@ function ArtGalleryViewer:_showMoreMenu()
             text = _("在书中定位"),
             icon = _PLUGIN_DIR .. "/assets/navigate.svg",
             callback = function() self:_showInBook() end,
+        }
+    end
+    if _quick_enabled("noresidue") then
+        items[#items + 1] = {
+            text = _("切换比例无残留模式"),
+            check = G_reader_settings:isTrue(NO_RESIDUE_KEY),  -- 用独立的设置键
+            callback = function()
+                G_reader_settings:saveSetting(NO_RESIDUE_KEY,
+                    not G_reader_settings:isTrue(NO_RESIDUE_KEY))
+            end,
         }
     end
     if _quick_enabled("smartrotate") then
