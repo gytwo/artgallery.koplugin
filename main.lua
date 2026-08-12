@@ -67,6 +67,7 @@ local SHADOW_KEY = "artgallery_disable_shadow"
 local DARK_BG_KEY = "artgallery_dark_background"
 local GESTURE_TIP_KEY = "artgallery_gesture_tip_shown"
 local NO_RESIDUE_KEY = "artgallery_no_residue"
+local NOTE_KEY = "artgallery_note"
 
 -- 面板比例配置（3种比例可供选择）
 local PANEL_RATIO_KEY = "artgallery_panel_ratio"
@@ -1505,6 +1506,10 @@ function ArtGalleryViewer:update()
         self._caption_wg:free()
         self._caption_wg = nil
     end
+    if self._note_wg then
+        self._note_wg:free()
+        self._note_wg = nil
+    end
     if G_reader_settings:nilOrTrue(CAPTIONS_KEY) and not self._gallery_mode
         and not self._chrome_hidden then
         local meta = self.image_metas
@@ -1520,6 +1525,29 @@ function ArtGalleryViewer:update()
             -- is rounded (see ArtGalleryCaption)
             self._caption_wg.overlap_offset = { 0, 0 }
             table.insert(overlay, self._caption_wg)
+        end
+    end
+    -- 显示备注（在 caption 下方）
+    if not self._gallery_mode and not self._chrome_hidden then
+        local meta = self.image_metas and self.image_metas[self._images_list_cur or 1]
+        if meta then
+            local note = self:_getNoteFromFav(meta.path)
+            if note and note ~= "" then
+                if self._note_wg then
+                    self._note_wg:free()
+                    self._note_wg = nil
+                end
+                self._note_wg = ArtGalleryCaption:new{
+                    text = note,
+                    max_width = image_area_w - 2 * Screen:scaleBySize(16),
+                }
+                local y_offset = 0
+                if self._caption_wg then
+                    y_offset = self._caption_wg:getSize().h
+                end
+                self._note_wg.overlap_offset = { 0, y_offset }
+                table.insert(overlay, self._note_wg)
+            end
         end
     end
     table.insert(self.frame_elements, overlay)
@@ -2201,7 +2229,25 @@ function ArtGalleryViewer:_openImageActionMenu(meta, pos)
         key and self.artgallery
         and self.artgallery:isFavoriteByKey(key) or false)
     local ignored = self._ignored_set[meta] or false
+    local note = self:_getNoteFromFav(meta.path)
+    local has_note = note ~= nil and note ~= ""
     local items = {}
+    -- 新增：备注选项
+    items[#items + 1] = {
+        text = has_note and _("编辑备注") or _("添加备注"),
+        enabled = true,
+        callback = function()
+            self:_addNote()
+        end,
+    }
+    items[#items + 1] = {
+        text = _("删除备注"),
+        enabled = has_note,
+        callback = function()
+            self:_removeNoteFromFav(meta)
+            self:_afterCollectionChange()
+        end,
+    }
     items[#items + 1] = {
         text = _("收藏图片"),
         enabled = not fav,
@@ -2751,6 +2797,97 @@ function ArtGalleryViewer:_toggleFavorite()
     else
         self.artgallery:addFavorite(im, self)
     end
+end
+
+function ArtGalleryViewer:_getNoteFromFav(path)
+    if not self.artgallery then return nil end
+    local records = self.artgallery:_favRecords()
+    local filename = path:match("[^/]+$") or path
+    for _, r in ipairs(records) do
+        if r.file and r.file:match(filename) then
+            return r.note
+        end
+    end
+    return nil
+end
+
+function ArtGalleryViewer:_hasNote(meta)
+    if not meta then return false end
+    local note = self:_getNoteFromFav(meta.path)
+    return note ~= nil and note ~= ""
+end
+
+function ArtGalleryViewer:_addNote()
+    local meta = self.image_metas and self.image_metas[self._images_list_cur or 1]
+    if not meta then return end
+
+    local existing_note = self:_getNoteFromFav(meta.path)
+
+    local InputDialog = require("ui/widget/inputdialog")
+    local dialog
+    dialog = InputDialog:new{
+        title = existing_note and _("编辑备注") or _("添加备注"),
+        input = existing_note or "",
+        input_hint = _("输入备注文字…"),
+        buttons = {
+            {
+                {
+                    text = _("取消"),
+                    callback = function()
+                        UIManager:close(dialog)
+                    end,
+                },
+                {
+                    text = _("保存"),
+                    callback = function()
+                        local text = dialog:getInputText()
+                        if text and text ~= "" then
+                            self:_saveNoteWithFavorite(meta, text)
+                        end
+                        UIManager:close(dialog)
+                        self:update()
+                    end,
+                },
+            },
+        },
+    }
+    UIManager:show(dialog)
+    dialog:onShowKeyboard()
+end
+
+function ArtGalleryViewer:_saveNoteWithFavorite(meta, note)
+    if not self.artgallery then return end
+
+    -- 如果未收藏，先收藏
+    local key = self:_favKey()
+    if not self.artgallery:isFavoriteByKey(key) then
+        self.artgallery:addFavorite(meta, self)
+    end
+
+    -- 更新备注
+    local records = self.artgallery:_favRecords()
+    local filename = meta.path:match("[^/]+$") or meta.path
+    for _, r in ipairs(records) do
+        if r.file and r.file:match(filename) then
+            r.note = note
+            break
+        end
+    end
+    self.artgallery:_saveFavRecords(records)
+end
+
+function ArtGalleryViewer:_removeNoteFromFav(meta)
+    if not self.artgallery then return end
+    local records = self.artgallery:_favRecords()
+    local filename = meta.path:match("[^/]+$") or meta.path
+    for _, r in ipairs(records) do
+        if r.file and r.file:match(filename) then
+            r.note = nil
+            break
+        end
+    end
+    self.artgallery:_saveFavRecords(records)
+    self:_afterCollectionChange()  -- 刷新菜单状态
 end
 
 function ArtGalleryViewer:_rotateCurrent()
@@ -3834,12 +3971,22 @@ function ArtGallery:addFavorite(im, viewer)
         end
     end
     t = live
+    -- 检查是否有已存在的 note（如果该图片之前有备注，保留它）
+    local existing_note = nil
+    for _, r in ipairs(t) do
+        if r.key == key and r.note then
+            existing_note = r.note
+            break
+        end
+    end
+
     t[#t + 1] = {
         file = dest,
         key = key,
         width = im.width or 0,
         height = im.height or 0,
         caption = im.caption,
+        note = existing_note,  -- 保留已有备注
     }
     self:_saveFavRecords(t)
 end
