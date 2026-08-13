@@ -1227,6 +1227,32 @@
   </section>
 
   <section>
+    <h2>阶段三十二 · 最大放大倍数可配置（吸收母插件 glimpse v1.2.2）· v1.0.16</h2>
+    <div class="meta">触发：用户要求吸收母插件 glimpse v1.2.2 的「可配置最大缩放」能力（对比报告 <code>D:\Download\artgallery_vs_glimpse_compare.html</code>）；评估为低难度（█░░░░，约 20 行纯配置）后实施。</div>
+    <div class="card">
+      <p><b>改动点（最小化、纯配置）</b></p>
+      <ul>
+        <li><span class="tag fix">修</span>新增设置键 <code>artgallery_max_zoom</code>（<code>MAX_ZOOM_KEY</code>，main.lua:78），<code>ArtGalleryViewer:init()</code>（:1000）读取，默认 <code>1.5</code> 保持旧行为（未设该键时完全等同旧版）。</li>
+        <li><span class="tag fix">修</span>插件菜单新增「最大放大倍数」子菜单（radio：<code>1.5× / 2.0× / 2.5× / 3.0× / 4.0×</code>，:5661-5667），<code>text_func</code> 实时显示当前值；选项对齐母插件 150%–400%。</li>
+        <li><span class="tag fix">修</span><code>_maxScale()</code>（:3572）抽屉态上限取该值，全屏态 <code>×2</code> 逻辑不变（仅进入全屏后仍继续放大，上限随之翻倍）。</li>
+      </ul>
+      <p><b>影响与取舍</b></p>
+      <ul>
+        <li>纯配置改动，零新增渲染路径、零回归风险；不涉及取图 / 渲染 / 导航核心，仅放宽缩放上限钳制。</li>
+        <li>设置即时写入 <code>G_reader_settings</code>，下一次打开 viewer（或进入全屏）即生效，无需重启 KOReader。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 静态类顺序检查：未检测到 method 早于类名声明</span>
+      <span class="chip ok">✓ 代理加载测试：<code>LOAD_OK</code></span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.16</code></span>
+      <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-13T2310</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复测：插件菜单「最大放大倍数」切换后，抽屉态放大上限是否随之变为 1.5×/4.0×，全屏态按 ×2 翻倍仍正常</span>
+    </div>
+  </section>
+
+  <section>
     <h2>阶段三十一 · 验收整改：补 logger.dbg 关键路径日志 + 主动 collectgarbage · v1.0.15</h2>
     <div class="meta">触发：依「合并插件验收标准」(koplugin-merge-acceptance 技能) 静态体检后，对未达标的两项（二.4 主动 GC / 五.1 关键路径日志）执行 hardening；并对技能 pending 项"2.2 进度保存防抖"做源码复核纠偏。</div>
     <div class="card">

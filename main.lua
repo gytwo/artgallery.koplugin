@@ -73,6 +73,9 @@ local CAPTIONS_KEY = "artgallery_captions"        -- caption overlay, ON by defa
 local TOP_MENU_KEY = "artgallery_top_menu_zone"   -- tap top strip → KOReader top menu, ON by default (nilOrTrue)
 local SHADOW_KEY = "artgallery_disable_shadow"    -- drop the drawer's gradient shadow, OFF by default (e-ink ghost source)
 local GESTURE_TIP_KEY = "artgallery_gesture_tip_shown" -- one-time menu-open nudge to bind a gesture
+-- 最大放大倍数（相对图片原生尺寸）：抽屉态上限，全屏态 _maxScale 再 ×2。
+-- 默认 1.5 与旧行为一致；可调到 4.0 以便看清扫描版/细节图。
+local MAX_ZOOM_KEY = "artgallery_max_zoom"
 -- Which actions appear in the viewer's ⋯ popup ("Quick Actions", configured
 -- from the plugin menu). Table order = popup order; `default` = shown unless
 -- the user has toggled it. The six that were always in the popup default ON;
@@ -992,6 +995,9 @@ function ArtGalleryViewer:init()
     -- 抽屉态恒为 contain，本字段仅在全屏有意义。默认值取用户持久化的
     -- 默认态（长按导航栏填充按钮可设），未设则 cover（沿用原默认行为）。
     self._fullscreen_fill = G_reader_settings:readSetting("artgallery_default_fill") or "cover"
+    -- 最大放大倍数（相对图片原生尺寸）：抽屉态上限，全屏态 _maxScale 再 ×2。
+    -- 默认 1.5 保持旧行为；用户可在插件菜单调高以看清细节图。
+    self.max_zoom_of_native = G_reader_settings:readSetting(MAX_ZOOM_KEY) or 1.5
     -- 已自动选向的图片序号：每图仅在首次构建 widget 时自动选一次朝向，
     -- 用户手动旋转后由 _setRotation 记住，不再被自动选向覆盖。
     self._auto_rotated_for = nil
@@ -5552,6 +5558,18 @@ function ArtGallery:_menuItems()
             end,
         }
     end
+    local function max_zoom_item(value, text)
+        return {
+            text = text,
+            radio = true,
+            checked_func = function()
+                return (G_reader_settings:readSetting(MAX_ZOOM_KEY) or 1.5) == value
+            end,
+            callback = function()
+                G_reader_settings:saveSetting(MAX_ZOOM_KEY, value)
+            end,
+        }
+    end
     return {
         {
             -- which gesture opens ArtGallery here; tap for the how-to (KOReader
@@ -5633,6 +5651,21 @@ function ArtGallery:_menuItems()
                 G_reader_settings:saveSetting(INVERT_KEY,
                     not G_reader_settings:isTrue(INVERT_KEY))
             end,
+        },
+        {
+            text_func = function()
+                local m = G_reader_settings:readSetting(MAX_ZOOM_KEY) or 1.5
+                return T(_("最大放大倍数：%1×"), m)
+            end,
+            help_text = _("相对图片原生尺寸的最大放大上限，全屏态再翻倍。默认 1.5×（与旧版一致）；调高可看清扫描版/细节图。"),
+            sub_item_table = {
+                max_zoom_item(1.5, _("1.5×（默认）")),
+                max_zoom_item(2.0, _("2.0×")),
+                max_zoom_item(2.5, _("2.5×")),
+                max_zoom_item(3.0, _("3.0×")),
+                max_zoom_item(4.0, _("4.0×")),
+            },
+            separator = true,
         },
         {
             text = _("显示导航按钮"),
