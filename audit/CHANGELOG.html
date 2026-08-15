@@ -1227,6 +1227,30 @@
   </section>
 
   <section>
+    <h2>阶段三十六 · 文档修正：更正「支持格式」声明 · v1.0.19</h2>
+    <div class="meta">触发：用户严格核对 README 声称的支持格式，发现多处声明与代码实际行为不符，要求「若有误则修改」。经核查代码确认事实，修正文档与注释。</div>
+    <div class="card">
+      <p><b>核查结论（代码事实，非推测）</b></p>
+      <ul>
+        <li><span class="tag fix">核</span><code>_supportedReason()</code>（main.lua:4025-4039）对没有 <code>getDocumentFileContent</code> 的文档（PDF / DjVu 等分页格式）一律返回「美术馆仅支持 EPUB 格式」；in-book 画廊 <code>showViewer</code> 只经 <code>scanner.scan</code> 解析 EPUB 的 container/opf，<b>PDF / DjVu 不被扫描</b>。</li>
+        <li><span class="tag fix">核</span><b>CBZ</b> 仅经文件管理器「浏览 CBZ 漫画」独立入口（<code>showCbz</code> → <code>scanner.scan_cbz</code>）全屏翻阅，并非 in-book 画廊，且不做相关性过滤。</li>
+        <li><span class="tag fix">核</span>全代码无 <code>showPdf</code> / <code>showDjvu</code> 入口 —— 故原 README「CBZ / DjVu / PDF」「EPUB + CBZ / DjVu / PDF」为<b>事实性错误</b>。</li>
+      </ul>
+      <p><b>修正内容（仅文档 + 注释，无运行行为变化）</b></p>
+      <ul>
+        <li><span class="tag fix">修</span>README「支持格式」章节改为按场景说明：EPUB（内置画廊原生强项）/ CBZ（漫画独立入口）/ PDF·DjVu（暂不支持，明确提示）。</li>
+        <li><span class="tag fix">修</span>README 进度同步小节与「相比上游」对比表中「EPUB + CBZ / DjVu / PDF」更正为「EPUB（内置画廊）+ CBZ（漫画独立入口）；PDF / DjVu 暂不支持」。</li>
+        <li><span class="tag fix">修</span>main.lua 两处会误导人的注释（:4108 / :4160 的「CBZ/DjVu/PDF」并列）标注 PDF / DjVu 已被 <code>_supportedReason</code> 拦截、不会走到进度同步逻辑。</li>
+      </ul>
+    </div>
+    <div class="chips">
+      <span class="chip ok">✓ 运行行为：无变化（仅文档/注释）</span>
+      <span class="chip ok">✓ main.lua 语法：SYNTAX_OK</span>
+      <span class="chip warn">⚠ 不重新发版（文档修正）；仓库 README 已更新，v1.0.19 发行包 zip 资产内 README 仍为旧表述，如需可重新发版</span>
+    </div>
+  </section>
+
+  <section>
     <h2>阶段三十五 · 双池带实时计数的分段切换器（吸收母插件 glimpse v1.2.5 思路）· v1.0.19</h2>
     <div class="meta">触发：用户按「③→①→②」顺序吸收母插件 glimpse v1.2.5 可借鉴项；③（手势开关）、①（更聪明过滤）已先后完成并彻底核验，本阶段实施 ②（双池带实时计数的分段切换器），每阶段做完彻底核验再推进。设计要点：底部画廊 pill 由「三态循环按钮」升级为「三段直达 + 实时计数」切换器。</div>
     <div class="card">

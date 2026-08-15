@@ -14,17 +14,19 @@
 
 ## 支持格式 / Supported formats
 
-**中文**：本插件适用于 KOReader 能够打开、且内含图片的主流电子书格式，尤其适合：
-- **EPUB** — 滚动文档（小说、带地图 / 族谱的参考书），也是本插件的原生强项；
-- **CBZ / DjVu / PDF** — 分页文档（漫画、扫描版插图集、带插图的资料书）。
+**中文**：本插件按使用场景支持以下格式，并非「KOReader 能打开的都支持」：
+- **EPUB** — 滚动文档（小说、带地图 / 族谱的参考书），美术馆**内置画廊**的原生强项：在任意 EPUB 阅读界面一键打开本书图片浏览器，全套过滤 / 收藏 / 忽略 / 进度同步能力均可用；
+- **CBZ** — 漫画压缩包，经文件管理器「浏览 CBZ 漫画」菜单入口，用美术馆全屏翻阅其页面图片（每页即一张图，不做相关性过滤）；
+- **PDF / DjVu** — **暂不支持**：美术馆对这两类分页文档会提示「仅支持 EPUB 格式」，请勿用本插件浏览其中的图片。
 
-只要书籍中包含可被提取的图片（地图、族谱、漫画分镜、插图等），即可用本插件浏览；纯文本无图书籍不适用。
+只要书籍是上述受支持格式（EPUB / CBZ）且其中包含可被提取的图片（地图、族谱、漫画分镜、插图等），即可用本插件浏览；纯文本无图书籍不适用。
 
-**English**: This plugin works with any mainstream e-book format KOReader can open that contains extractable images — especially:
-- **EPUB** — scrolling documents (novels, reference books with maps / family trees); the plugin's native strength;
-- **CBZ / DjVu / PDF** — paged documents (comics, scanned illustration collections, illustrated materials).
+**English**: This plugin supports the following formats by use-case — not "every format KOReader can open":
+- **EPUB** — scrolling documents (novels, reference books with maps / family trees); the native strength of the **in-book gallery**: open the image browser for the current book from any EPUB reading screen, with full filtering / favorites / ignore / progress-sync support;
+- **CBZ** — comic archives, opened via the file-manager **"Browse CBZ comics"** menu entry; the gallery pages through the archive's images full-screen (each page is one image, no relevance filtering);
+- **PDF / DjVu** — **not supported yet**: ArtGallery tells you "only EPUB is supported" for these paged formats, so don't use it to browse images inside PDF / DjVu.
 
-It works whenever the book contains extractable images (maps, family trees, comic panels, illustrations); plain-text books without images are not applicable.
+It works whenever the book is in a supported format above (EPUB / CBZ) and contains extractable images (maps, family trees, comic panels, illustrations); plain-text books without images are not applicable.
 
 ---
 
@@ -110,9 +112,9 @@ Three fit modes are available in the `⋯` menu; **long-press a mode to set it a
 
 ### 6. 看图同步书籍进度 / Reading-progress sync
 
-看图时自动同步更新书籍本身的阅读进度，避免"看完了漫画、书本进度还停在第一页"。分页文档（CBZ / DjVu / PDF）与滚动文档（EPUB）**各用独立开关**，可按文档类型分别开启或关闭。
+看图时自动同步更新书籍本身的阅读进度，避免"看完了漫画、书本进度还停在第一页"。目前受支持的图片文档中，**CBZ（分页）**与 **EPUB（滚动）** 各用独立开关，可按文档类型分别开启或关闭。
 
-Viewing images also advances the book's own reading progress, so your book won't stay on page one after you finish a comic. **Separate toggles** are provided for paged documents (CBZ / DjVu / PDF) and scrolling documents (EPUB).
+Viewing images also advances the book's own reading progress, so your book won't stay on page one after you finish a comic. Among the supported image documents, **CBZ (paged)** and **EPUB (scrolling)** each have a separate toggle you can turn on or off by document type.
 
 ### 7. 智能适配与自动选向 / Smart fitting & auto-orientation
 
@@ -170,7 +172,7 @@ Tap any segment to **switch directly** (no cycling); the active pool is highligh
 
 | 维度 | Glimpse / Illustrations（上游） | 美术馆 / ArtGallery |
 | --- | --- | --- |
-| 支持格式 | 仅 EPUB | **EPUB + CBZ / DjVu / PDF**（分页文档同样可看图、可翻页） |
+| 支持格式 | 仅 EPUB | **EPUB（内置画廊）+ CBZ（漫画独立入口）**；PDF / DjVu 暂不支持 |
 | 全屏填充 | Illustrations 仅单一全屏模式 | 新增 **铺满 / 适配 / 拉伸** 三态，可长按设为默认；全屏自动隐藏按钮/页码/标题，单击底部显隐 |
 | 拉伸模式手势 | 无独立"拉伸"模式 | 拉伸态下仍完整支持双击放大、双指缩放、按住平移 |
 | 最大放大倍数 | 上游固定缩放上限 | 菜单可选 **1.5× – 4.0×** 上限，即时生效 |
@@ -187,7 +189,7 @@ Tap any segment to **switch directly** (no cycling); the active pool is highligh
 
 | Aspect | Glimpse / Illustrations (upstream) | ArtGallery (美术馆) |
 | --- | --- | --- |
-| Formats | EPUB only | **EPUB + CBZ / DjVu / PDF** (paged docs are viewable & pageable) |
+| Formats | EPUB only | **EPUB (in-book gallery) + CBZ (comic entry)**; PDF / DjVu not yet supported |
 | Fullscreen fit | Illustrations: single fullscreen mode | New **cover / contain / stretch** three-mode fit; long-press to set default; auto-hide buttons/dots/title, tap bottom to toggle |
 | Stretch gestures | No dedicated "stretch" mode | Stretch mode still fully supports double-tap zoom, pinch/spread, and hold-pan |
 | Max zoom | Fixed zoom ceiling upstream | Menu-selectable **1.5× – 4.0×** ceiling, applied instantly |
