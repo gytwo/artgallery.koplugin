@@ -177,10 +177,16 @@
     </ul>
     <div class="sig">
       <div><b>静态体检</b><span> ✓ 已完成（2026-08-15）</span></div>
-      <div><b>真机实测</b><span> □ 待部署后</span></div>
+      <div><b>真机实测</b><span> ✓ 部分确认（2026-08-15，核心 4 项）</span></div>
       <div><b>日期</b><span> 2026-08-15</span></div>
       <div><b>版本</b><span> v1.0.19</span></div>
     </div>
+    <p class="note" style="margin-top:10px">
+      <b>实机复测结果（KPW3，2026-08-15）</b>：① 冷启动快、无卡顿 ✓；② 飞行模式触发更新检查不冻结、提示「是否打开 WIFI」✓；
+      ③ 分段切换器逐段命中正确、实时计数准确，无忽略项时不显示「忽略」段 ✓；④ 菜单关闭某手势后对应手势确失效 ✓。
+      <b>仍建议补测</b>：连续翻页 30 次观卡顿、退出再进确认偏好持久化、取 <code>crash.log</code> 按 <code>[ArtGallery]</code> 过滤取证。
+      <b>代码已推送</b> GitHub main（commit f2a7484）；<b>GitHub Release 未经用户明确同意，暂未发布</b>（latest 仍 v1.0.16）。
+    </p>
   </div>
 
   <h2>待部署后实测清单（G 盘设备侧）</h2>
