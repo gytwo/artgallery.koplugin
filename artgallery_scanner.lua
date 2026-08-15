@@ -26,7 +26,7 @@ local M = {}
 
 -- Bump when scan output format or discovery logic changes, so cached scans
 -- (stored in ArtGallery's sidecar) are invalidated on plugin upgrade.
-M.VERSION = 5
+M.VERSION = 6
 
 -- ── small string helpers ────────────────────────────────────────────────────
 
@@ -485,6 +485,25 @@ function M.figure_name(path)
         or base:match("%f[%a]fig%d+%f[%A]")) and true or false
 end
 
+-- Reference-figure filenames: maps, family trees, diagrams, charts, graphs,
+-- timelines, schematics and infographics are genuine reference content even
+-- when small or oddly shaped — a cookbook's step diagram, a textbook's chart,
+-- a genealogy's family tree. They earn caption relief (half-size + aspect
+-- slack) so the default size/aspect floor doesn't drop them. Word-boundary
+-- matched like M.decorative_name; a lone "map" inside "remap" won't match.
+function M.reference_name(path)
+    local base = (path:match("[^/]+$") or path):lower()
+    return (base:match("%f[%a]map%d*%f[%A]") or base:match("%f[%a]maps?[_%-]")
+        or base:match("%f[%a]family[%-_]?tree%f[%A]") or base:match("pedigree")
+        or base:match("%f[%a]diagram%f[%A]") or base:match("%f[%a]diag%f[%A]")
+        or base:match("%f[%a]chart%f[%A]") or base:match("%f[%a]chart[_%-]")
+        or base:match("%f[%a]graph%f[%A]") or base:match("%f[%a]timeline%f[%A]")
+        or base:match("%f[%a]schematic%f[%A]") or base:match("%f[%a]infographic%f[%A]")
+        or base:match("^map[_%-]") or base:match("^chart[_%-]")
+        or base:match("^diagram[_%-]") or base:match("^timeline[_%-]")
+        or base:match("^graph[_%-]")) and true or false
+end
+
 -- A caption too weak to shield a chrome-NAMED file (titlepage.jpg,
 -- *logo*, endpaper.jpg ...): decorative text, or the "<Title> by <Author>"
 -- alt that publishers put on title-page art ("Hell Bent by Leigh Bardugo").
@@ -828,6 +847,10 @@ M.MAX_SPINE_FILES = 2     -- referenced from more files = chapter ornament
 M.MIN_SERIES = 4          -- ≥ this many images with identical dimensions =
                           -- a decorative series (chapter/part-opener art)
 M.FRONTMATTER_SPINE = 3   -- spine positions treated as front matter
+M.INFORMATIVE_RELIEF = 0.6 -- illustrated-book relax: uncaptioned small images
+                          -- keep at 60% of the size floor (aspect stays strict)
+M.INFORMATIVE_MIN = 4      -- qualify only if ≥ this many strong reference signals...
+M.INFORMATIVE_RATIO = 0.4  -- ...and they make up ≥ 40% of all images
 
 -- Returns included_list, stats where stats = { total=, included=,
 -- excluded = { cover=n, repeated=n, series=n, decorative=n, frontmatter=n,
@@ -882,6 +905,30 @@ function M.filter(images, level)
         end
     end
 
+    -- Pre-pass (illustrated-book detection): count "strong reference
+    -- signals" across the whole document — images with a real (non-
+    -- decorative) caption, a publisher figure name, a reference-figure
+    -- filename (see M.reference_name), or that are already large enough to
+    -- clear the default size floor on their own. Illustrated non-fiction
+    -- (cookbooks / textbooks / tutorials) is image-heavy with many such
+    -- signals; novels are not. When the density is high we relax the
+    -- SMALL-size floor for uncaptioned images (size_relief below) so a
+    -- book's small step-diagrams / charts / photos are kept — but the
+    -- aspect test stays strict, so tall thin chrome is still dropped.
+    local strong = 0
+    for _, img in ipairs(images) do
+        local real_caption = img.caption and not M.decorative_caption(img.caption)
+        local ref = M.figure_name(img.path) or M.reference_name(img.path)
+        local big = img.width and img.height
+            and math.max(img.width, img.height) >= t.long
+            and img.width * img.height >= t.area
+        if real_caption or ref or big then
+            strong = strong + 1
+        end
+    end
+    local book_is_informative = strong >= M.INFORMATIVE_MIN
+        and (#images == 0 or strong >= math.ceil(#images * M.INFORMATIVE_RATIO))
+
     for _, img in ipairs(images) do
         local reason
         -- a section-heading alt ("Chapter 1 ...") marks decoration, so it
@@ -889,6 +936,7 @@ function M.filter(images, level)
         local decorative = M.decorative_caption(img.caption)
         local captioned = ((img.caption ~= nil or img.in_figure) and not decorative)
             or M.figure_name(img.path)
+            or M.reference_name(img.path)
         if img.is_cover then
             reason = "cover"
         elseif img.files_count > M.MAX_SPINE_FILES then
@@ -942,12 +990,17 @@ function M.filter(images, level)
                 else
                     local long, short = math.max(w, h), math.min(w, h)
                     local max_ratio = t.ratio * (captioned and M.RATIO_RELIEF or 1)
-                    local relief = captioned and M.CAPTION_RELIEF or 1
+                    -- illustrated-book relax: when the document is image-heavy
+                    -- with many strong reference signals, uncaptioned small
+                    -- images keep at INFORMATIVE_RELIEF of the size floor
+                    -- (aspect stays strict, so tall thin chrome is still dropped)
+                    local size_relief = captioned and M.CAPTION_RELIEF
+                        or (book_is_informative and M.INFORMATIVE_RELIEF or 1)
                     if short > 0 and long / short > max_ratio then
                         reason = "aspect"
-                    elseif short < t.short * relief
-                        or long < t.long * relief
-                        or w * h < t.area * relief * relief then
+                    elseif short < t.short * size_relief
+                        or long < t.long * size_relief
+                        or w * h < t.area * size_relief * size_relief then
                         reason = "small"
                     end
                 end

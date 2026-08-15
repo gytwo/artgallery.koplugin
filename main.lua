@@ -76,6 +76,10 @@ local GESTURE_TIP_KEY = "artgallery_gesture_tip_shown" -- one-time menu-open nud
 -- 最大放大倍数（相对图片原生尺寸）：抽屉态上限，全屏态 _maxScale 再 ×2。
 -- 默认 1.5 与旧行为一致；可调到 4.0 以便看清扫描版/细节图。
 local MAX_ZOOM_KEY = "artgallery_max_zoom"
+-- 手势独立开关：默认全开（nilOrTrue），可单项关闭以减少误触或按手感定制。
+local GESTURE_DOUBLE_TAP_KEY = "artgallery_gesture_double_tap"  -- 双击放大
+local GESTURE_SWIPE_KEY      = "artgallery_gesture_swipe_nav"   -- 滑动翻页
+local GESTURE_PINCH_KEY      = "artgallery_gesture_pinch_zoom"  -- 捏合缩放
 -- Which actions appear in the viewer's ⋯ popup ("Quick Actions", configured
 -- from the plugin menu). Table order = popup order; `default` = shown unless
 -- the user has toggled it. The six that were always in the popup default ON;
@@ -645,6 +649,152 @@ function ArtGalleryTextButton:free()
     end
     if self._text_wg then
         self._text_wg:free()
+    end
+end
+
+-- Three-segment direct selector for the Gallery pool, replacing the old
+-- single cycling button. Each segment shows a live count, e.g. 全部[12]
+-- 收藏[3] 忽略[2]; the active segment is inverted (black fill, white text).
+-- Tapping a segment switches straight to that pool (see onTap /
+-- _selectGalleryFilter). Width fits its contents but is stretched by the
+-- parent to fill the bottom bar as equal cells.
+local ArtGallerySegmented = Widget:extend{
+    segments = nil,        -- array of { key, label, count, active }
+    height = Screen:scaleBySize(42),
+    radius = Screen:scaleBySize(8),
+    stroke = Screen:scaleBySize(2),
+    padding_h = Screen:scaleBySize(10),   -- inner horizontal padding per segment
+    face = nil,
+    -- internal (set in init)
+    _w = 0,
+    _natural_w = 0,
+    _bg_bb = nil,
+    _seg_nat_w = nil,      -- natural (unstretched) width per segment
+    _seg_rects = nil,      -- { x, w } in local coords per segment (post-stretch)
+    _text_wgs = nil,       -- parallel TextWidget per segment
+}
+
+function ArtGallerySegmented:init()
+    self.face = self.face or Font:getFace("cfont", 15)
+    self._seg_nat_w = {}
+    self._seg_rects = {}
+    self._text_wgs = {}
+    local total = 0
+    for i, seg in ipairs(self.segments) do
+        local tw = TextWidget:new{
+            text = seg.label .. "[" .. tostring(seg.count) .. "]",
+            face = self.face,
+            bold = true,
+            fgcolor = seg.active and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK,
+        }
+        self._text_wgs[i] = tw
+        local w = tw:getSize().w + 2 * self.padding_h
+        self._seg_nat_w[i] = w
+        total = total + w
+    end
+    self._natural_w = total
+    self:_applyNatural()
+end
+
+function ArtGallerySegmented:_applyNatural()
+    local total = 0
+    for i = 1, #self.segments do
+        local w = self._seg_nat_w[i]
+        self._seg_rects[i] = { x = total, w = w }
+        total = total + w
+    end
+    self._w = total
+end
+
+function ArtGallerySegmented:getSize()
+    return Geom:new{ w = self._w, h = self.height }
+end
+
+-- Stretch (or shrink) to an explicit width, distributing the surplus evenly
+-- across segments so the control fills the bottom bar as equal cells. Always
+-- recomputed from the natural widths, so repeated calls are safe.
+function ArtGallerySegmented:setWidth(w)
+    if not w or w <= 0 or w == self._w then return end
+    local n = #self.segments
+    if n == 0 then return end
+    if w < self._natural_w then
+        self:_applyNatural()
+        self._w = self._natural_w
+    else
+        local extra = w - self._natural_w
+        local each = math.floor(extra / n)
+        local total = 0
+        for i = 1, n do
+            local rw = self._seg_nat_w[i] + each
+            self._seg_rects[i] = { x = total, w = rw }
+            total = total + rw
+        end
+        -- any rounding remainder lands in the last segment
+        self._seg_rects[n].w = self._seg_rects[n].w + (w - total)
+        self._w = w
+    end
+    if self._bg_bb then self._bg_bb:free(); self._bg_bb = nil end
+end
+
+-- Which segment (by key) contains absolute x? nil if outside.
+function ArtGallerySegmented:segmentKeyAt(posX)
+    if not self.dimen then return nil end
+    local rel = posX - self.dimen.x
+    for i, seg in ipairs(self.segments) do
+        local r = self._seg_rects[i]
+        if rel >= r.x and rel < r.x + r.w then return seg.key end
+    end
+    return nil
+end
+
+function ArtGallerySegmented:paintTo(bb, x, y)
+    self.dimen = Geom:new{ x = x, y = y, w = self._w, h = self.height }
+    if not self._bg_bb then
+        self._bg_bb = make_rounded_stencil(self._w, self.height,
+            self.radius, self.stroke, 0xFF, 0x00)
+    end
+    bb:alphablitFrom(self._bg_bb, x, y, 0, 0, self._w, self.height)
+    -- dividers between segments (interior, so they never touch a rounded corner)
+    local n = #self.segments
+    for i = 1, n - 1 do
+        local rx = self._seg_rects[i].x + self._seg_rects[i].w
+        for yy = 0, self.height - 1 do
+            bb:setPixel(x + rx, y + yy, Blitbuffer.COLOR_BLACK)
+        end
+    end
+    -- active segment: invert its background (black fill) within the rounded
+    -- silhouette, then paint every segment's text (already coloured at init).
+    for i, seg in ipairs(self.segments) do
+        local r = self._seg_rects[i]
+        if seg.active then
+            for yy = 0, self.height - 1 do
+                for xx = 0, r.w - 1 do
+                    local sx = r.x + xx
+                    if sx >= 0 and sx < self._bg_bb:getWidth()
+                       and yy < self._bg_bb:getHeight() then
+                        local a = self._bg_bb:getPixel(sx, yy):getColorRGB32().alpha
+                        if a > 127 then
+                            bb:setPixel(x + r.x + xx, y + yy,
+                                bb:getPixel(x + r.x + xx, y + yy)
+                                    :getColorRGB32():invert())
+                        end
+                    end
+                end
+            end
+        end
+        local tw = self._text_wgs[i]
+        local tsz = tw:getSize()
+        local tx = x + r.x + math.floor((r.w - tsz.w) / 2)
+        local ty = y + math.floor((self.height - tsz.h) / 2)
+        tw:paintTo(bb, tx, ty)
+    end
+end
+
+function ArtGallerySegmented:free()
+    if self._bg_bb then self._bg_bb:free(); self._bg_bb = nil end
+    if self._text_wgs then
+        for _, tw in ipairs(self._text_wgs) do tw:free() end
+        self._text_wgs = nil
     end
 end
 
@@ -2035,11 +2185,31 @@ function ArtGalleryViewer:_buildPill()
     end
     self._pill_dots = nil -- only set back below when dots are actually built
     if self._gallery_mode then
-        -- 画廊底部居中：三态循环按钮（全部 → 收藏 → 忽略 → 全部）。
-        -- 标签显示当前所处过滤态，点按切到下一态并就地刷新（见 _cycleGalleryFilter）；
-        -- “第 X / Y 页”已移到顶部网格左上方。循环可见性不依赖是否有忽略池。
-        self._pill_frame = ArtGalleryTextButton:new{
-            text = self:_galleryFilterLabel(), bold = true }
+        -- 当处于「忽略」视图但已无忽略项时（例如刚取消最后一项忽略），
+        -- 自动回退到「全部」，避免空画廊。
+        if (self._gallery_filter or "all") == "ignored" and not self:_hasIgnoredTab() then
+            self._gallery_filter = "all"
+        end
+        -- 双池带实时计数的分段切换器：全部[N]/收藏[F]/忽略[M]，点按直达该池
+        -- （替代旧的三态循环按钮）。仅当确有忽略项时才显示「忽略」段
+        -- （_hasIgnoredTab 约束），保持无忽略时与旧版一致：只有 全部/收藏 两段。
+        local all_count = (self.shown_metas and #self.shown_metas or 0)
+            + self:_ignoredCount()
+        -- 切勿用 local _ 承接首返回值，否则会遮蔽 gettext 的 _()（见 _tabList 处注释）。
+        local _fav_list, fav_metas = self:_favoritesLists()  -- 走 _fav_cache，无性能回归
+        local fav_count = fav_metas and #fav_metas or 0
+        local cur = self._gallery_filter or "all"
+        local segs = {
+            { key = "all",       label = _("全部"), count = all_count,
+              active = cur == "all" },
+            { key = "favorites", label = _("收藏"), count = fav_count,
+              active = cur == "favorites" },
+        }
+        if self:_hasIgnoredTab() then
+            segs[#segs + 1] = { key = "ignored", label = _("忽略"),
+                count = self:_ignoredCount(), active = cur == "ignored" }
+        end
+        self._pill_frame = ArtGallerySegmented:new{ segments = segs }
         return
     end
     if self:_isOverFit() then
@@ -2260,6 +2430,17 @@ function ArtGalleryViewer:_cycleGalleryFilter()
     else
         self:_enterGallery(nil, next_f)
     end
+end
+
+-- 分段切换器点按直达：直接切到指定过滤池（全部/收藏/忽略），就地刷新。
+-- 与 _cycleGalleryFilter 的循环语义不同，这里点哪个段就进哪个池。
+function ArtGalleryViewer:_selectGalleryFilter(key)
+    if key == (self._gallery_filter or "all") then return end  -- 点当前段：无操作
+    if key == "ignored" and not self:_hasIgnoredTab() then return end  -- 无忽略项不可选
+    self._gallery_filter = key
+    self:_invalidateGalleryCaches()
+    self._gallery_page = 1
+    self:update()
 end
 
 function ArtGalleryViewer:_enterGallery(page, filter)
@@ -3047,6 +3228,10 @@ end
 -- Pinch covers everything in between, stepless. (For small images the max is
 -- at or below fit, so double-tap just stays at the fit view.)
 function ArtGalleryViewer:onArtGalleryDoubleTap(_, ges)
+    -- 手势开关：关闭双击放大后，双击不再缩放（直接消费事件，避免误触缩放）。
+    if not G_reader_settings:nilOrTrue(GESTURE_DOUBLE_TAP_KEY) then
+        return true
+    end
     -- 拉伸态双击放大已放开：逻辑与 cover 一致（0 ↔ _maxScale），见 _applyNewScaleFactor。
     local was_fit = self.scale_factor == 0
     -- re-center the zoom on the tapped point (harmless when we end up
@@ -3078,6 +3263,10 @@ end
 -- → 结果恒 0，双指张开/捏合从填满态根本进不了缩放（见方案第三节的 0 基数坑）。
 -- 故此处以 cover 下限为基数放大；已缩放态（scale_factor~=0）委托上游继续连续缩放。
 function ArtGalleryViewer:onZoomIn(inc)
+    -- 手势开关：关闭捏合缩放后，缩放事件直接消费、不进入缩放（含拉伸态从填满进入缩放的路径）。
+    if not G_reader_settings:nilOrTrue(GESTURE_PINCH_KEY) then
+        return true
+    end
     if self._fullscreen_fill == "stretch" and self.scale_factor == 0 then
         local floor = self:_computeFitScaleFactor() -- cover 均匀填满比例
         inc = inc or 0.2
@@ -3090,6 +3279,10 @@ end
 -- 拉伸态已在「非均匀填满」(scale_factor==0)：再缩小无意义（已是最满），停在填满。
 -- 已缩放态委托上游，缩放回弹到 ≤ cover 下限时由 _applyNewScaleFactor 归 0 回到拉伸。
 function ArtGalleryViewer:onZoomOut(dec)
+    -- 手势开关：关闭捏合缩放后，缩小的缩放事件直接消费、不响应。
+    if not G_reader_settings:nilOrTrue(GESTURE_PINCH_KEY) then
+        return true
+    end
     if self._fullscreen_fill == "stretch" and self.scale_factor == 0 then
         return true
     end
@@ -3220,12 +3413,15 @@ function ArtGalleryViewer:onTap(_, ges)
         return true
     end
     if self._gallery_mode then
-        -- 三态循环按钮（底部居中 pill）：全部 → 收藏 → 忽略 → 全部
+        -- 底部居中分段切换器：点按命中段直接切到对应池（全部/收藏/忽略）
         if self._pill_frame and self._pill_frame.dimen
            and ges.pos:intersectWith(self._pill_frame.dimen) then
-            self:_flashButton(self._pill_frame, function()
-                self:_cycleGalleryFilter()
-            end)
+            local key = self._pill_frame:segmentKeyAt(ges.pos.x)
+            if key then
+                self:_flashButton(self._pill_frame, function()
+                    self:_selectGalleryFilter(key)
+                end)
+            end
             return true
         end
         -- 缩略图点按：仅主池（未被忽略）图片可打开到单图视图；忽略池图片
@@ -3338,17 +3534,23 @@ end
 -- tap-outside). Zoomed in, delegate to upstream so swipes keep panning.
 function ArtGalleryViewer:onSwipe(arg, ges)
     if self._gallery_mode then
-        local d = ges.direction
-        if d == "west" or d == "east" then
-            local forward = d == "west"
-            if BD.mirroredUILayout() then forward = not forward end
-            self:_galleryGo(forward and 1 or -1)
+        -- 手势开关：关闭滑动翻页后，画廊左右滑动不再翻页，但仍消费事件（避免误触）。
+        if G_reader_settings:nilOrTrue(GESTURE_SWIPE_KEY) then
+            local d = ges.direction
+            if d == "west" or d == "east" then
+                local forward = d == "west"
+                if BD.mirroredUILayout() then forward = not forward end
+                self:_galleryGo(forward and 1 or -1)
+            end
         end
         return true
     end
     if self.scale_factor == 0 then
+        -- 手势开关：关闭滑动翻页后，适配态左右滑动不再切图；但无论如何都消费事件，
+        -- 避免上游在 fit 态滑动「关闭查看器」的安全保护始终生效。
         local d = ges.direction
-        if self._images_list and (d == "west" or d == "east") then
+        if G_reader_settings:nilOrTrue(GESTURE_SWIPE_KEY)
+           and self._images_list and (d == "west" or d == "east") then
             local forward = d == "west"
             if BD.mirroredUILayout() then forward = not forward end
             if forward then
@@ -5664,6 +5866,46 @@ function ArtGallery:_menuItems()
                 max_zoom_item(2.5, _("2.5×")),
                 max_zoom_item(3.0, _("3.0×")),
                 max_zoom_item(4.0, _("4.0×")),
+            },
+            separator = true,
+        },
+        {
+            text = _("手势"),
+            help_text = _("自定义查看器中的手势。三项默认开启，可单独关闭以减少误触或按手感定制。"),
+            sub_item_table = {
+                {
+                    text = _("双击放大"),
+                    help_text = _("双击图片在「适配」与「最大放大」之间切换。关闭后双击不再缩放（沉浸态隐藏层时双击也无反应）。"),
+                    checked_func = function()
+                        return G_reader_settings:nilOrTrue(GESTURE_DOUBLE_TAP_KEY)
+                    end,
+                    callback = function()
+                        G_reader_settings:saveSetting(GESTURE_DOUBLE_TAP_KEY,
+                            not G_reader_settings:nilOrTrue(GESTURE_DOUBLE_TAP_KEY))
+                    end,
+                },
+                {
+                    text = _("滑动翻页"),
+                    help_text = _("左右滑动切换上一张/下一张图片或图库页。关闭后可用 ‹ › 导航按钮或底部圆点代替。"),
+                    checked_func = function()
+                        return G_reader_settings:nilOrTrue(GESTURE_SWIPE_KEY)
+                    end,
+                    callback = function()
+                        G_reader_settings:saveSetting(GESTURE_SWIPE_KEY,
+                            not G_reader_settings:nilOrTrue(GESTURE_SWIPE_KEY))
+                    end,
+                },
+                {
+                    text = _("捏合缩放"),
+                    help_text = _("双指张开/捏合连续缩放图片。关闭后缩放仅可通过双击（若开启）等其它途径。"),
+                    checked_func = function()
+                        return G_reader_settings:nilOrTrue(GESTURE_PINCH_KEY)
+                    end,
+                    callback = function()
+                        G_reader_settings:saveSetting(GESTURE_PINCH_KEY,
+                            not G_reader_settings:nilOrTrue(GESTURE_PINCH_KEY))
+                    end,
+                },
             },
             separator = true,
         },

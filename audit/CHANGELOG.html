@@ -1227,6 +1227,91 @@
   </section>
 
   <section>
+    <h2>阶段三十五 · 双池带实时计数的分段切换器（吸收母插件 glimpse v1.2.5 思路）· v1.0.19</h2>
+    <div class="meta">触发：用户按「③→①→②」顺序吸收母插件 glimpse v1.2.5 可借鉴项；③（手势开关）、①（更聪明过滤）已先后完成并彻底核验，本阶段实施 ②（双池带实时计数的分段切换器），每阶段做完彻底核验再推进。设计要点：底部画廊 pill 由「三态循环按钮」升级为「三段直达 + 实时计数」切换器。</div>
+    <div class="card">
+      <p><b>改动点（main.lua，最小化）</b></p>
+      <ul>
+        <li><span class="tag fix">修</span>新增 <code>ArtGallerySegmented</code> widget（紧接 <code>ArtGalleryTextButton</code> 之后）：三段式直达选择器，每段显示实时计数 <code>全部[N]/收藏[F]/忽略[M]</code>，当前段反相（黑底白字）表选中，整体拉伸填满底栏为等高单元；命中测试支持按 x 坐标定位段（<code>segmentKeyAt</code>）。</li>
+        <li><span class="tag fix">修</span><code>_buildPill</code> 画廊分支由旧「三态循环按钮」改为构建该分段控件：计数来源 <code>全部 = #shown + #ignored</code>、<code>收藏 = #_favoritesLists</code>（走 <code>_fav_cache</code> 无性能回归）、<code>忽略 = _ignoredCount()</code>；且<b>仅当确有忽略项（<code>_hasIgnoredTab()</code>）才显示「忽略」段</b>，无忽略时只有 全部/收藏 两段，与旧版外观/行为一致。</li>
+        <li><span class="tag fix">修</span>新增 <code>_selectGalleryFilter(key)</code> 方法：点按分段直接切到对应池（替代 onTap 画廊 pill 命中处的 <code>_cycleGalleryFilter</code> 循环），含两道 guard——点当前段无操作、无忽略项时不可选忽略。</li>
+        <li><span class="tag fix">修</span>onTap 画廊 pill 命中改用 <code>segmentKeyAt(ges.pos.x)</code> 判定命中段。</li>
+        <li><span class="tag fix">修</span><code>_buildPill</code> 额外兜底：当处于「忽略」视图但已无忽略项时自动回退「全部」，避免空画廊。</li>
+        <li><span class="tag">保</span><code>_cycleGalleryFilter</code> 保留供 ⋯ 菜单入口（行为不变）。</li>
+      </ul>
+      <p><b>影响与取舍</b></p>
+      <ul>
+        <li>约 110 行（含 widget），零新增渲染路径、运行期零额外压力（收藏计数走 <code>_fav_cache</code>；仅画廊态重绘时重建文字 widget，开销可忽略）。</li>
+        <li>与旧版一致性：无忽略项时画廊底栏外观与旧版一致，且点击语义由「循环」改为「直达」，更符合直觉、少一步操作。</li>
+        <li>交互升级：用户不再多次点击循环到目标池，点哪个段直接进哪个池，并实时看到各池数量。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 静态类顺序检查：OK</span>
+      <span class="chip ok">✓ 代理加载测试：<code>LOAD_OK</code></span>
+      <span class="chip ok">✓ local _ 遮蔽检查：<b>捕获并修复 1 处</b>——初版 <code>_buildPill</code> 用 <code>local _, fav_metas = ...</code> 承接 <code>_favoritesLists</code> 首返回值，会遮蔽 gettext 的 <code>_()</code>，紧随其后的 <code>_("全部")</code> 将在真机崩（attempt to call a table value）；依本插件既有约定（见 <code>_tabList</code> 处注释）改名 <code>_fav_list</code> 修复</span>
+      <span class="chip ok">✓ 单元测试：新增 <code>D:/TeleAgent/test_segmented.lua</code> 抽取真实 widget（轻量 KOReader 桩）跑 24 项断言全过（几何/拉伸均分/命中边界含偏移/<code>paintTo</code> 不报错/重复 <code>setWidth</code> 安全）</span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.19</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复测：画廊底栏分段切换器点按各段（全部/收藏/忽略）是否即时切换并刷新数量；无忽略项时仅显示两段且与旧版一致；拉伸填满后各段点击命中准确</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>阶段三十四 · 更聪明的相关性过滤（吸收母插件 glimpse v1.2.3）· v1.0.18</h2>
+    <div class="meta">触发：用户对比母插件 glimpse v1.2.3 的「更聪明相关性过滤」后，按「③→①→②」顺序在 ③ 之后实施 ①。纯扫描逻辑增强，不依赖页面渲染，运行期零压力。</div>
+    <div class="card">
+      <p><b>改动点（artgallery_scanner.lua，最小化）</b></p>
+      <ul>
+        <li><span class="tag fix">修</span>新增 <code>M.reference_name(path)</code>（:494）：按文件名识别参考图——<code>map / family-tree / pedigree / diagram / chart / graph / timeline / schematic / infographic</code>（词边界匹配，<code>remap</code>/<code>photo</code>/<code>logo</code> 不误命中），在 <code>M.filter</code> 的 <code>captioned</code> 判定（:937-939）中赋予与 figcaption 同等的 relief（半尺寸门槛 + 50% 长宽比宽容），使小尺寸 / 异形地图、族谱、图表不再被 small / aspect 误杀。</li>
+        <li><span class="tag fix">修</span>图文非虚构自动放宽（:850 常量 + :908-930 预扫描 + :997 size_relief）：统计全书「强参考信号」密度（真实说明 / 出版 figure 名 / 参考图名 / 自身已够大）；当 <code>strong ≥ 4</code> 且占全部图片 <code>≥ 40%</code> 时判定为图文书（菜谱 / 科普 / 教程），对无说明小图放宽尺寸下限至 <code>INFORMATIVE_RELIEF=0.6</code>；<b>长宽比测试保持严格</b>，高瘦装饰图仍被丢弃，避免误收。</li>
+        <li><span class="tag fix">修</span><code>M.VERSION</code> 5 → 6（:29），使旧扫描缓存失效、升级后首次打开书自动按新过滤重扫（一次性，无需手动清缓存）。</li>
+      </ul>
+      <p><b>影响与取舍</b></p>
+      <ul>
+        <li>纯扫描期逻辑，运行时零额外压力；不影响取图 / 渲染 / 导航核心。</li>
+        <li>默认过滤等级（balanced）行为在非图文书完全保持旧版（低密度不触发放宽）；仅图文书与具名参考图更"全"。</li>
+        <li>已扫描过的书需重扫一次（VERSION bump 自动触发，无需手动清缓存）。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 静态类顺序检查：OK</span>
+      <span class="chip ok">✓ 代理加载测试：<code>LOAD_OK</code></span>
+      <span class="chip ok">✓ 单元测试：<code>M.filter</code> headless 16 项断言全过（参考图识别 / 无回归 / 图文非虚构放宽 / strict·relaxed 行为）</span>
+      <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.18</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复测：图文书（菜谱 / 科普）小示意图 / 图表是否被纳入图库；小说等低密度书是否仍与旧版一致（不误收装饰小图）</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>阶段三十三 · 手势独立开关子菜单（吸收母插件 glimpse v1.2.5 思路）· v1.0.17</h2>
+    <div class="meta">触发：用户对比母插件 glimpse 更新到 v1.2.5 后，要求按「③→①→②」顺序吸收可借鉴项；③（手势独立开关）评估为低难度（纯 wiring、无新 widget / 无 layout 改动），先行实施，且每阶段做完彻底核验后再推进下一阶段。</div>
+    <div class="card">
+      <p><b>改动点（最小化，纯配置 + 三处手势入口 guard）</b></p>
+      <ul>
+        <li><span class="tag fix">修</span>新增三个手势设置键（<code>main.lua:80</code> 附近）：<code>artgallery_gesture_double_tap</code>（双击放大）、<code>artgallery_gesture_swipe_nav</code>（滑动翻页）、<code>artgallery_gesture_pinch_zoom</code>（捏合缩放）；默认均开启（<code>nilOrTrue</code>）。</li>
+        <li><span class="tag fix">修</span>插件菜单新增「手势」子菜单（:5693-5731），内含三项 checkbox（双击放大 / 滑动翻页 / 捏合缩放），<code>checked_func</code> 实时反映开关态，<code>callback</code> 即时落盘 <code>G_reader_settings</code>。</li>
+        <li><span class="tag fix">修</span>三处手势入口加 guard：<code>onArtGalleryDoubleTap</code>（:3053）判关则直接消费事件、不缩放；<code>onZoomIn</code>/<code>onZoomOut</code>（:3088/:3104）判关则直接消费、不进入缩放（含拉伸态填满进入缩放的路径）；<code>onSwipe</code>（:3355）判关后画廊 / 适配态不再翻页，但<b>保留「适配态吞掉滑动事件、防止上游误关查看器」的安全保护</b>（仍 return true）。</li>
+      </ul>
+      <p><b>影响与取舍</b></p>
+      <ul>
+        <li>纯 wiring，无新 widget、无 layout 改动，约 60 行；不新增任何渲染路径，运行期零额外压力（仅多读几次设置）。</li>
+        <li>默认全开，行为完全等同旧版；关闭某项仅影响对应手势，其余交互（导航按钮 / 底部圆点 / 顶区菜单等）不受影响，减少 6 寸小屏误触。</li>
+        <li>与母插件 v1.2.5 引入的「软投影」等 e-ink 有害项相反，本阶段刻意只做轻量开关，不引入残影源，KPW3 运行压力零增加。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 静态类顺序检查：未检测到 method 早于类名声明</span>
+      <span class="chip ok">✓ 代理加载测试：<code>LOAD_OK</code></span>
+      <span class="chip ok">✓ local _ 遮蔽检查：无</span>
+      <span class="chip ok">✓ 改动范围：仅 <code>main.lua</code>（+4 处 guard / 1 子菜单）+ <code>_meta.lua</code> 升 <code>1.0.17</code></span>
+      <span class="chip warn">⚠ 待 KPW3 实机复测：插件菜单「手势」子菜单三项开关切换后，对应手势（双击放大 / 滑动翻页 / 捏合缩放）是否按预期生效与失效；适配态滑动不再误关查看器仍成立</span>
+    </div>
+  </section>
+
+  <section>
     <h2>阶段三十二 · 最大放大倍数可配置（吸收母插件 glimpse v1.2.2）· v1.0.16</h2>
     <div class="meta">触发：用户要求吸收母插件 glimpse v1.2.2 的「可配置最大缩放」能力（对比报告 <code>D:\Download\artgallery_vs_glimpse_compare.html</code>）；评估为低难度（█░░░░，约 20 行纯配置）后实施。</div>
     <div class="card">
