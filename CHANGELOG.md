@@ -142,6 +142,6 @@
 ---
 
 ### 备注 / Notes
-- 版本 / Version: `1.0.8`（见 `_meta.lua`）。
+- 版本 / Version: `1.0.19`（见 `_meta.lua`）。
 - 详细改动、风险表与方案文档见 `audit/` 目录（中文）。
   Detailed changes, risk tables, and design docs are in the `audit/` folder (Chinese).
