@@ -1227,6 +1227,32 @@
   </section>
 
   <section>
+    <h2>阶段三十七 · 文档修正：「相比上游的改进」改为分别对比两上游最新版 · v1.0.19</h2>
+    <div class="meta">触发：用户指出 README「相比上游的改进」板块应<b>分别</b>对比 Glimpse 与 Illustrations 的<b>最新版</b>，而非混为一列、并据此把上游既有能力误写成弱点。已上 GitHub 核实两上游真实版本与功能后重写。</div>
+    <div class="card">
+      <p><b>上游真实版本与能力（GitHub 核实，2026-08-15）</b></p>
+      <ul>
+        <li><b>Glimpse</b> — Fank1（Erik Fanki）；最新 <code>main</code> <b>v1.2.5</b>（最新 Release v1.2.0，2026-07-29）。其 README 证实它<b>本就</b>具备：可配置最大放大倍数（150%–400%、默认 200%）、逐手势开关（双击/滑动/捏合各自可关）、以及同款「更聪明过滤」引擎（参考图名识别 + 图文书自动放宽）；另有记住上次图片（含缩放/平移）、夜间反转、画廊网格 + 忽略标签页、书签入画廊、旋转、带回滚的就地更新。</li>
+        <li><b>Illustrations</b> — agaragou；最新 <b>v0.5.2</b>（2026-04-25）。较精简：3×3 网格画廊、全屏插图、<b>全局收藏</b>（跨书甚至书外可用）、防剧透两档、手势分配、仅「最小图片尺寸」阈值过滤、清缓存。</li>
+      </ul>
+      <p><b>重写要点</b></p>
+      <ol>
+        <li>板块拆为<b>两个独立子对比</b>（对比 Glimpse v1.2.5 / 对比 Illustrations v0.5.2），并诚实标注每项是「同源 / 均具备」还是「美术馆新增 / 增强」。</li>
+        <li>纠正旧表把「上游固定缩放上限 / 手势固定不可关 / 基础过滤」当成 Glimpse 弱点的<b>失实</b>——实为 Glimpse 既有能力，美术馆继承沿用（同源），并非美术馆独创。</li>
+        <li>纠正「收藏收为书内」的<b>失实</b>——经核查 <code>ArtGallery:_favSettings()</code> 收藏存于 <code>artgallery/favorites.lua</code>，是<b>全局收藏</b>，与 Illustrations 同源；真正差异是 Illustrations <b>无忽略池</b>且收藏为独立画廊，美术馆新增<b>忽略池</b>并把三池统一进分段切换器（实时计数）。</li>
+        <li>保留真实差异项：全中文界面、三态填充（cover/contain/stretch）、CBZ 入口、统一分段切换器、可选的书籍进度主动同步（Glimpse 刻意不推进进度、美术馆可选推进）等。</li>
+      </ol>
+    </div>
+    <div class="chips">
+      <span class="chip ok">✓ 已上 GitHub 核实两上游最新版与功能，非凭记忆</span>
+      <span class="chip ok">✓ 板块拆分：分别对比 Glimpse v1.2.5 / Illustrations v0.5.2</span>
+      <span class="chip ok">✓ 纠正 2 处失实（缩放/手势/过滤非 Glimpse 弱点；收藏为全局非书内）</span>
+      <span class="chip ok">✓ 仅文档改动，无运行行为变化</span>
+      <span class="chip warn">⚠ 未重新发版；发行包 zip 内 README 仍为旧表述（如需可重发）</span>
+    </div>
+  </section>
+
+  <section>
     <h2>阶段三十六 · 文档修正：更正「支持格式」声明 · v1.0.19</h2>
     <div class="meta">触发：用户严格核对 README 声称的支持格式，发现多处声明与代码实际行为不符，要求「若有误则修改」。经核查代码确认事实，修正文档与注释。</div>
     <div class="card">

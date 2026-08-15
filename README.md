@@ -168,39 +168,95 @@ Tap any segment to **switch directly** (no cycling); the active pool is highligh
 
 ## 相比上游的改进 / Improvements over the upstreams
 
-**中文**：美术馆（ArtGallery）并非简单堆叠两个插件，而是在合并 **Glimpse** 与 **Illustrations** 能力的基础上做了针对性增强。两个上游插件均**仅支持 EPUB**；本插件在保留其优良特性的同时，补齐了以下短板并新增能力：
+**中文**：美术馆（ArtGallery）是 **Glimpse** 与 **Illustrations** 两个 KOReader 社区插件的合并与增强。为表述准确，下面**分别**对比两个上游的**最新版本**：
 
-| 维度 | Glimpse / Illustrations（上游） | 美术馆 / ArtGallery |
-| --- | --- | --- |
-| 支持格式 | 仅 EPUB | **EPUB（内置画廊）+ CBZ（漫画独立入口）**；PDF / DjVu 暂不支持 |
-| 全屏填充 | Illustrations 仅单一全屏模式 | 新增 **铺满 / 适配 / 拉伸** 三态，可长按设为默认；全屏自动隐藏按钮/页码/标题，单击底部显隐 |
-| 拉伸模式手势 | 无独立"拉伸"模式 | 拉伸态下仍完整支持双击放大、双指缩放、按住平移 |
-| 最大放大倍数 | 上游固定缩放上限 | 菜单可选 **1.5× – 4.0×** 上限，即时生效 |
-| 手势开关 | 上游手势固定不可关 | 可逐项关闭 **双击放大 / 滑动翻页 / 捏合缩放** |
-| 图片过滤 | 上游基础过滤 | **参考图识别 + 图文书自动放宽**，噪声更少、参考图不再误杀 |
-| 图库切换 | 上游三态循环按钮 | **全部 / 收藏 / 忽略 分段直达 + 实时计数** |
-| 阅读进度 | Glimpse"不丢失你的位置"、Illustrations 可"跳回书中页码" | 进一步**主动同步书籍自身进度**（分页/滚动分别开关），看漫画不再"书还停在第一页" |
-| 界面语言 | 全英文 | 全中文菜单与「关于美术馆」对话框（含双语元数据） |
-| 更新维护 | 各插件各自指向自己的仓库 | 内置更新器统一指向本仓库 `ksaMask123/artgallery.koplugin`，一处维护 |
+- **Glimpse** — 作者 Fank1（Erik Fanki）；最新 `main` 分支 **v1.2.5**（最新 Release **v1.2.0**，2026-07-29）：[github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
+- **Illustrations** — 作者 agaragou；最新 **v0.5.2**（2026-04-25）：[github.com/agaragou/illustrations.koplugin](https://github.com/agaragou/illustrations.koplugin)
 
-同时，上游的优秀特性被完整保留并延续：图书内一键入口、抽屉/画廊缩略图、收藏、按书清缓存、防剧透（仅显示当前位置之前）、缩放/平移、手势与内置更新器——你不再需要同时安装两个插件。
+> 说明：美术馆是"合并"而非"从零发明"。表中凡标注「同源 / 均具备」的项，表示该能力本就来自对应上游、美术馆继承沿用；标注「美术馆新增 / 增强」的，才是相对该上游的差异化改进。
 
-**English**: ArtGallery is not a simple stacking of two plugins; it merges **Glimpse** and **Illustrations** and adds targeted enhancements. Both upstreams support **EPUB only**; this plugin keeps their strengths while closing gaps and adding capabilities:
+### 对比 Glimpse v1.2.5
 
-| Aspect | Glimpse / Illustrations (upstream) | ArtGallery (美术馆) |
-| --- | --- | --- |
-| Formats | EPUB only | **EPUB (in-book gallery) + CBZ (comic entry)**; PDF / DjVu not yet supported |
-| Fullscreen fit | Illustrations: single fullscreen mode | New **cover / contain / stretch** three-mode fit; long-press to set default; auto-hide buttons/dots/title, tap bottom to toggle |
-| Stretch gestures | No dedicated "stretch" mode | Stretch mode still fully supports double-tap zoom, pinch/spread, and hold-pan |
-| Max zoom | Fixed zoom ceiling upstream | Menu-selectable **1.5× – 4.0×** ceiling, applied instantly |
-| Gesture toggles | Gestures fixed, cannot be turned off | Independently disable **double-tap zoom / swipe paging / pinch zoom** |
-| Image filter | Basic filter upstream | **Reference-image recognition + illustrated-book auto-relax**, less noise, reference images no longer dropped |
-| Gallery switch | Upstream three-state cycle button | **All / Favorites / Ignored segmented jump + live counts** |
-| Reading progress | Glimpse "doesn't lose your place"; Illustrations "jump back to page" | Further **actively syncs the book's own progress** (separate toggles for paged vs scrolling) — comics no longer leave the book stuck on page one |
-| UI language | English only | Fully Chinese menus and About dialog (with bilingual metadata) |
-| Updates | Each plugin points to its own repo | Built-in updater uniformly points to this repo `ksaMask123/artgallery.koplugin` |
+Glimpse 是功能更完整的上游（"随时偷看书中参考图而不丢位置"）。它本身**已具备**：EPUB 智能扫描与过滤（参考图名识别 + 图文书自动放宽）、防剧透范围、记住上次图片（含缩放/平移）、夜间反转、可配置最大放大倍数（150%–400%，默认 200%）、逐手势开关、画廊网格 + 忽略标签页、书签入画廊、旋转、在书中显示、带回滚的就地更新、预发布订阅。
 
-Meanwhile, the upstream's good features are preserved: in-book entry, drawer/gallery thumbnails, favorites, per-book cache clearing, spoiler protection (show only up to current position), zoom/pan, gestures, and the built-in updater — so you no longer need both plugins installed.
+| 维度 | Glimpse v1.2.5 | 美术馆 ArtGallery | 差异 |
+| --- | --- | --- | --- |
+| 界面语言 | 全英文 | **全中文菜单 + 关于对话框（双语元数据）** | 美术馆新增（中文化） |
+| 全屏填充 | 单一"fit"静止视图 + 最大缩放 | **铺满 / 适配 / 拉伸 三态**，可长按设默认；全屏自动隐藏控件 | 美术馆新增三态填充 |
+| 漫画 / CBZ | 明确不支持（PDF / 漫画 / manga 弹"格式不支持"） | **CBZ 独立入口**（文件管理器"浏览 CBZ 漫画"） | 美术馆新增 CBZ 浏览 |
+| 收藏 | 无收藏（仅有"忽略"与书签） | **全局收藏池**（源自 Illustrations，统一进分段切换器） | 美术馆引入收藏 |
+| 图库切换 | 画廊网格 + 分页箭头 + 忽略标签页 + 防剧透模式切换 | **全部 / 收藏 / 忽略 分段直达 + 实时计数**；无忽略项时自动隐藏"忽略"段 | 美术馆统一三池为一控件 |
+| 最大放大倍数 | 150%–400% 可配（默认 200%） | 1.5×–4.0× 可配（默认 1.5×） | 同源思路，默认值不同（美术馆更保守） |
+| 手势开关 | 双击 / 滑动 / 捏合 各自可关 | 同样可逐项关闭 | 同源 / 均具备 |
+| 智能过滤 | 参考图名识别 + 图文书放宽（同引擎） | 同引擎（吸收自 Glimpse） | 同源 / 均具备 |
+| 防剧透 | 章节级范围 + 一次性全书搜索 | 三档（全书 / 已读到 / 仅当前章节前） | 均具备，美术馆多一档 |
+| 阅读进度 | 刻意"不改动你的位置" | **可主动同步书籍自身进度**（分页 / 滚动分别开关） | 方向相反：Glimpse 不推进，美术馆可选推进 |
+| 维护 | 独立仓库、自带更新器 | 合并为单插件，更新器统一指向本仓库 | 装一个即可，无需并存 |
+
+### 对比 Illustrations v0.5.2
+
+Illustrations 是较精简的上游（"浏览 EPUB 中所有插图"）。它本身具备：3×3 网格画廊、全屏插图模式、**全局收藏**（跨书，甚至书外可用）、更新检查、防剧透（当前页之前 / 全部两档）、点按 / 方向键导航、手势**分配**、最小图片尺寸阈值过滤、清缓存（当前 / 全部）。
+
+| 维度 | Illustrations v0.5.2 | 美术馆 ArtGallery | 差异 |
+| --- | --- | --- | --- |
+| 智能过滤 | 仅"最小图片尺寸"阈值（按大小丢小图） | **参考图名识别 + 图文书自动放宽 + 长宽比 / 重复 / 位置 / 说明多维判断** | 美术馆远强于单纯阈值 |
+| 最大放大倍数 | 无配置（固定缩放） | 1.5×–4.0× 可配 | 美术馆新增（源自 Glimpse） |
+| 手势开关 | 仅"分配手势到动作"，无逐项开 / 关 | 双击 / 滑动 / 捏合 可逐项关闭 | 美术馆新增（源自 Glimpse） |
+| 全屏填充 | 单一张图全屏 | 铺满 / 适配 / 拉伸 三态 + 长按默认 | 美术馆新增 |
+| 防剧透范围 | 仅两档（当前页之前 / 全部） | 三档（全书 / 已读到 / 仅当前章节前） | 美术馆多一档 |
+| 记忆上次位置 | 未保留缩放 / 平移 | 记住上次图片（含缩放级别与平移位置） | 源自 Glimpse，美术馆继承 |
+| 收藏与忽略 | 有**全局收藏**，但**无"忽略"池** | **全局收藏**（存于 `artgallery/favorites.lua`）+ **忽略池**，二者统一进「全部 / 收藏 / 忽略」分段切换器并显实时计数 | 收藏同源（均全局）；美术馆新增"忽略"池并统一三池为一控件 |
+| 漫画 / CBZ | 仅 EPUB | CBZ 独立入口 | 美术馆新增 |
+| 夜间反转 / 旋转 | 未提供 | 夜间模式反转图片 + 旋转 90° | 源自 Glimpse，美术馆继承 |
+| 界面语言 | 全英文 | 全中文 | 美术馆中文化 |
+| 维护 | 独立仓库 | 合并为单插件，单仓库维护 | 装一个即可 |
+
+**中文小结**：美术馆把 Glimpse 的"智能过滤 / 手势开关 / 最大放大倍数 / 防剧透 / 忽略 / 记忆位置 / 反转 / 旋转"与 Illustrations 的"全局收藏 / 网格画廊 / 防剧透 / 手势分配"融合为一，并额外补上**全中文界面、三态填充模式、CBZ 漫画入口、统一分段切换器（实时计数）、可选的书籍进度主动同步**。你不再需要同时安装两个插件。
+
+**English**: ArtGallery merges two KOReader community plugins, **Glimpse** and **Illustrations**, and enhances them. For accuracy, the comparison below is made **separately** against each upstream's **latest version**:
+
+- **Glimpse** — by Fank1 (Erik Fanki); latest `main` **v1.2.5** (latest Release **v1.2.0**, 2026-07-29): [github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
+- **Illustrations** — by agaragou; latest **v0.5.2** (2026-04-25): [github.com/agaragou/illustrations.koplugin](https://github.com/agaragou/illustrations.koplugin)
+
+> Note: ArtGallery is a *merge*, not invented from scratch. Rows marked "same / both have" mean the capability already came from that upstream and is inherited; rows marked "ArtGallery added / enhanced" are the differentiators vs that upstream.
+
+### vs Glimpse v1.2.5
+
+Glimpse is the more complete upstream (the "peek at reference images" plugin). It already has: EPUB smart scan + filter (reference-name recognition + illustrated-book relax), spoiler scopes, last-image memory (zoom + pan), night invert, configurable max zoom (150%–400%, default 200%), per-gesture toggles, masonry gallery with Ignored tab, bookmarks-in-gallery, rotate, show-in-book, in-place update with rollback, prerelease opt-in.
+
+| Aspect | Glimpse v1.2.5 | ArtGallery (美术馆) | Difference |
+| --- | --- | --- | --- |
+| UI language | English only | **Fully Chinese menus + About dialog (bilingual metadata)** | ArtGallery added (localized) |
+| Fullscreen fit | Single "fit" resting view + max zoom | **cover / contain / stretch** three modes; long-press to set default; auto-hide controls | ArtGallery added three-mode fit |
+| Comics / CBZ | Explicitly unsupported (PDF / comics / manga show "format not supported") | **CBZ entry** (file-manager "Browse CBZ comics") | ArtGallery added CBZ browsing |
+| Favorites | No favorites (only Ignore + bookmarks) | **Global favorites pool** (from Illustrations, unified into the segmented switcher) | ArtGallery introduced favorites |
+| Gallery switch | Masonry grid + page arrows + Ignored tab + spoiler-mode switch | **All / Favorites / Ignored segmented jump + live counts**; "Ignored" auto-hidden when none | ArtGallery unified the three pools into one control |
+| Max zoom | 150%–400% configurable (default 200%) | 1.5×–4.0× configurable (default 1.5×) | Same idea, different default (ArtGallery more conservative) |
+| Gesture toggles | double-tap / swipe / pinch each toggleable | Same, each independently disableable | Same / both have |
+| Smart filter | Reference-name recognition + illustrated-book relax (same engine) | Same engine (adopted from Glimpse) | Same / both have |
+| Spoiler protection | Chapter-scoped + one-time whole-book search | Three scopes (whole book / read-so-far / current-chapter-before) | Both have; ArtGallery adds one more |
+| Reading progress | Deliberately "doesn't change your place" | **Optionally syncs the book's own progress** (separate paged / scrolling toggles) | Opposite: Glimpse never advances; ArtGallery can |
+| Maintenance | Separate repo, own updater | Merged into one plugin, updater points to this repo | Install one, no need to coexist |
+
+### vs Illustrations v0.5.2
+
+Illustrations is the leaner upstream ("browse all illustrations in an EPUB"). It has: 3×3 grid gallery, fullscreen illustrations mode, **global favorites** (across books, even outside books), update checker, spoiler protection (before-current-page / all, two scopes), tap / arrow-key navigation, gesture **assignment**, min-image-size threshold filter, cache clearing (current / all).
+
+| Aspect | Illustrations v0.5.2 | ArtGallery (美术馆) | Difference |
+| --- | --- | --- | --- |
+| Smart filter | Min-image-size threshold only (drops small images by size) | **Reference-name recognition + illustrated-book relax + aspect-ratio / repetition / position / caption multi-factor** | ArtGallery far stronger than a size threshold |
+| Max zoom | No config (fixed zoom) | 1.5×–4.0× configurable | ArtGallery added (from Glimpse) |
+| Gesture toggles | Only *assign* gestures to actions, no per-gesture on/off | double-tap / swipe / pinch independently disableable | ArtGallery added (from Glimpse) |
+| Fullscreen fit | Single fullscreen image | cover / contain / stretch three modes + long-press default | ArtGallery added |
+| Spoiler scopes | Two (before current page / all) | Three (whole book / read-so-far / current-chapter-before) | ArtGallery adds one |
+| Last-position memory | Doesn't keep zoom / pan | Remembers last image (zoom level + pan position) | From Glimpse, inherited |
+| Favorites & Ignore | Has **global favorites**, but **no "ignore" pool** | **Global favorites** (in `artgallery/favorites.lua`) + **Ignore pool**, both unified into the All / Favorites / Ignored segmented switcher with live counts | Favorites same (both global); ArtGallery adds the Ignore pool and unifies the three pools into one control |
+| Comics / CBZ | EPUB only | CBZ entry | ArtGallery added |
+| Night invert / rotate | Not provided | Night-mode image invert + rotate 90° | From Glimpse, inherited |
+| UI language | English only | Fully Chinese | ArtGallery localized |
+| Maintenance | Separate repo | Merged into one plugin, single repo | Install one |
+
+**English summary**: ArtGallery fuses Glimpse's smart filter / gesture toggles / max zoom / spoiler protection / ignore / position memory / invert / rotate with Illustrations' global favorites / grid gallery / spoiler protection / gesture assignment, and additionally adds **a fully Chinese UI, three fit modes, a CBZ comic entry, a unified segmented switcher with live counts, and optional active book-progress sync**. You no longer need both plugins installed.
 
 ---
 
