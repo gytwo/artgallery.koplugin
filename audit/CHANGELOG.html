@@ -184,6 +184,45 @@
     </div>
   </section>
 
+  <!-- ===================== 阶段四十（最新） ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段四十 · 修复「返回」崩溃（画廊后退空 self.image）</h2>
+      <span class="date">2026-08-16</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>真机（KPW3）点击画廊底部「返回」按钮导致 KOReader 整体崩溃。设备 <code>crash.log</code> 栈回溯定位：<code>frontend/ui/widget/imagewidget.lua:264: cannot render image</code> → 经 <code>CenterContainer/FrameContainer/OverlapGroup/VerticalGroup</code> → <code>main.lua:1584</code> 查看器 <code>paintTo</code> → <code>uimanager.lua:1279 _repaint</code> ← <code>handleInput</code>（来自「返回」点按）。即点按触发重绘时，单图 ImageWidget 拿到 <code>nil</code> 图像而报错。</p>
+
+      <h3>根因</h3>
+      <p>画廊态不构建主图 widget，<code>self.image</code> 可能为 <code>nil</code>。两种触发路径：① 书签段退回画廊（<code>_exitBookmarkView</code> 置 <code>self.image = nil</code> 后 <code>_enterGallery</code>）；② 阅读视图直接进画廊、尚未加载单图。原 <code>_exitGallery</code> 的 <code>else self:update()</code> 分支在 <code>self.image == nil</code> 时直接重建单图 widget，<code>_new_image_wg()</code> 以 <code>image = nil</code> 建 ImageWidget，重绘即崩。此为「书签入画廊」（阶段三八）新功能引入的回归。</p>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead>
+          <tr><th>文件</th><th>性质</th><th>改动说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>main.lua</code> · <code>ArtGalleryViewer:_exitGallery</code></td>
+            <td><span class="tag fix">修</span></td>
+            <td>改为：若 <code>self.image</code> 有效且目标索引 == 当前索引 → 直接 <code>update()</code>（无切换闪烁）；否则（含 <code>self.image == nil</code> 的书签画廊/直进画廊路径）→ 改走 <code>switchToImageNum(target)</code>，由它按当前索引先把图片加载回 <code>self.image</code> 再 <code>update()</code>，确保单图 widget 拿到有效图像，杜绝 <code>cannot render image</code> 崩溃。仅修正取图时序，无其它行为变化。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>校验</h3>
+      <div class="chips">
+        <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code>（main.lua）</span>
+        <span class="chip ok">✓ 工作副本 ≡ 干净副本（<code>diff -q</code> IDENTICAL）</span>
+        <span class="chip warn">⚠ 真机复测待用户授权部署后执行（HITL）：书签画廊/直进画廊点「返回」不再崩溃，且正确回到对应单图</span>
+        <span class="chip ok">✓ 版本号维持 <code>v1.0.20</code> 未升版；未发 Release（依「发版须经同意」纪律）</span>
+      </div>
+    </div>
+  </section>
+
   <!-- ===================== 阶段一 ===================== -->
   <section class="phase open">
     <div class="phase-head">

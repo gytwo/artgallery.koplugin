@@ -2504,10 +2504,18 @@ end
 function ArtGalleryViewer:_exitGallery(idx)
     self._view_bookmark_meta = nil  -- 进入真实图片单图态，清书签标记
     self._gallery_mode = false
-    if idx and idx ~= (self._images_list_cur or 1) then
-        self:switchToImageNum(idx) -- runs update()
-    else
+    local cur = self._images_list_cur or 1
+    local target = idx or cur
+    if self.image and target == cur then
+        -- 画廊由单图进入、self.image 仍有效：直接重建单图 widget（无切换闪烁）。
         self:update()
+    else
+        -- 画廊以「无当前单图」状态进入（如书签段退回画廊 self.image=nil、
+        -- 或阅读视图直接进画廊尚未加载单图）：必须先按当前索引把图片加载回
+        -- self.image，再重建单图 widget——否则 _new_image_wg 以 nil 建 ImageWidget，
+        -- 重绘即崩（frontend/ui/widget/imagewidget.lua:264 cannot render image；
+        -- 2026-08-16 设备 crash.log：点「返回」后 _repaint 崩溃，美术馆 v1.0.20）。
+        self:switchToImageNum(target) -- 内部加载 self.image 并 update()
     end
 end
 
