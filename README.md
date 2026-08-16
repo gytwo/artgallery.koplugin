@@ -32,7 +32,7 @@ It works whenever the book is in a supported format above (EPUB / CBZ) and conta
 
 ## 功能特色 / Features
 
-> 自 **v1.0.16** 起持续吸收上游 glimpse 能力，新增：**可配置最大放大倍数**、**手势独立开关**、**更聪明的图片相关性过滤**、**图库分段切换器（实时计数）**——详见下方 §4 / §5 / §9 / §10。
+> 自 **v1.0.16** 起持续吸收上游 glimpse 能力，新增：**可配置最大放大倍数**、**手势独立开关**、**更聪明的图片相关性过滤**、**图库分段切换器（实时计数）**、**书签入画廊（独立「书签」段 · 可收藏 · 可跳转 · 可删除）**——详见下方 §4 / §5 / §9 / §10 / §11。
 
 ### 1. 内置菜单入口，阅读中一键看图 / In-book menu entry
 
@@ -166,6 +166,28 @@ Tap any segment to **switch directly** (no cycling); the active pool is highligh
 
 ---
 
+### 11. 书签入画廊 / Bookmarks into the gallery
+
+**中文**：开启插件菜单「图库包含书签页」开关（默认关闭，重新打开美术馆生效）后，你在书中手工添加的「狗耳朵」书签页会以缩略图形式出现在图库**独立的「书签」段**（无书签时该段自动隐藏）。书签页可视作一本可视化书签目录，交互完整：
+
+- **轻点书签缩略图**：全屏查看该书签页（先以已渲染缩略图瞬时显示，再异步拉取高清渲染替换）；
+- **长按书签**：弹菜单提供「跳转到此页」（一键回到该书签页）/「收藏图片·取消收藏」/「删除书签」；
+- **删除书签**：经二次确认后从本书彻底移除该狗耳朵书签，并立即写入本书 `.sdr` 落盘（重开本书不再恢复）；删除后图库网格即时刷新；
+- **收藏书签**：走全局收藏分支，生成的 PNG 视作缓存、可被「清除本书图片缓存」清除；收藏的书签在「书签」段右下角显示 ⭐（精准贴于缩略图右下角）。
+
+书签永不进入「忽略」池。渲染委托 KOReader 内置 `ReaderThumbnail` 子进程，非自建引擎。
+
+**English**: Enable the plugin-menu toggle **图库包含书签页 / Include bookmark pages** (off by default; takes effect after reopening ArtGallery), and the "dog-ear" bookmarks you add in a book appear as thumbnails in a **separate Bookmarks tab** in the gallery (auto-hidden when empty). Bookmarks act as a visual bookmark index with full interaction:
+
+- **Tap a bookmark thumbnail**: view that bookmark page full-screen (shows the rendered thumbnail instantly, then swaps in a high-res render asynchronously);
+- **Long-press a bookmark**: the menu offers **Jump to this page** (return to that bookmark instantly) / **Favorite · Unfavorite** / **Delete bookmark**;
+- **Delete bookmark**: after a confirmation, removes the dog-ear bookmark from the book entirely and writes to the book's `.sdr` immediately (won't return after reopening); the gallery grid refreshes at once;
+- **Favorite a bookmark**: goes through the global-favorites branch; the generated PNG is treated as cache (cleared by "Clear this book's image cache"); a favorited bookmark shows a ⭐ at the thumbnail's bottom-right (precisely placed).
+
+Bookmarks never enter the Ignored pool. Rendering delegates to KOReader's built-in `ReaderThumbnail` subprocess, not a custom engine.
+
+---
+
 ## 相比上游的改进 / Improvements over the upstreams
 
 **中文**：美术馆（ArtGallery）是 **Glimpse** 与 **Illustrations** 两个 KOReader 社区插件的合并与增强。为表述准确，下面**分别**对比两个上游的**最新版本**：
@@ -265,14 +287,14 @@ Illustrations is the leaner upstream ("browse all illustrations in an EPUB"). It
 ### 方式一：Release 安装包（推荐）/ Option 1: Release package (recommended)
 
 **中文**：
-1. 前往 [Releases · v1.0.19](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.19)；
-2. 下载 `artgallery.koplugin-v1.0.19.zip`；
+1. 前往 [Releases · v1.0.20](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.20)；
+2. 下载 `artgallery.koplugin-v1.0.20.zip`；
 3. 解压得到 `artgallery.koplugin` 文件夹，复制到 KOReader 的插件目录 `koreader/plugins/`（设备上路径为 `KOReader/plugins/artgallery.koplugin/`）；
 4. 重启 KOReader，即可在书籍内通过菜单「美术馆 / ArtGallery」打开看图。
 
 **English**:
-1. Go to [Releases · v1.0.19](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.19);
-2. Download `artgallery.koplugin-v1.0.19.zip`;
+1. Go to [Releases · v1.0.20](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.20);
+2. Download `artgallery.koplugin-v1.0.20.zip`;
 3. Extract the `artgallery.koplugin` folder and copy it into KOReader's plugin directory `koreader/plugins/` (i.e. `KOReader/plugins/artgallery.koplugin/` on your device);
 4. Restart KOReader. Open the viewer from the in-book menu item **美术馆 / ArtGallery**.
 

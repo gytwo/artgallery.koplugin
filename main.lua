@@ -80,6 +80,7 @@ local MAX_ZOOM_KEY = "artgallery_max_zoom"
 local GESTURE_DOUBLE_TAP_KEY = "artgallery_gesture_double_tap"  -- 双击放大
 local GESTURE_SWIPE_KEY      = "artgallery_gesture_swipe_nav"   -- 滑动翻页
 local GESTURE_PINCH_KEY      = "artgallery_gesture_pinch_zoom"  -- 捏合缩放
+local BOOKMARKS_KEY          = "artgallery_include_bookmarks"   -- 把书签页渲染进图库（默认关）
 -- Which actions appear in the viewer's ⋯ popup ("Quick Actions", configured
 -- from the plugin menu). Table order = popup order; `default` = shown unless
 -- the user has toggled it. The six that were always in the popup default ON;
@@ -1132,6 +1133,7 @@ function ArtGalleryViewer:_galleryFilterLabel()
     local f = self._gallery_filter or "all"
     if f == "ignored" then return _("图库（忽略）") end
     if f == "favorites" then return _("图库（收藏）") end
+    if f == "bookmarks" then return _("图库（书签）") end
     return _("图库（全部）")
 end
 
@@ -2209,6 +2211,10 @@ function ArtGalleryViewer:_buildPill()
             segs[#segs + 1] = { key = "ignored", label = _("忽略"),
                 count = self:_ignoredCount(), active = cur == "ignored" }
         end
+        if self:_hasBookmarkTab() then
+            segs[#segs + 1] = { key = "bookmarks", label = _("书签"),
+                count = self:_bookmarkCount(), active = cur == "bookmarks" }
+        end
         self._pill_frame = ArtGallerySegmented:new{ segments = segs }
         return
     end
@@ -2310,6 +2316,9 @@ function ArtGalleryViewer:_tabList()
     elseif f == "favorites" then
         local list, metas = self:_favoritesLists()
         return list, metas, #metas
+    elseif f == "bookmarks" then
+        return self.bookmark_list, self.bookmark_metas,
+            self.bookmark_metas and #self.bookmark_metas or 0
     end
     -- all：shown ∪ ignored（已按防剧透范围裁剪），按阅读顺序合并
     local list, metas = self:_allLists()
@@ -2326,6 +2335,15 @@ function ArtGalleryViewer:_hasIgnoredTab()
     return self:_ignoredCount() > 0
 end
 
+function ArtGalleryViewer:_bookmarkCount()
+    return self.bookmark_metas and #self.bookmark_metas or 0
+end
+
+-- 书签段（仿忽略段）仅在确有书签时可见；BOOKMARKS_KEY 关闭或无书签时不出现。
+function ArtGalleryViewer:_hasBookmarkTab()
+    return self:_bookmarkCount() > 0
+end
+
 -- 构建 shown/ignored 两个池到“解码闭包”的映射，以及“已忽略集合”，
 -- 供 全部/收藏 派生列表复用原池解码逻辑（避免重复解码）。
 function ArtGalleryViewer:_ensureDerived()
@@ -2339,6 +2357,11 @@ function ArtGalleryViewer:_ensureDerived()
     if self.ignored_metas and self.ignored_list then
         for i, im in ipairs(self.ignored_metas) do
             self._render_of[im] = self.ignored_list[i]
+        end
+    end
+    if self.bookmark_metas and self.bookmark_list then
+        for i, im in ipairs(self.bookmark_metas) do
+            self._render_of[im] = self.bookmark_list[i]
         end
     end
     self._ignored_set = {}
@@ -2392,6 +2415,10 @@ function ArtGalleryViewer:_favoritesLists()
     if self.ignored_metas then
         for _, im in ipairs(self.ignored_metas) do consider(im) end
     end
+    -- 书签亦可能被收藏：纳入收藏派生列表（书签永不进「全部」，此处仅影响「收藏」）。
+    if self.bookmark_metas then
+        for _, im in ipairs(self.bookmark_metas) do consider(im) end
+    end
     table.sort(metas, function(a, b)
         return (a.spine_index or 0) < (b.spine_index or 0) end)
     local list = { image_disposable = true }
@@ -2420,8 +2447,20 @@ end
 
 -- 循环过滤：全部 → 收藏 → 忽略 → 全部 …（遵守防剧透范围，已在扫描阶段裁剪）。
 function ArtGalleryViewer:_cycleGalleryFilter()
-    local order = { all = "favorites", favorites = "ignored", ignored = "all" }
-    local next_f = order[self._gallery_filter or "all"] or "all"
+    -- 循环顺序：全部 → 收藏 → 书签 → 忽略 → 全部…
+    -- 仅纳入当前可见的段（书签/忽略各自按需出现），保持无书签/无忽略时
+    -- 与旧版一致：全部/收藏 两段的循环。
+    local cycle = { "all", "favorites" }
+    if self:_hasBookmarkTab() then table.insert(cycle, "bookmarks") end
+    if self:_hasIgnoredTab() then table.insert(cycle, "ignored") end
+    local f = self._gallery_filter or "all"
+    local next_f = cycle[1]
+    for i, c in ipairs(cycle) do
+        if c == f then
+            next_f = cycle[(i % #cycle) + 1]
+            break
+        end
+    end
     if self._gallery_mode then
         self._gallery_filter = next_f
         self:_invalidateGalleryCaches()
@@ -2437,6 +2476,7 @@ end
 function ArtGalleryViewer:_selectGalleryFilter(key)
     if key == (self._gallery_filter or "all") then return end  -- 点当前段：无操作
     if key == "ignored" and not self:_hasIgnoredTab() then return end  -- 无忽略项不可选
+    if key == "bookmarks" and not self:_hasBookmarkTab() then return end  -- 无书签不可选
     self._gallery_filter = key
     self:_invalidateGalleryCaches()
     self._gallery_page = 1
@@ -2444,6 +2484,7 @@ function ArtGalleryViewer:_selectGalleryFilter(key)
 end
 
 function ArtGalleryViewer:_enterGallery(page, filter)
+    self._view_bookmark_meta = nil  -- 离开书签单图态（若有）回画廊，清标记避免残留
     self._gallery_mode = true
     self._gallery_filter = filter or self._gallery_filter or "all"
     self:_invalidateGalleryCaches()
@@ -2461,6 +2502,7 @@ function ArtGalleryViewer:_enterGallery(page, filter)
 end
 
 function ArtGalleryViewer:_exitGallery(idx)
+    self._view_bookmark_meta = nil  -- 进入真实图片单图态，清书签标记
     self._gallery_mode = false
     if idx and idx ~= (self._images_list_cur or 1) then
         self:switchToImageNum(idx) -- runs update()
@@ -2498,6 +2540,113 @@ end
 -- 独立于 onHold/onTap 的自有方法，避免 gettext 的 `_` 被首参遮蔽而崩溃。
 function ArtGalleryViewer:_openImageActionMenu(meta, pos)
     if not meta then return end
+    -- 书签长按菜单：保留「收藏图片 / 取消收藏」（满足阶段三八要求③：书签页可被
+    -- 收藏，走 addFavorite 的 is_bookmark 分支，非损坏项），新增「跳转到此页」
+    -- （书签段的真实意义——可视化书签目录，一键回到标记页），但<b>不含「忽略图片」</b>
+    -- （要求②：书签永不进忽略池）。
+    if meta.is_bookmark then
+        local menu
+        local key = self:_favKeyFor(meta)
+        local fav = self.is_favorites or (
+            key and self.artgallery
+            and self.artgallery:isFavoriteByKey(key) or false)
+        local items = {
+            {
+                text = _("跳转到此页"),
+                callback = function()
+                    self:_jumpToBookmark(meta)
+                end,
+            },
+            {
+                text = _("收藏图片"),
+                enabled = not fav,
+                callback = function()
+                    if self.artgallery then
+                        self.artgallery:addFavorite(meta, self)
+                    end
+                    self:_afterCollectionChange()
+                end,
+            },
+            {
+                text = _("取消收藏"),
+                enabled = fav,
+                callback = function()
+                    if self.is_favorites then
+                        if self.artgallery then
+                            self.artgallery:removeFavoriteByFile(meta.path)
+                        end
+                    elseif key and self.artgallery then
+                        self.artgallery:removeFavoriteByKey(key)
+                    end
+                    self:_afterCollectionChange()
+                end,
+            },
+            {
+                text = _("删除书签"),
+                -- 双向删除：从 KOReader 书本身移除该狗耳朵书签（不可逆），
+                -- 经 ConfirmBox 二次确认防误删；删除后重建书签池并刷新网格。
+                           callback = function()
+                UIManager:close(menu)
+                -- 关键修复（阶段三八续）：菜单项的 callback 在菜单自身输入处理中
+                -- 同步执行；若此时同步 UIManager:show(ConfirmBox)，本次点按事件会“穿透”
+                -- 到刚弹出的确认框（误触取消/背景），或菜单自身关闭把确认框一起从栈顶
+                -- 弹掉，导致“删除书签”点了却永远走不到确认回调（前 6 轮均因此无效）。
+                -- 改用 nextTick 把确认框推迟到本轮输入事件彻底结束、下一 UI 帧再弹，
+                -- 彻底消除穿透/竞态。
+                UIManager:nextTick(function()
+                    UIManager:show(ConfirmBox:new{
+                        text = _("将删除书中的这一书签（狗耳朵标记）。此操作不可撤销。"),
+                        ok_text = _("删除"),
+                        cancel_text = _("取消"),
+                        -- 关键修复（第 8 轮根因）：KOReader ConfirmBox 的「确定」按钮
+                        -- 调用的是 ok_callback（见 frontend/ui/widget/confirmbox.lua:115-122），
+                        -- 而非 callback；此前误用 callback 被 ConfirmBox 完全忽略，
+                        -- 导致「删除」按钮走默认空 ok_callback —— 框弹了却永远删不掉。
+                        ok_callback = function()
+                            if self.artgallery then
+                                self.artgallery:_removeBookmark(meta)
+                                self.artgallery:_removeBookmarkCacheFile(meta)
+                                self:_refreshBookmarkMetas()
+                                if self._view_bookmark_meta == meta then
+                                    -- 当前正单图查看该书签：退出查看回画廊
+                                    self:_exitBookmarkView()
+                                else
+                                    self._gallery_page = 1
+                                    self:update()
+                                end
+                                UIManager:show(Notification:new{
+                                    text = _("书签已删除。") })
+                            end
+                        end,
+                        cancel_callback = function()
+                        end,
+                    })
+                end)
+                end,
+            },
+        }
+        menu = ArtGalleryPopupMenu:new{
+            items = items,
+            row_h = Screen:scaleBySize(38),
+            pad_left = Screen:scaleBySize(12),
+            pad_right = Screen:scaleBySize(12),
+            anchor = function()
+                local w = menu.movable and menu.movable.dimen
+                    and menu.movable.dimen.w or 0
+                local ox = self.main_frame.dimen.x
+                local pad = Screen:scaleBySize(4)
+                local lift = Screen:scaleBySize(14)
+                local x = math.floor((pos and pos.x or 0) - w / 2)
+                local maxx = ox + self.width - w - pad
+                if maxx < ox + pad then maxx = ox + pad end
+                x = math.max(ox + pad, math.min(x, maxx))
+                local y = (pos and pos.y or 0) - lift
+                return Geom:new{ x = x, y = y, w = 0, h = 0 }, false
+            end,
+        }
+        UIManager:show(menu, function() return "ui", menu.movable.dimen end)
+        return
+    end
     self:_ensureDerived()
     local key = self:_favKeyFor(meta)
     -- 外部收藏画廊（is_favorites，无文档/压缩包上下文）里的图必然已收藏；
@@ -2535,7 +2684,8 @@ function ArtGalleryViewer:_openImageActionMenu(meta, pos)
     -- 避免在查看器已关闭（如隐藏最后一张触发 onClose）后再对旧实例 update() 出错。
     items[#items + 1] = {
         text = _("忽略图片"),
-        enabled = (not ignored) and (not fav) and (not self.is_favorites),
+        enabled = (not ignored) and (not fav) and (not self.is_favorites)
+            and (not meta.is_bookmark),  -- 书签永不进忽略池（需求②）
         callback = function()
             if self._gallery_mode then
                 if self.on_ignore then
@@ -2586,6 +2736,21 @@ end
 -- 收藏/忽略态变化后：派生列表与缩略图（含 ⭐/眼睛 角标）可能过期，清缓存刷新。
 function ArtGalleryViewer:_afterCollectionChange()
     self:_invalidateGalleryCaches()
+    self:update()
+end
+
+-- 书签缩略图异步渲染完成回调（由 ArtGallery:_requestBookmarkThumb 触发）。
+-- 仅当当前停留在「书签」画廊时，清掉占位缩略图缓存并重建网格，使已就绪的
+-- 书签以真实页面缩略图替换白底占位（其余在途书签随后各自就绪再触发）。
+function ArtGalleryViewer:_onBookmarkThumbReady(path)
+    if (self._gallery_filter or "all") ~= "bookmarks" then return end
+    if self._thumb_bbs then
+        for _, t in pairs(self._thumb_bbs) do
+            if t and t.bb then t.bb:free() end
+        end
+        self._thumb_bbs = {}
+    end
+    if self._thumb_keys then self._thumb_keys = {} end
     self:update()
 end
 
@@ -2810,8 +2975,10 @@ function ArtGalleryViewer:_buildGallery()
     self._gallery_badges = {}
     self:_ensureDerived()
     local f = self._gallery_filter or "all"
-    local view_is_primary = (f ~= "ignored")  -- 全部/收藏 视图含主池图，可描当前图边框
-    local show_corner = (f == "all")           -- 仅「全部」视图显示 ⭐/眼睛 角标
+    -- 全部/收藏 视图含主池图，可描当前图边框；书签视图仅浏览（不可单图打开），
+    -- 不描边框、不显阅读序号角标。
+    local view_is_primary = (f ~= "ignored" and f ~= "bookmarks")
+    local show_corner = (f == "all" or f == "bookmarks")  -- 「全部」与「书签」视图显示 ⭐/眼睛 角标（书签池展示收藏⭐与反白）
     local cur_meta = self.image_metas
         and self.image_metas[self._images_list_cur or 1]
     local band_top = self:_headMetrics().band_top
@@ -2850,7 +3017,6 @@ function ArtGalleryViewer:_buildGallery()
     addHead(sub_wg)
     self._gallery_cells = {}
     local csize = Screen:scaleBySize(36)  -- 收藏⭐/忽略眼睛角标：放大为原两倍，缩略图中更清晰
-    local off = m.inset + Screen:scaleBySize(2)
     for _, c in ipairs(layout.pages[self._gallery_page] or {}) do
         local bb = self:_thumb(c.idx,
             c.w - 2 * m.inset, c.h - 2 * m.inset)
@@ -2894,7 +3060,7 @@ function ArtGalleryViewer:_buildGallery()
                 table.insert(grid, badge)
                 table.insert(self._gallery_badges, badge)
             end
-            -- 右下角状态角标：仅「全部」视图，已收藏 ⭐ / 已忽略 划掉眼睛。
+            -- 右下角状态角标：「全部」与「书签」视图，已收藏 ⭐ / 已忽略 划掉眼睛。
             -- 角点偏暗则反白（见 _getCornerIcon / _cornerLuma）。
             if show_corner and meta then
                 local fav = self.artgallery
@@ -2912,11 +3078,20 @@ function ArtGalleryViewer:_buildGallery()
                         bb:getWidth() - 1, bb:getHeight() - 1)
                     local icon = self:_getCornerIcon(svg, csize, luma < 128)
                     if icon then
+                        -- 精准锚定到缩略图（fit 后实际位图）的右下角内缩，而非 cell 角：
+                        -- 书签固定比例图在较宽列里 bw<c.w，cell 角比真实图片右下角外扩
+                        -- (c.w-bw)/2，锚在 cell 角会让角标悬空在图片之外；CenterContainer
+                        -- 把 bb 居中在 cell 内，故图片左上角 = c.x+(c.w-bw)/2, c.y+(c.h-bh)/2
+                        -- （FrameContainer 单边边距在居中计算中被数学抵消，定位精确）。
+                        local bw, bh = bb:getWidth(), bb:getHeight()
+                        local inner = Screen:scaleBySize(4)
+                        local bx = c.x + (c.w - bw) / 2
+                        local by = c.y + (c.h - bh) / 2
                         local corner = ArtGalleryCornerBadge:new{
                             icon = icon, size = csize }
                         corner.overlap_offset = {
-                            c.x + c.w - off - csize,
-                            c.y + c.h - off - csize,
+                            bx + bw - inner - csize,
+                            by + bh - inner - csize,
                         }
                         table.insert(grid, corner)
                         table.insert(self._gallery_badges, corner)
@@ -2967,6 +3142,19 @@ function ArtGalleryViewer:_showMoreMenu()
             callback = function() self:_toggleFullscreen() end,
         }
     end
+    -- 书签单图全屏态：始终提供「跳转到此页」（不依赖 showinbook 快捷动作开关），
+    -- 这是看图时回到该书签页的直达入口（下面通用「在书中定位」行在此态隐藏以免重复）。
+    if not self._gallery_mode and self._view_bookmark_meta then
+        items[#items + 1] = {
+            text = _("跳转到此页"),
+            icon = _PLUGIN_DIR .. "/assets/navigate.svg",
+            callback = function()
+                if self._view_bookmark_meta then
+                    self:_jumpToBookmark(self._view_bookmark_meta)
+                end
+            end,
+        }
+    end
     -- 收藏/取消收藏已迁移到长按图片的三选一菜单（见 onHold / _openImageActionMenu），
     -- 故 ⋯ 菜单不再单列「加入收藏」入口（需求②）。
     if _quick_enabled("gallery") then
@@ -3010,7 +3198,8 @@ function ArtGalleryViewer:_showMoreMenu()
     -- 全屏填充模式三态（铺满 / 适配 / 拉伸）已改为导航栏专属循环按钮（见 _buildViewerControls
     -- 的 _fill_frame 与 onTap/onHold）：短按循环切换并即时套用，长按设为默认全屏看图模式。
     -- ⋯ 菜单不再单列三条单选项（需求②）。
-    if _quick_enabled("showinbook") and not self.is_favorites and not self.is_cbz then
+    if _quick_enabled("showinbook") and not self.is_favorites and not self.is_cbz
+            and not self._view_bookmark_meta then
         items[#items + 1] = {
             text = _("在书中定位"),
             icon = _PLUGIN_DIR .. "/assets/navigate.svg",
@@ -3093,10 +3282,123 @@ end
 -- pushes the previous location so Back returns to the reading position).
 function ArtGalleryViewer:_showInBook()
     local meta = self.image_metas and self.image_metas[self._images_list_cur or 1]
+    if meta and meta.is_bookmark then
+        -- 单图全屏态查看书签：⋮ 菜单「在书中定位 / 跳转到此页」= 跳回该书签页
+        self:_jumpToBookmark(meta)
+        return
+    end
     if meta and self.on_show_in_book then
         self:onClose()
         self.on_show_in_book(meta)
     end
+end
+
+-- 书签缩略图点击 / 长按「跳转到此页」：关闭画廊与查看器，把阅读位置跳到该书签
+-- 所在页。书签段的真实意义就是「可视化书签目录」——点缩略图即一键回到标记处，
+-- 以阅读器全屏页面呈现（等价于全屏查看该书签页），而非仅占位装饰。
+-- 跳前把当前位置压栈，使阅读器的「返回」能回到看图前的阅读位置。
+function ArtGalleryViewer:_jumpToBookmark(meta)
+    if not (meta and meta.is_bookmark and meta.page) then return end
+    local ui = self.artgallery and self.artgallery.ui
+    if not ui then return end
+    if ui.link and type(ui.link.addCurrentLocationToStack) == "function" then
+        ui.link:addCurrentLocationToStack()
+    end
+    self:onClose()
+    if type(meta.bookmark_ref) == "string" and ui.rolling
+       and type(ui.rolling.onGotoXPointer) == "function" then
+        -- 滚动文档（EPUB 等）：用原始 xpointer 精确定位
+        ui.rolling:onGotoXPointer(meta.bookmark_ref)
+    elseif ui.paging and type(ui.paging.onGotoPage) == "function" then
+        -- 分页文档（CBZ 等）：用页码
+        ui.paging:onGotoPage(meta.page)
+    elseif ui.rolling and type(ui.rolling.onGotoPage) == "function" then
+        -- 滚动文档回退：按页码跳转
+        ui.rolling:onGotoPage(meta.page)
+    end
+end
+
+-- 轻点书签缩略图：进入单图全屏查看该书签页（高清重渲染，glimpse 风）。
+-- 初始以已渲染缩略图副本即时显示，随后异步拉取屏幕分辨率高清渲染并替换；
+-- 看书签页期间 ⋮ 菜单「跳转到此页」可一键跳回该书页，长按菜单可删除该书签。
+-- 把书签当作一张「伪图片」塞进单图态（image_metas/_images_list 仅含它），
+-- 复用既有缩放/全屏/⋮ 菜单基础设施，隔离在 self._view_bookmark_meta 标记内，
+-- 真实图片的单图路径不受影响。
+function ArtGalleryViewer:_viewBookmark(meta)
+    if not (meta and meta.is_bookmark and meta.page) then return end
+    self._view_bookmark_meta = meta
+    self._gallery_mode = false
+    self.scale_factor = 0
+    self._center_x_ratio, self._center_y_ratio = 0.5, 0.5
+    self.image_metas = { meta }
+    self._images_list = { false }  -- 占位；self.image 直接持有 BB，不走解码闭包
+    self._images_list_cur = 1
+    self._images_list_nb = 1
+    self._hi_bb = nil
+    -- 即时显示：缩略图副本（viewer 拥有）或白底占位
+    local bb
+    if self.artgallery then
+        local tb = self.artgallery:_bookmarkThumb(meta)
+        if tb then bb = tb:copy() else bb = self.artgallery:_bookmarkPlaceholder(meta) end
+    end
+    self.image = bb
+    self:update()
+    pcall(collectgarbage, "collect")
+    -- 高清重渲染（屏幕分辨率）：异步回调后替换
+    if self.artgallery and self.artgallery.ui and self.artgallery.ui.thumbnail then
+        self.artgallery:_renderBookmarkHiRes(meta, Screen:getWidth(), Screen:getHeight(),
+            function(hbb)
+                -- viewer 已退出该书签查看（翻走/删除/关闭）→ 丢弃高清 BB
+                if not (self._view_bookmark_meta == meta) or not hbb then
+                    if hbb then hbb:free() end
+                    return
+                end
+                if self.image and self.image ~= hbb and self.image.free then
+                    pcall(function() self.image:free() end)  -- 释放旧占位/缩略图副本
+                end
+                self.image = hbb
+                self._hi_bb = nil
+                self:_resetHiRes()
+                self:update()
+            end)
+    end
+end
+
+-- 重建画廊书签池（删除书签后调用）：从 KOReader 书本身 annotations 重新收集，
+-- 重建 bookmark_metas / bookmark_list 并清空派生列表缓存，使网格即刻反映删除结果。
+function ArtGalleryViewer:_refreshBookmarkMetas()
+    if not self.artgallery then return end
+    local metas = self.artgallery:_collectBookmarkMetas()
+    if #metas > 0 then
+        table.sort(metas, function(a, b) return (a.page or 0) < (b.page or 0) end)
+        local list = { image_disposable = true }
+        for i, im in ipairs(metas) do
+            list[i] = function()
+                local bb = self.artgallery:_bookmarkThumb(im)
+                if bb then return bb:copy() end
+                self.artgallery:_requestBookmarkThumb(im)
+                bb = self.artgallery:_bookmarkThumb(im)
+                if bb then return bb:copy() end
+                return self.artgallery:_bookmarkPlaceholder(im)
+            end
+        end
+        self.bookmark_metas = metas
+        self.bookmark_list = list
+    else
+        self.bookmark_metas = {}
+        self.bookmark_list = nil
+    end
+    self:_invalidateGalleryCaches()
+end
+
+-- 退出书签单图查看，回到书签段网格（无书签则回退「全部」）。
+function ArtGalleryViewer:_exitBookmarkView()
+    self._view_bookmark_meta = nil
+    self._images_list = nil
+    self.image = nil
+    self:_resetHiRes()
+    local f = (self.bookmark_metas and #self.bookmark_metas > 0) and "bookmarks" or "all"
+    self:_enterGallery(nil, f)
 end
 
 function ArtGalleryViewer:_favKey()
@@ -3430,8 +3732,15 @@ function ArtGalleryViewer:onTap(_, ges)
         if cell then
             local metas = select(2, self:_tabList())
             local meta = metas and metas[cell.idx]
-            local pi = meta and self:_primaryIndexForMeta(meta)
-            if pi then self:_exitGallery(pi) end
+            if meta and meta.is_bookmark then
+                -- 书签缩略图：轻点 = 进入单图全屏查看该书签页（高清重渲染，glimpse 风）；
+                -- 跳转与删除经长按菜单提供。书签段的本质是「可视化书签目录」：
+                -- 既能全屏看图，也能一键回到标记页或删除书中书签。
+                self:_viewBookmark(meta)
+            else
+                local pi = meta and self:_primaryIndexForMeta(meta)
+                if pi then self:_exitGallery(pi) end
+            end
         end
         return true -- no zoom surface in the gallery
     end
@@ -4258,6 +4567,31 @@ end
 -- 也不影响收藏。按书籍分别清理——缓存本就随书存储在各自 .sdr 中。
 function ArtGallery:_clearBookCache()
     self._scan = nil
+    -- 顺带清除本书的书签缩略图缓存（书签 PNG 视作缓存）与书签收藏记录
+    local doc = self.ui and self.ui.document
+    if doc and doc.file then
+        local dh = (doc.file:match("([^/\\]+)$") or "disk"):gsub("[^%w%.%-]", "_")
+        local bd = DataStorage:getDataDir() .. "/artgallery/bookmark_cache/"
+        local okd, d = pcall(lfs.dir, bd)
+        if okd then
+            for name in d do
+                if name ~= "." and name ~= ".." and name:match("^" .. dh .. "_") then
+                    pcall(os.remove, bd .. name)
+                end
+            end
+        end
+        -- 书签收藏由「缓存清理」管理，不随「清除收藏」清：此处删除本书书签收藏记录
+        local t = self:_favRecords()
+        local out, changed = {}, false
+        for _, r in ipairs(t) do
+            if r.is_bookmark and r.key and r.key:match("^" .. doc.file .. "#") then
+                changed = true
+            else
+                out[#out + 1] = r
+            end
+        end
+        if changed then self:_saveFavRecords(out) end
+    end
     local ok, path = pcall(self._cachePath, self)
     if ok and path then
         os.remove(path)
@@ -4318,6 +4652,319 @@ function ArtGallery:_render(read_file, im)
     return _flatten_on_white(bb)
 end
 
+-- ── 书签入图库 ────────────────────────────────────────────────────────────────
+-- 把用户在书中手工狗耳朵标记的书签页，渲染成缩略图，作为图库的独立「书签」池
+-- 展示（不并入「全部」、永不进「忽略」、可单独收藏）。渲染委托 KOReader 内置的
+-- ReaderThumbnail 子进程（非自建引擎），结果以灰度 PNG 落磁盘缓存
+-- （artgallery/bookmark_cache/<dochash>/），属于「缓存」语义，可被「清除本书图片
+-- 缓存」清除（见 _clearBookCache）。默认关闭（BOOKMARKS_KEY）。
+
+function ArtGallery:_bmThumbSize()
+    -- 以抽屉显示尺寸渲染书签页（全屏查看时放大即上采样，与 glance 同思路）
+    local w = math.max(1, math.floor(Screen:getWidth() * ArtGalleryViewer.panel_ratio))
+    return w, Screen:getHeight()
+end
+
+function ArtGallery:_bmDocHash()
+    local doc = self.ui and self.ui.document
+    local f = (doc and doc.file) or "?"
+    return (f:match("([^/\\]+)$") or "disk"):gsub("[^%w%.%-]", "_")
+end
+
+function ArtGallery:_bmCacheDir()
+    if self._bm_cache_dir then return self._bm_cache_dir end
+    local dir = DataStorage:getDataDir() .. "/artgallery/bookmark_cache/"
+    self:_mkdirs(dir)  -- 递归建父目录 artgallery/
+    self._bm_cache_dir = dir
+    return dir
+end
+
+function ArtGallery:_bmCachePath(im, w, h)
+    local dir = self:_bmCacheDir()
+    if not dir then return nil end
+    -- 任一维度缺失时回退到缩略图目标尺寸，确保「存/读/收藏」三处路径一致
+    -- （否则磁盘缓存永不命中、收藏记录指向不存在的文件）。
+    if not (w and h) then w, h = self:_bmThumbSize() end
+    local nm = Screen.night_mode and "_nm" or ""
+    return string.format("%s%s_p%d_w%d_h%d%s.png",
+        dir, self:_bmDocHash(), im.page, w, h, nm)
+end
+
+-- 把原始 PNG 字节解码为 BlitBuffer（书签磁盘缓存读回用）。
+function ArtGallery:_renderBookmarkData(data)
+    local bb
+    if data then
+        local ok, res = pcall(RenderImage.renderImageData, RenderImage, data, #data)
+        if ok then bb = res end
+    end
+    if not bb then
+        bb = RenderImage:renderCheckerboard(
+            math.floor(Screen:getWidth() / 2),
+            math.floor(Screen:getHeight() / 2),
+            Screen.bb:getType())
+    end
+    return _flatten_on_white(bb)
+end
+
+-- 从磁盘 PNG 读回缩略图（无则 nil）。返回的 bb 由 _bm_cache 拥有/释放。
+function ArtGallery:_loadBookmarkThumbFromDisk(im)
+    local w, h = self:_bmThumbSize()
+    local path = self:_bmCachePath(im, w, h)
+    if not path or not lfs.attributes(path, "mode") then return nil end
+    local ok, data = pcall(function()
+        local f = io.open(path, "rb"); if not f then return nil end
+        local d = f:read("*a"); f:close(); return d
+    end)
+    if ok and data and #data > 0 then
+        return self:_renderBookmarkData(data)
+    end
+    return nil
+end
+
+-- 把已渲染 bb 写成灰度 PNG（磁盘缓存）。不释放传入 bb。
+-- 文件名维度必须与 _loadBookmarkThumbFromDisk / 收藏 dest 一致（统一用
+-- _bmThumbSize），故优先采用传入的 w,h，缺失时回落到 _bmThumbSize。
+function ArtGallery:_saveBookmarkThumbToDisk(im, bb, w, h)
+    if not (w and h) then w, h = self:_bmThumbSize() end
+    local path = self:_bmCachePath(im, w, h)
+    if not path then return end
+    pcall(function() bb:writePNG(path) end)
+end
+
+-- 全本书签缩略图缓存总量上限 64MB，按 mtime 淘汰最冷文件（跨本书共享一个目录）。
+function ArtGallery:_pruneBookmarkDiskCache()
+    if self._bm_pruned then return end
+    self._bm_pruned = true
+    local dir = self:_bmCacheDir()
+    if not dir then return end
+    local CAP = 64 * 1024 * 1024
+    local files, total = {}, 0
+    for name in lfs.dir(dir) do
+        if name ~= "." and name ~= ".." then
+            local p = dir .. name
+            local a = lfs.attributes(p)
+            if a and a.mode == "file" then
+                files[#files + 1] = { path = p, size = a.size, mtime = a.modification }
+                total = total + (a.size or 0)
+            end
+        end
+    end
+    if total <= CAP then return end
+    table.sort(files, function(a, b) return a.mtime < b.mtime end) -- 最冷优先
+    for _, f in ipairs(files) do
+        if total <= CAP then break end
+        if pcall(os.remove, f.path) then total = total - (f.size or 0) end
+    end
+end
+
+-- 收集当前书的狗耳朵书签页为 meta 列表（纯页书签，非高亮）。
+function ArtGallery:_collectBookmarkMetas()
+    local out = {}
+    local ann = self.ui and self.ui.annotation
+    local bm = self.ui and self.ui.bookmark
+    if not (ann and bm and ann.annotations) then return out end
+    -- 缩略图目标尺寸：瀑布流比例与占位图尺寸都应以它为准（而非整屏尺寸），
+    -- 保证网格布局与磁盘缓存路径维度一致。
+    local w, h = self:_bmThumbSize()
+    for _, a in ipairs(ann.annotations) do
+        if not a.drawer then  -- 纯页书签（高亮 a.drawer 非空，跳过）
+            local page = bm:getBookmarkPageNumber(a)
+            if page then
+                out[#out + 1] = {
+                    is_bookmark = true,
+                    page = page,
+                    _page = page,
+                    -- 原始书签引用：滚动文档为 xpointer 字符串，分页文档为页码
+                    -- 数字；跳页时优先用它对滚动文档做精确定位（见 _jumpToBookmark）。
+                    bookmark_ref = a.page,
+                    -- 书签不参与扫描 spine_index，以 page 近似阅读顺序供排序
+                    spine_index = page,
+                    -- 用 getBookmarkPageNumber 的 page（与 im.page 同源），
+                    -- 切勿用 a.page 注解字段（二者可能不等，会错位缓存/收藏键）
+                    path = "artgallery-bm:" .. tostring(page),
+                    width = w,
+                    height = h,
+                }
+            end
+        end
+    end
+    return out
+end
+
+function ArtGallery:_bookmarkThumb(im)
+    return self._bm_cache and self._bm_cache[im.path]
+end
+
+-- 渲染完成前占位：一小块白底，避免画廊空白且不刷新。
+function ArtGallery:_bookmarkPlaceholder(im)
+    local w = math.max(2, math.floor((im.width or Screen:getWidth()) / 3))
+    local h = math.max(2, math.floor((im.height or Screen:getHeight()) / 3))
+    local bb = Blitbuffer.new(w, h, Blitbuffer.TYPE_BB8)
+    bb:fill(Blitbuffer.COLOR_WHITE)
+    return bb
+end
+
+-- 发起书签页异步渲染（幂等）。完成后复制像素入 _bm_cache、落磁盘、按需通知 viewer 重绘。
+function ArtGallery:_requestBookmarkThumb(im)
+    if not (im and im.is_bookmark and im.page) then return end
+    self._bm_cache = self._bm_cache or {}
+    self._bm_pending = self._bm_pending or {}
+    if self._bm_cache[im.path] or self._bm_pending[im.path] then return end
+    -- 磁盘缓存优先：本书曾打开过则即时载入，跳过子进程渲染
+    local disk_bb = self:_loadBookmarkThumbFromDisk(im)
+    if disk_bb then
+        self._bm_cache[im.path] = disk_bb
+        return
+    end
+    local thumb = self.ui and self.ui.thumbnail
+    if not (thumb and thumb.getPageThumbnail) then return end
+    self._bm_batch = self._bm_batch or "artgallery_bookmarks"
+    self._bm_pending[im.path] = true
+    local w, h = self:_bmThumbSize()
+    -- 回调可能同步触发（页面已在 KOReader 缩略图缓存中）：is_async=false 时
+    -- 不在此处通知 viewer，交由调用方闭包二次检查拿到像素，避免重入 switchToImageNum。
+    local is_async = false
+    thumb:getPageThumbnail(im.page, w, h, self._bm_batch,
+        function(tile)
+            if not self._bm_pending then return end -- viewer 已拆除
+            self._bm_pending[im.path] = nil
+            if tile and tile.bb then
+                self._bm_cache[im.path] = tile.bb:copy()
+                self:_saveBookmarkThumbToDisk(im, tile.bb, w, h)
+                self:_pruneBookmarkDiskCache()
+                if is_async and self._viewer
+                        and self._viewer._onBookmarkThumbReady then
+                    self._viewer:_onBookmarkThumbReady(im.path)
+                end
+            end
+        end)
+    is_async = true
+end
+
+-- viewer 关闭时释放书签缩略图副本并取消在途渲染。
+function ArtGallery:_freeBookmarkThumbs()
+    local thumb = self.ui and self.ui.thumbnail
+    if thumb and thumb.cancelPageThumbnailRequests and self._bm_batch then
+        pcall(function() thumb:cancelPageThumbnailRequests(self._bm_batch) end)
+    end
+    if self._bm_cache then
+        for k, bb in pairs(self._bm_cache) do
+            if bb then pcall(function() bb:free() end) end
+            self._bm_cache[k] = nil
+        end
+    end
+    self._bm_cache, self._bm_pending = nil, nil
+end
+
+-- 删除书签（双击狗耳朵标记）所在书页的书签：从 KOReader 书本身 annotations 移除
+-- 该纯页书签（双向删除，会改动书本身）。匹配 meta.bookmark_ref（滚动文档=xpointer
+-- 字符串、分页文档=页码数字，二者均与 annotation.page 同源），精准定位单条，避免
+-- 同页多书签误删。removeItem 会即时刷新当前页 dogear 可见性；并强制重绘折角角，
+-- 使其在抽屉可见的右缘立即消失（removeItem 仅翻转可见标志、不触发该角重绘）。
+function ArtGallery:_removeBookmark(meta)
+    -- 防御性取得 ui：本函数挂在插件实例上（self=插件），但取 ui 做兜底容错
+    local ui = self.ui or (self.artgallery and self.artgallery.ui)
+    local ann = ui and ui.annotation
+    local bm = ui and ui.bookmark
+    if not (ann and bm and ann.annotations and meta and meta.bookmark_ref) then
+        logger.warn("[ArtGallery] _removeBookmark: bail, refs missing",
+            ann and "ann", bm and "bm", meta and "meta",
+            (meta and meta.bookmark_ref) and "ref" or nil)
+        return false
+    end
+    local match = meta.bookmark_ref
+    -- 1) 先定位匹配注解索引（当前内存态）。纯页书签 a.drawer 为 nil；
+    --    match 即 _collectBookmarkMetas 写入的 bookmark_ref（分页=页码数字 /
+    --    滚动=xpointer 字符串，均与 annotation.page 同源）。
+    local idx
+    for i = #ann.annotations, 1, -1 do
+        local a = ann.annotations[i]
+        if not a.drawer and a.page == match then
+            idx = i
+            break
+        end
+    end
+    if not idx then
+        logger.warn("[ArtGallery] _removeBookmark: no annotation matches", match)
+        return false
+    end
+    -- 2) 优先走 KOReader 原生删除 bm:removeItem：它会维护 dogear 可见性、
+    --    footer 与 AnnotationsModified 事件，并在内部 removeItemByIndex 用
+    --    table.remove(self.ui.annotation.annotations, index) 完成内存删除。
+    --    pcall 容错：画廊 overlay 态个别 reader 子状态（footer/dogear）可能
+    --    暂不可用而抛错，但 table.remove 已在抛错点之前完成，内存删除生效。
+    local before = #ann.annotations
+    pcall(function() bm:removeItem(ann.annotations[idx], idx) end)
+    -- 3) 兜底：若原生删除未能让内存数量减少（任意原因中断），直接 table.remove
+    --    保证该条从 ann.annotations 移除，避免“删除无效、落盘后书签复活”。
+    if #ann.annotations == before then
+        for i = #ann.annotations, 1, -1 do
+            local a = ann.annotations[i]
+            if not a.drawer and a.page == match then
+                table.remove(ann.annotations, i)
+                break
+            end
+        end
+    end
+    -- 4) updatePageNumbers 与关键落盘解耦：前者任意异常不得连累 flush，
+    --    否则“删除从内存移除却未落盘”→重开本书书签复活（本轮真因之一）。
+    pcall(function()
+        if type(ann.updatePageNumbers) == "function" then
+            ann:updatePageNumbers()
+        end
+    end)
+    -- 关键落盘：独立 pcall 并捕获错误，确保 saveSetting+flush 真正执行写回 .sdr
+    local ok, err = pcall(function()
+        ui.doc_settings:saveSetting("annotations", ann.annotations)
+        ui.doc_settings:flush()
+    end)
+    if not ok then
+        logger.warn("[ArtGallery] _removeBookmark: flush FAILED; left=",
+            #ann.annotations, " err=", tostring(err))
+    end
+    -- 5) dogear 折角即时重绘（仅当 viewer 状态可用）。
+    pcall(function()
+        local dogear = ui.view and ui.view.dogear
+        if dogear and dogear.getRefreshRegion and dogear.icon
+                and dogear.icon.dimen then
+            UIManager:setDirty(ui, function()
+                return "ui", dogear:getRefreshRegion()
+            end)
+        end
+    end)
+    return true
+end
+
+-- 高清重渲染书签页（屏幕分辨率）：委托 KOReader 内置缩略图子进程异步渲染，回调返回
+-- viewer 拥有的 BB 副本（调用方负责释放）；未就绪/无缩略图子系统时回调 nil。
+function ArtGallery:_renderBookmarkHiRes(meta, w, h, cb)
+    if not (meta and meta.is_bookmark and meta.page and w and h) then
+        if cb then cb(nil) end
+        return
+    end
+    local thumb = self.ui and self.ui.thumbnail
+    if not (thumb and thumb.getPageThumbnail) then
+        if cb then cb(nil) end
+        return
+    end
+    thumb:getPageThumbnail(meta.page, w, h, "artgallery_bm_hires",
+        function(tile)
+            if not tile or not tile.bb then
+                if cb then cb(nil) end
+                return
+            end
+            if cb then cb(tile.bb:copy()) end  -- viewer 拥有副本
+        end)
+end
+
+-- 删除单条书签的磁盘缩略图缓存 PNG（书签 PNG 视作缓存，删除书签时应一并清除）。
+function ArtGallery:_removeBookmarkCacheFile(meta)
+    if not (meta and meta.is_bookmark) then return end
+    local w, h = self:_bmThumbSize()
+    local path = self:_bmCachePath(meta, w, h)
+    if path then pcall(os.remove, path) end
+end
+
 -- ── the viewer flow ─────────────────────────────────────────────────────────
 
 -- whole_book_once: bypass the read-so-far scope for this one opening
@@ -4333,7 +4980,7 @@ end
 
 -- 递归创建目录（等价于 mkdir -p）：lfs.mkdir 不会自动建父目录，父目录缺失时
 -- 会静默失败，导致 favorites 子目录建不出来、收藏字节副本写不进（报「无法写入收藏」）。
-local function _mkdirs(path)
+function ArtGallery:_mkdirs(path)
     local prefix = path:match("^/") and "/" or ""
     local cur = prefix
     for part in (path .. "/"):gmatch("([^/]+)/") do
@@ -4417,6 +5064,43 @@ function ArtGallery:addFavorite(im, viewer)
         UIManager:show(InfoMessage:new{ text = _("已在收藏中。") })
         return
     end
+    if im.is_bookmark then
+        -- 书签：渲染为 PNG 存入 bookmark_cache（视作缓存），记录 is_bookmark
+        local bb = self:_bookmarkThumb(im)
+        if not bb then
+            self:_requestBookmarkThumb(im)
+            bb = self:_bookmarkThumb(im)
+        end
+        if not bb then
+            UIManager:show(InfoMessage:new{ text = _("书签缩略图尚未就绪，请稍后重试。") })
+            return
+        end
+        -- 与渲染路径（_requestBookmarkThumb）共用同一 _bmThumbSize 维度基准，
+        -- 确保收藏记录指向的缓存 PNG 文件名与「存/读」两处完全一致。
+        local w, h = self:_bmThumbSize()
+        self:_saveBookmarkThumbToDisk(im, bb, w, h)
+        local dest = self:_bmCachePath(im, w, h)
+        -- 写入前先剔除已失效（源文件已删除）的收藏记录，避免 favorites.lua 无限增长
+        local t = self:_favRecords()
+        local live = {}
+        for _, r in ipairs(t) do
+            if r.file and lfs.attributes(r.file) then
+                live[#live + 1] = r
+            end
+        end
+        t = live
+        t[#t + 1] = {
+            file = dest,
+            key = key,
+            width = w,
+            height = h,
+            caption = im.caption,
+            is_bookmark = true,
+        }
+        self:_saveFavRecords(t)
+        UIManager:show(InfoMessage:new{ text = _("已加入收藏。") })
+        return
+    end
     local read_file, close = nil, nil
     if zip then
         read_file, close = self:_makeZipReader(zip)
@@ -4434,7 +5118,7 @@ function ArtGallery:addFavorite(im, viewer)
         return
     end
     local dir = DataStorage:getDataDir() .. "/artgallery/favorites"
-    _mkdirs(dir)  -- 递归建父目录 artgallery/，避免父缺失致收藏写入失败
+    self:_mkdirs(dir)  -- 递归建父目录 artgallery/，避免父缺失致收藏写入失败
     local dest = dir .. "/" .. self:_favFileName(im)
     local f = io.open(dest, "wb")
     if not f then
@@ -4501,10 +5185,18 @@ function ArtGallery:removeFavoriteByFile(path)
 end
 
 function ArtGallery:clearFavorites()
-    for _, r in ipairs(self:_favRecords()) do
-        if r.file then pcall(os.remove, r.file) end
+    local t = self:_favRecords()
+    local out, changed = {}, false
+    for _, r in ipairs(t) do
+        if r.is_bookmark then
+            -- 书签收藏视作缓存，由「清除本书图片缓存」管理，此处保留
+            out[#out + 1] = r
+        else
+            if r.file then pcall(os.remove, r.file) end
+            changed = true
+        end
     end
-    self:_saveFavRecords({})
+    if changed then self:_saveFavRecords(out) end
 end
 
 -- ── 外部画廊（收藏 / CBZ）：不依赖当前书本，从文件管理器也可用 ──────────
@@ -5069,6 +5761,31 @@ function ArtGallery:showViewer(whole_book_once)
     local shown_render = make_list(shown_metas)
     local ignored_render = make_list(ignored_metas)
     local images_list = (primary_tab == "shown") and shown_render or ignored_render
+
+    -- 书签池（独立「书签」段，不并入「全部」计数，永不进「忽略」）：仅当开关
+    -- 开启且本书确有狗耳朵书签时收集。渲染闭包委托 KOReader 内置缩略图子进程
+    -- （_requestBookmarkThumb）；磁盘命中即时返回，未就绪返回白底占位、就绪后
+    -- viewer 重建网格（_onBookmarkThumbReady）。书签不进单图主池（imgs）。
+    local bookmark_metas, bookmark_list = {}, nil
+    if G_reader_settings:isTrue(BOOKMARKS_KEY) then
+        bookmark_metas = self:_collectBookmarkMetas()
+        if #bookmark_metas > 0 then
+            table.sort(bookmark_metas,
+                function(a, b) return (a.page or 0) < (b.page or 0) end)
+            bookmark_list = { image_disposable = true }
+            for i, im in ipairs(bookmark_metas) do
+                bookmark_list[i] = function()
+                    local bb = self:_bookmarkThumb(im)
+                    if bb then return bb:copy() end
+                    self:_requestBookmarkThumb(im)
+                    -- 同步路径（磁盘命中/子进程即时完成）此时可能已就绪
+                    bb = self:_bookmarkThumb(im)
+                    if bb then return bb:copy() end
+                    return self:_bookmarkPlaceholder(im)
+                end
+            end
+        end
+    end
     -- Full-resolution decode for the zoomed view, called on demand by the
     -- viewer (one image at a time). read_file stays valid after close_reader()
     -- — it just reopens the libarchive fallback if the primary path misses.
@@ -5110,6 +5827,9 @@ function ArtGallery:showViewer(whole_book_once)
         shown_list = shown_render,
         ignored_metas = ignored_metas,
         ignored_list = ignored_render,
+        -- 书签独立段（开关开启且有书签时非空）；永不进「全部」/「忽略」池。
+        bookmark_metas = bookmark_metas,
+        bookmark_list = bookmark_list,
         primary_tab = primary_tab,
         -- for the gallery heading: images the chapter scope holds back
         gallery_hidden_count = scope_hidden,
@@ -5231,6 +5951,7 @@ function ArtGallery:showViewer(whole_book_once)
         -- and drop any force-add). Persist, then reopen back into the Gallery
         -- on the same tab/page (the scan is cached, so the reopen is cheap).
         on_ignore = function(meta, tab, page)
+            if meta and meta.is_bookmark then return end  -- 书签永不进忽略池
             local ds = self.ui and self.ui.doc_settings
             if not ds then
                 UIManager:show(Notification:new{ text = _("无法忽略此图片。") })
@@ -5300,6 +6021,8 @@ function ArtGallery:showViewer(whole_book_once)
         -- 全屏 viewer 拆除：其解码的全屏位图（≈0.8MB/张）随之可回收。
         -- 在 KPW3 低内存下及时显式 GC，避免退出看图后内存仍居高不下（安全点：
         -- 关闭流程末尾、close_reader 之前，不在绘制热路径）。
+        -- 释放书签缩略图缓存副本并取消在途渲染请求，避免内存与子进程句柄泄漏。
+        self:_freeBookmarkThumbs()
         pcall(collectgarbage, "collect")
         -- 看图期间若推进了书籍阅读进度（漫画翻页），关闭画廊时立即落盘，
         -- 以免 KOReader 在关书前被杀导致进度未保存（onGotoPage 已触发自动落盘，
@@ -5870,6 +6593,18 @@ function ArtGallery:_menuItems()
             separator = true,
         },
         {
+            text = _("图库包含书签页"),
+            help_text = _("把您在书中手工添加的「狗耳朵」书签页渲染成缩略图，作为图库里独立的「书签」段（不计入「全部」、永不进「忽略」、可单独收藏）。默认关闭；开启后需重新打开美术馆生效，且仅当本书确有书签时才有意义。"),
+            checked_func = function()
+                return G_reader_settings:isTrue(BOOKMARKS_KEY)
+            end,
+            callback = function()
+                G_reader_settings:saveSetting(BOOKMARKS_KEY,
+                    not G_reader_settings:isTrue(BOOKMARKS_KEY))
+            end,
+            separator = true,
+        },
+        {
             text = _("手势"),
             help_text = _("自定义查看器中的手势。三项默认开启，可单独关闭以减少误触或按手感定制。"),
             sub_item_table = {
@@ -6145,7 +6880,7 @@ function ArtGallery:_menuItems()
                     "· 缩放与平移：双指捏合或双击放大，放大后拖动平移；双击或点按底部圆点恢复 100%。\n" ..
                     "\n【⋯ 更多菜单】\n" ..
                     "· ⤢ 全屏查看 / 退出全屏：进入或退出全屏沉浸式。\n" ..
-                    "· ▦ 图库（全部 / 收藏 / 忽略）：底部为分段切换器，显示各池实时数量（全部[N] / 收藏[F] / 忽略[M]），点按对应段直达该池；没有忽略项时不显示「忽略」段。\n" ..
+                    "· ▦ 图库（全部 / 收藏 / 书签 / 忽略）：底部为分段切换器，显示各池实时数量（全部[N] / 收藏[F] / 书签[B] / 忽略[M]），点按对应段直达该池；没有忽略项时不显示「忽略」段，没有书签时不显示「书签」段（需先在插件菜单开启「图库包含书签页」）。\n" ..
                     "· ◎ 模式（防剧透范围）：在「所有图片 / 仅显示已读到的图片 / 仅当前章节之前」间切换，控制美术馆扫描到的图片范围。\n" ..
                     "· ↻ 旋转 90° / ↺ 重置旋转：旋转当前图片（旋转后会出现「重置旋转」项）。\n" ..
                     "· ➤ 在书中定位：跳回图片在书中的原始位置（插图文字书适用）。\n" ..
@@ -6154,7 +6889,7 @@ function ArtGallery:_menuItems()
                     "\n【长按图片】\n" ..
                     "· 长按任意图片弹出三选一菜单：⭐ 收藏图片 / 取消收藏、忽略图片 / 取消忽略。已处于对应状态的选项会自动置灰（不可用）。\n" ..
                     "\n【图库（网格视图）】\n" ..
-                    "· 底部圆点表示当前页码，可点按快速跳转；底部为「图库（全部 / 收藏 / 忽略）」分段切换器，点按对应段直达该池，段上显示各池实时数量。\n" ..
+                    "· 底部圆点表示当前页码，可点按快速跳转；底部为「图库（全部 / 收藏 / 书签 / 忽略）」分段切换器，点按对应段直达该池，段上显示各池实时数量。\n" ..
                     "· 点按缩略图回到对应的单图查看；右上角数字为该图在全部图片中的序号。\n" ..
                     "· 「全部」视图下：已收藏图片右下角显示 ⭐，已忽略图片右下角显示 👁 划掉的眼睛。角标会按所在位置明暗自动反白以保证可见。\n" ..
                     "\n【收藏与忽略】\n" ..
@@ -6165,6 +6900,7 @@ function ArtGallery:_menuItems()
                     "\n【设置项】\n" ..
                     "· 手势：插件菜单「手势」子菜单可逐项开关「双击放大 / 滑动翻页 / 捏合缩放」，关闭后对应手势不再触发（仍可用按钮 / 圆点代替）。\n" ..
                     "· 最大放大倍数：插件菜单「最大放大倍数」可设 1.5×–4.0×（默认 1.5×），限制放大的上限以看清扫描版 / 细节图。\n" ..
+                    "· 图库包含书签页：把您在书中手工添加的「狗耳朵」书签页渲染成缩略图，作为图库里独立的「书签」段（不计入「全部」、永不进「忽略」、可单独长按收藏）；默认关闭，开启后需重新打开美术馆生效。\n" ..
                     "· 看图同步阅读进度：分页文档（CBZ）与 EPUB 各有一个独立开关（默认开启），开启后看图会自动推进书籍自身阅读进度；普通插图文字书若因此被误跳进度，可单独关闭对应项。\n" ..
                     "\n【快速操作】\n" ..
                     "· 插件菜单「快速操作」可自定义 ⋯ 菜单中显示哪些功能；关闭全部后 ⋯ 按钮会自动隐藏。"

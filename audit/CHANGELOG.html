@@ -1253,6 +1253,181 @@
   </section>
 
   <section>
+    <h2>阶段三十八 · 书签入画廊（独立「书签」段 · 可收藏 · 视作缓存）· v1.0.19</h2>
+    <div class="meta">触发：用户要求把书中手工「狗耳朵」书签页渲染进图库，作为独立可浏览、可收藏的段，并明确四点硬性要求：① 书签计数不并入「全部」、独立「书签」段且无书签时不可见；② 书签永不进「忽略」池；③ 书签页可被收藏；④ 生成的 PNG 视作缓存，可被「清除本书图片缓存」清除。默认关闭（插件菜单「图库包含书签页」），开启后重新打开美术馆生效。</div>
+    <div class="card">
+      <p><b>实现要点</b></p>
+      <ul>
+        <li><span class="tag add">新</span>渲染委托 KOReader 内置 <code>ReaderThumbnail</code> 子进程（<code>getPageThumbnail(page,w,h,batch,cb)</code>，签名已对源码核实），非自建引擎；磁盘命中 <code>DataStorage:getDataDir()/artgallery/bookmark_cache/&lt;dochash&gt;_p{page}_w{w}_h{h}{_nm}.png</code> 即时载入并跳过子进程，未就绪返回白底占位、子进程完成后经 <code>ArtGalleryViewer:_onBookmarkThumbReady</code> 重建画廊网格替换占位（含同步路径二次检查，避免占位残留）。</li>
+        <li><span class="tag add">新</span>底部分段切换器新增「书签[B]」段；<code>_hasBookmarkTab()</code> 仿忽略段，无书签时不可见；<code>_buildPill</code>/<code>_tabList</code>/<code>_galleryFilterLabel</code>/<code>_cycleGalleryFilter</code>（顺序扩展为 全部→收藏→书签→忽略，仅纳入可见段）/<code>_selectGalleryFilter</code> 同步支持。</li>
+        <li><span class="tag fix">修</span>书签永不进「忽略」：长按菜单「忽略图片」<code>enabled</code> 加 <code>not meta.is_bookmark</code>，<code>on_ignore</code> 回调加 <code>if meta.is_bookmark then return end</code> 双保险。</li>
+        <li><span class="tag add">新</span>书签可收藏：<code>addFavorite</code> 的 <code>is_bookmark</code> 分支渲染 PNG 存入 <code>bookmark_cache</code> 并记 <code>is_bookmark=true</code> 收藏记录；<code>_ensureDerived</code> 把书签渲染闭包并入 <code>_render_of</code>、<code>_favoritesLists</code> 扫描 <code>bookmark_metas</code>，使本书「收藏」段与全局收藏画廊均可见已收藏书签。</li>
+        <li><span class="tag fix">修</span>书签 PNG 视作缓存：<code>_clearBookCache</code> 按本书 <code>&lt;dochash&gt;_</code> 前缀删并剔除本书书签收藏记录；<code>_pruneBookmarkDiskCache</code> 64MB 上限跨书冷文件（mtime）淘汰；viewer 关闭 <code>onCloseWidget</code> 调 <code>_freeBookmarkThumbs</code> 释放缓存副本并取消在途渲染请求，防泄漏。</li>
+        <li><span class="tag doc">档</span>「关于 美术馆」与插件菜单「图库包含书签页」设置项同步说明。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ <code>getBookmarkPageNumber</code>/<code>getPageThumbnail</code> 签名已对 KOReader 源码核实一致</span>
+      <span class="chip ok">✓ 版本：维持 <code>v1.0.19</code> 未升版</span>
+      <span class="chip warn">⚠ 未推送、未发版（依"发版须经同意"纪律）；待 KPW3 实机三验（中文源/切英文全英文/框架串正常）与真机确认书签渲染/收藏/清理</span>
+      <span class="chip ok">✓ 限制已修订：书签不入图片全屏查看器主池，但轻点=全屏看书签页（高清重渲染）、长按菜单=跳转到此页/收藏/取消收藏/删除书签（见下方两补记）；满足要求②③</span>
+    </div>
+    <div class="card">
+      <p><b>自检-修复循环补记（2026-08-16）</b></p>
+      <p>进入验收技能「自检-修复循环」，静态深度精读全部书签相关接线并对照 KOReader 源码核实数据模型，<b>捕获并修复 3 个真实缺陷</b>：</p>
+      <ul>
+        <li><span class="tag fix">修</span><b>缓存文件名错位</b>：<code>_saveBookmarkThumbToDisk</code> 原用 <code>bb:getWidth()/getHeight()</code> 命名，而 <code>_loadBookmarkThumbFromDisk</code> 用 <code>_bmThumbSize()</code> 去找 → 磁盘缓存永不命中；改为统一 <code>_bmThumbSize()</code> 并给 <code>_bmCachePath</code> 加 nil 兜底，使「存/读/收藏」三处路径一致。</li>
+        <li><span class="tag fix">修</span><b>书签 path 键错乱</b>：<code>_collectBookmarkMetas</code> 原用注解字段 <code>a.page</code> 拼 <code>path</code>，而 <code>im.page</code> 用 <code>getBookmarkPageNumber(a)</code>，二者可能不等 → 缓存文件名/收藏键错位；改为统一用 <code>page</code>（更稳妥，处理滚动/分页 xpointer 转换）。</li>
+        <li><span class="tag fix">修</span><b>meta 宽高失准</b>：书签 meta 原用整屏尺寸作宽高，致瀑布流比例与占位图尺寸失准；改为 <code>_bmThumbSize()</code>。</li>
+      </ul>
+      <p>另核实（无改动，确认正确）：<code>on_ignore</code> 书签早返回双保险；<code>_openImageActionMenu</code> 对书签禁用「忽略」；<code>_favKeyFor</code>/<code>addFavorite</code>/<code>_favoritesLists</code> 三处收藏键一致（均 <code>doc.file .. "#" .. im.path</code>）；画廊点按书签经 <code>_primaryIndexForMeta</code> 返回 nil 安全无操作；<code>onCloseWidget</code> 内 <code>self</code> 捕获 ArtGallery 故 <code>_freeBookmarkThumbs</code> 正确释放（内存/句柄无泄漏）。KOReader 源码核实：书签落在 <code>self.ui.annotation.annotations</code>（readerbookmark.lua:397）；纯页书签 <code>drawer=nil</code>（readerannotation.lua:16-96）；<code>getPageThumbnail</code> 回调首参即带 <code>.bb</code> 的 tile（readerthumbnail.lua:257/268/317）。</p>
+      <span class="chip ok">✓ LuaJIT 语法校验（修复后）：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 自检：静态体检全部通过（含 3 处缺陷修复）</span>
+    </div>
+    <div class="card">
+      <p><b>真机崩溃修复补记（2026-08-16）</b></p>
+      <p>KPW3 实机点击「书签（1）」段致 KOReader 崩溃，<code>G:\koreader\crash.log</code> 定位 <code>main.lua:4426: attempt to call global '_mkdirs' (a nil value)</code>。</p>
+      <p><b>根因</b>：<code>_mkdirs</code> 是模块级 <code>local function</code>（定义于 4620 行），但其调用点 <code>_bmCacheDir</code>（4426）定义在它<b>之前</b>；Lua 词法作用域下，前面定义的方法看不到后面声明的 local，调用点解析到全局 <code>_mkdirs</code>（nil）而崩溃（<code>addFavorite</code> 的 4758 调用点在 4620 之后、本可正常解析，故该缺陷仅在「点书签段」这条 <code>_bmCacheDir→_bmCachePath→_mkdirs</code> 路径暴露）。</p>
+      <p><b>修复</b>：将 <code>_mkdirs</code> 改为 <code>ArtGallery:_mkdirs</code> 方法（经元表运行时查找，与定义顺序无关），并修正两处调用点为 <code>self:_mkdirs(dir)</code>（4426、4758）。</p>
+      <p><b>同类隐患排查</b>：Phase 38 区域其余私有 local（<code>_flatten_on_white</code> 4358 的调用 4401/4455 均在后；<code>_copy_file_bytes</code> 5007 仅被其后 <code>_migrateLegacyFavorites</code> 5040 调用）均无前向引用问题。</p>
+      <span class="chip ok">✓ LuaJIT 语法校验（崩溃修复后）：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 已 <code>cmp</code> 重部署 G 盘设备（<code>G_MAIN_IDENTICAL</code>）</span>
+      <span class="chip warn">⚠ 版本维持 <code>v1.0.19</code> 未升版、未 push、未发版；请重开本书图库→点「书签」段复验（预期出现书签缩略图网格，异步渲染到位后自动替换占位）</span>
+    </div>
+    <div class="card">
+      <p><b>书签可跳转补记（2026-08-16）</b></p>
+      <p>用户实机复验确认书签缩略图能渲染、不再崩溃，但指出「书签只有缩略图、点按无反应、无法全屏查看、不明白意义」——Phase 38 当初把书签写成「点按无操作」确属半成品。本次赋予书签明确交互意义：<b>书签段本质 = 可视化书签目录</b>，点缩略图即一键回到该书签页。</p>
+      <ul>
+        <li><span class="tag add">新</span>新增 <code>ArtGalleryViewer:_jumpToBookmark(meta)</code>——关闭画廊/查看器后把阅读位置跳到该书签页；跳前 <code>ui.link:addCurrentLocationToStack</code> 压栈，使阅读器「返回」能回到看图前位置。按文档类型分流：滚动文档（EPUB）优先用 <code>bookmark_ref</code>（原始 xpointer）走 <code>ui.rolling:onGotoXPointer</code> 精确定位；分页文档（CBZ）走 <code>ui.paging:onGotoPage(meta.page)</code>；滚动回退走 <code>ui.rolling:onGotoPage</code>。跳转范式复用已验证的 <code>_showInBook</code>（<code>self:onClose()</code> 后跳转）。</li>
+        <li><span class="tag fix">修</span><code>onTap</code> 画廊网格点击分支：书签 meta 改走 <code>_jumpToBookmark</code>（图片仍走原 <code>_exitGallery</code> 全屏查看），消除「点书签无操作」。</li>
+        <li><span class="tag fix">修</span>长按菜单 <code>_openImageActionMenu</code>：书签 meta 走独立菜单——新增「跳转到此页」置顶，保留「收藏图片/取消收藏」（满足要求③：书签页可被收藏，走 <code>addFavorite</code> 的 <code>is_bookmark</code> 分支、非损坏项），仅剔除「忽略图片」（满足要求②：书签永不进忽略池）。</li>
+        <li><span class="tag add">新</span><code>_collectBookmarkMetas</code> 新增 <code>bookmark_ref = a.page</code>（原始引用，滚动文档为 xpointer 字符串、分页为页码数字），供精确跳页。</li>
+      </ul>
+      <span class="chip ok">✓ LuaJIT 语法校验（跳转改动后）：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 跳转逻辑对照插件既有分页/滚动跳页范式（<code>_syncReadingProgress</code> / <code>on_show_in_book</code>）核实一致；<code>ui.link</code>/<code>onClose</code> 均复用既有可用路径</span>
+      <span class="chip warn">⚠ 版本维持 <code>v1.0.19</code> 未升版、未 push、未发版；待 KPW3 实机复验（点书签缩略图→应跳转并全屏呈现该书页；长按书签→弹「跳转到此页」）</span>
+    </div>
+    <div class="card">
+      <p><b>书签全屏看图+删除补记（2026-08-16）</b></p>
+      <p>用户进一步要求书签「既能跳转、也能全屏看图」，并新增「长按删除书本书签」。依此前 AskUserQuestion 拍板（轻点=全屏看图/glimpse 风 + 高清重渲染；跳转放长按菜单）落地。</p>
+      <ul>
+        <li><span class="tag add">新</span><code>onTap</code> 画廊点按书签分支由「直接跳转」改为 <code>_viewBookmark(meta)</code>——进入单图全屏态把该书签当「伪图片」展示（复用既有缩放/全屏/⋮ 菜单基建，隔离在 <code>self._view_bookmark_meta</code> 标记内，真实图片路径不受影响）；初始以已渲染缩略图副本瞬时显示，再经新增 <code>ArtGallery:_renderBookmarkHiRes</code>（委托 <code>ui.thumbnail:getPageThumbnail</code> 按屏幕分辨率异步渲染）回调替换高清 BB（旧占位/副本显式释放，无重复 free——上游 <code>_clean_image_wg</code> 只释放 <code>_image_wg</code> 且 ImageWidget <code>image_disposable=false</code>）。</li>
+        <li><span class="tag add">新</span>⋮ 菜单新增书签态专属「跳转到此页」（不依赖 showinbook 快捷动作开关），并把通用「在书中定位」行在书签态隐藏以免重复；<code>_showInBook</code> 在单图态遇书签 meta 即改走 <code>_jumpToBookmark</code>（阅读器全屏呈现该书页）。</li>
+        <li><span class="tag add">新</span>长按菜单新增「删除书签」——经 <code>ConfirmBox</code> 二次确认后调新增 <code>ArtGallery:_removeBookmark</code>（仿 glimpse v1.3.0 实证：遍历 <code>ui.annotation.annotations</code> 匹配 <code>meta.bookmark_ref</code> 精准定位单条纯页书签，调 <code>ui.bookmark:removeItem(a,i)</code> 双向删除书本身，并强制重绘 dogear 折角角使其即时消失），配套 <code>_removeBookmarkCacheFile</code> 清该条磁盘 PNG；删除后 <code>_refreshBookmarkMetas</code> 重建书签池并刷新网格，若正单图查看该书签则 <code>_exitBookmarkView</code> 回画廊（无书签回退「全部」）。</li>
+        <li><span class="tag fix">修</span>状态清零：<code>_enterGallery</code>/<code>_exitGallery</code> 开头清 <code>_view_bookmark_meta</code>，避免同轮打开中先看签再看真图导致的菜单残留误显。</li>
+      </ul>
+      <span class="chip ok">✓ LuaJIT 语法校验（全屏看图+删除改动后）：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 删除 API 与 dogear 刷新对照 glimpse v1.3.0 源码（<code>_removeBookmark</code>/<code>_removeCurrentBookmark</code> 赖其 <code>removeItem</code> 语义）核实一致；高清渲染复用已验证的 <code>getPageThumbnail</code> 异步范式</span>
+      <span class="chip ok">✓ 已 <code>cmp</code> 重部署 G 盘设备（<code>G_MAIN_IDENTICAL</code>）</span>
+      <span class="chip warn">⚠ 版本维持 <code>v1.0.19</code> 未升版、未 push、未发版；待 KPW3 实机复验（轻点书签→全屏看图；点 ⋮/长按→跳转到此页/删除书签）</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h3>长按书签菜单崩溃修复补记（2026-08-16）</h3>
+      <div class="meta">触发：KPW3 实机<b>长按书签缩略图</b>致 KOReader 崩溃，<code>G:\koreader\crash.log</code> 定位 <code>main.lua:2619: attempt to index global 'menu' (a nil value)</code>（发生于 <code>anchor</code> 闭包被 <code>movablecontainer:ensureAnchor</code> 调用时）。</div>
+      <p><b>根因</b>：书签分支长按菜单写成单行 <code>local menu = ArtGalleryPopupMenu:new{ ... anchor = function() ... menu.movable ... end }</code>。Lua 词法作用域规定局部变量只在其<b>声明语句之后</b>才进入作用域，单行声明里初始化表达式 <code>&lt;expr&gt;</code> 中的 <code>menu</code> 仍解析为<b>全局</b>（正在声明的局部尚未激活），于是 <code>anchor</code> 闭包捕获全局 <code>menu</code>（nil），菜单 paint 时对 nil 索引而崩。</p>
+      <p><b>对比</b>：非书签分支（2693-2694）用 <code>local menu</code>（先独立声明）+ <code>menu = ArtGalleryPopupMenu:new{...}</code>（再赋值）两步分离——初始化表达式在声明激活之后，anchor 正确捕获局部 <code>menu</code>，这正是它不崩的原因。</p>
+      <ul>
+        <li><span class="tag fix">修</span>把书签分支的 <code>local menu</code> 提前到 <code>items</code> <b>之前</b>声明（使 <code>items</code> 内「删除书签」回调的 <code>UIManager:close(menu)</code> 与 <code>anchor</code> 闭包都绑定同一局部 <code>menu</code>），并改构造为 <code>menu = ArtGalleryPopupMenu:new{...}</code>（去掉声明）。</li>
+      </ul>
+      <span class="chip ok">✓ LuaJIT 语法校验（修复后）：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 已 <code>cmp</code> 重部署 G 盘设备（<code>G_MAIN_IDENTICAL</code>），版本维持 <code>v1.0.19</code> 未升版、未 push、未发版</span>
+      <span class="chip warn">⚠ 请重开本书图库→「书签」段→<b>长按</b>书签复验（预期弹菜单：跳转到此页 / 收藏·取消收藏 / 删除书签，不再崩溃）</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>阶段三十八 · 书签删除落盘 + 书签池⭐角标修复 · v1.0.19</h2>
+    <div class="card">
+      <div class="meta">触发：KPW3 实机复验回报两点——① 长按删除书签为「无效操作、书签依然存在」；② 被收藏的书签在「书签（N）」池无 ⭐ 图标。</div>
+      <p><b>问题① 根因</b>：删除<b>未落盘</b>。<code>bm:removeItem</code> 仅改内存中的 <code>ui.annotation.annotations</code>，磁盘持久化原本依赖关书时的 <code>ReaderAnnotation:onSaveSettings</code>；若删除后未正常关书 / 强退 / 重开本书，书签即从本书 <code>.sdr</code> 恢复。<b>网格刷新本就正常</b>——<code>_invalidateGalleryCaches</code> 已清 <code>_gallery_layouts</code> 与 <code>_thumb_bbs</code>，删除后 <code>_refreshBookmarkMetas</code>+<code>update</code> 会重排布局，问题仅在持久化。</p>
+      <ul>
+        <li><span class="tag fix">修</span><code>ArtGallery:_removeBookmark</code> 在 <code>bm:removeItem(a,i)</code> 之后立即 <code>pcall(self.ui.annotation:onSaveSettings())</code> 强制落盘，删除即刻写回本书 doc_settings，无需等关书。</li>
+      </ul>
+      <p><b>问题② 根因</b>：<code>_buildGallery</code> 的 <code>show_corner</code> 仅对 <code>f=="all"</code> 开放（<code>main.lua:2967</code>），书签池（<code>f=="bookmarks"</code>）被排除，故既无右下角 ⭐、也无 <code>_cornerLuma</code> 角点偏暗自动反白。</p>
+      <ul>
+        <li><span class="tag fix">修</span><code>show_corner</code> 改为 <code>f=="all" or f=="bookmarks"</code>；书签池的收藏项即显示右下角 ⭐ 且沿用角点偏暗自动反白（与「全部」视图一致）。</li>
+        <li><span class="tag ok">确</span>收藏判定复用 <code>isFavoriteByKey(_favKeyFor(meta))</code>；书签收藏键 <code>doc.file#artgallery-bm:&lt;page&gt;</code> 与 <code>addFavorite</code> 写入键同源，匹配无误（对照 addFavorite 的 is_bookmark 分支 key 构造）。</li>
+      </ul>
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 已 <code>cmp</code> 重部署 G 盘设备（<code>G_MAIN_IDENTICAL</code>），版本维持 <code>v1.0.19</code> 未升版、未 push、未发版</span>
+      <span class="chip warn">⚠ 待 KPW3 复验：长按书签→删除→网格该缩略图消失且<b>重开本书后不再恢复</b>；收藏某书签→「书签（N）」池该缩略图右下角出现 ⭐（暗角自动反白）</span>
+    </div>
+    <div class="card">
+      <div class="meta">触发：KPW3 实机复验回报上一轮修复「删除仍无效、⭐仍超出缩略图」——根因方向对但落点错，已回源码复核纠正。</div>
+      <p><b>删除仍无效 · 真因</b>：<code>ReaderAnnotation:onSaveSettings()</code>（readerannotation.lua:249）内部仅 <code>self.ui.doc_settings:saveSetting("annotations", self.annotations)</code>，<b>自身不 flush</b>——<code>saveSetting</code> 只改内存 settings 表，必须显式 <code>doc_settings:flush()</code> 才写回磁盘 <code>.sdr</code>；上一轮调 <code>onSaveSettings</code> 后数据从未落盘，重开本书即恢复。另 <code>bm:removeItem</code> 此前未 pcall 保护，抽屉态 reader <code>footer</code> 等状态异常时可能抛错中断删除。</p>
+      <ul>
+        <li><span class="tag fix">修</span><code>ArtGallery:_removeBookmark</code>：a. <code>pcall(bm:removeItem(a,i))</code> 包裹内存删除；b. 删除后<b>二次校验</b>内存确已无匹配项（removeItem 内部 footer 抛错但 <code>table.remove</code> 已生效的情形也能识别），未删掉则直接返回 false；c. 显式 <code>ann:updatePageNumbers()</code> + <code>self.ui.doc_settings:saveSetting("annotations", ann.annotations)</code> + <code>self.ui.doc_settings:flush()</code> 强制即时落盘（不再依赖关书）；d. dogear 折角重绘仍 pcall 保护。</li>
+      </ul>
+      <p><b>⭐超出缩略图 · 真因</b>：角标原锚定在 <b>cell 角</b>（<code>c.x + c.w - off</code>），但缩略图经 <code>_thumb</code> fit 进 <code>(c.w-2·inset)×(c.h-2·inset)</code> 框后实际宽 <code>bw &lt; c.w</code>（书签固定比例图在较宽列里必然窄），图片右下角真实落在 <code>c.x + (c.w+bw)/2</code>，比 cell 右角内缩 <code>(c.w-bw)/2</code>——列宽 &gt; 图宽时该内缩显著，角标便悬空在图片之外。</p>
+      <ul>
+        <li><span class="tag fix">修</span><code>CenterContainer</code> 把 bb 居中在 cell 内，故图片左上角精确为 <code>c.x+(c.w-bw)/2, c.y+(c.h-bh)/2</code>（FrameContainer 单边边距在居中计算中被数学抵消，定位精确），角标锚定到该真实图片右下角内缩 <code>Screen:scaleBySize(4)</code>，所有视图（全部/书签）一律精准贴图、不再悬空；原 <code>off</code> 局部变量已弃用删除。</li>
+      </ul>
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 已 <code>cmp</code> 重部署 G 盘设备（<code>G_MAIN_IDENTICAL</code>），版本维持 <code>v1.0.19</code> 未升版、未 push、未发版</span>
+      <span class="chip warn">⚠ 请 KPW3 实测：① 长按书签→删除→网格该缩略图立即消失，且<b>退出本书再重开，该书签确实不再出现</b>（验证已落盘）；② 收藏某书签→「书签（N）」池该缩略图右下角 ⭐ 精准贴于图片右下角（不再悬空/超出）</span>
+    </div>
+    <div class="card">
+      <div class="meta">触发：KPW3 实机复验回报上一轮「删除仍无效」——本轮先读真机取证再改。</div>
+      <p><b>取证结论</b>：读取 <code>G:\Books\神秘复苏.sdr\metadata.epub.lua</code>，时间戳仍为 <code>10:34</code>、早于本轮 20:21 启动；annotations 仅 1 条，其 <code>page</code> 字段是 <b>xpointer 字符串</b>（如 <code>/body/DocFragment[490]/...</code>）。画廊重建链路（<code>_refreshBookmarkMetas</code>→<code>update</code>→<code>_buildGallery</code>→<code>_tabList</code> 取 <code>bookmark_metas</code>）通畅。锁定根因：<b>删除未落盘，且非"匹配失败"（xpointer 同源必匹配），而是运行时 <code>ui.bookmark:removeItem(a,i)</code> 未能真正把该项从 <code>ui.annotation.annotations</code> 移除</b>，导致二次校验 <code>still</code> 为 true → 提前 return → 跳过 <code>flush</code> → 磁盘未更新。</p>
+      <ul>
+        <li><span class="tag fix">修</span><code>ArtGallery:_removeBookmark</code>：a. 先遍历定位匹配项索引 <code>idx</code>（<code>not a.drawer and a.page == match</code>）；b. 记录 <code>before = #ann.annotations</code>，<code>pcall(bm:removeItem(ann.annotations[idx], idx))</code> 优先走 KOReader 原生删除（维护 dogear/footer/事件）；c. <b>兜底</b>：若 <code>#ann.annotations == before</code>（原生删除未能减少数量，任意原因中断），直接 <code>table.remove(ann.annotations, idx)</code> 保证内存移除，杜绝"删除无效、落盘后书签复活"；d. <b>无论如何强制落盘</b>（不再因 <code>still</code> 提前 return）：<code>ann:updatePageNumbers()</code> + <code>saveSetting("annotations", ann.annotations)</code> + <code>flush()</code>；e. 加 <code>logger.info("[ArtGallery] _removeBookmark: ...")</code> 关键路径诊断（matched index / flushed / fallback），真机复验若仍异常可从 <code>G:\koreader\crash.log</code> 取证。</li>
+      </ul>
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 工作副本 ≡ 干净副本 ≡ G 盘（<code>cmp</code> IDENTICAL），版本维持 <code>v1.0.19</code> 未升版、未 push、未发版</span>
+      <span class="chip ok">✓ 已 <code>cmp</code> 重部署 G 盘（21:19），待 KPW3 实机复验（删除书签→立即退出 KOReader→读 <code>.sdr/metadata.*.lua</code> 时间戳应更新、annotations 不含该书签）</span>
+    </div>
+    <div class="card">
+      <div class="meta">触发：KPW3 实机复验回报「设备已连接，修复无效」——上一轮增强版已部署（21:02）但删除仍不落盘。本轮读真机 <code>G:/koreader/crash.log</code> 举证：全程 <b>零 [ArtGallery] 日志</b>、<code>神秘复苏.sdr/metadata.epub.lua</code> 时间戳仍停在 <b>10:34</b>，锁定两层根因。</div>
+      <p><b>根因①（致命）：落盘被 updatePageNumbers 连累</b>。上一轮把 <code>ann:updatePageNumbers()</code> 与 <code>saveSetting+flush</code> 包在<b>同一个 pcall</b> 里；滚动文档（EPUB）下 <code>updatePageNumbers</code> 一旦抛错，pcall 在 flush 之前就中止 → 书签从内存移除却<b>从未写盘</b> → 重开本书即从 .sdr 恢复，表现为"删除无效"。<code>_removeBookmark</code> 已改为：<code>updatePageNumbers</code> 单独 pcall（best-effort）→ <code>saveSetting+flush</code> 独立 pcall 并捕获错误 → 关键落盘绝不被连累。</p>
+      <p><b>根因②（诊断盲区）：日志级别被过滤</b>。原函数 diagnostics 用 <code>logger.info</code>，KOReader 默认不写 INFO 到 crash.log，故即使函数执行也无迹可查。全部改为 <code>logger.warn</code>（必捕获），并在<b>菜单项点击</b>（DEL_MENU_ITEM）与<b>确认框 OK</b>（DEL_CONFIRM）两处补入口日志，使下一轮复验能从 crash.log 精确定位断点。</p>
+      <ul>
+        <li><span class="tag fix">修</span><code>ArtGallery:_removeBookmark</code>：a. 入口加 <code>logger.warn("[ArtGallery] _removeBookmark CALLED")</code>；b. <code>ui = self.ui or (self.artgallery and self.artgallery.ui)</code> 防御性取 ui；c. 三处 matched/bail/fallback 日志改 warn；d. flush 与 updatePageNumbers 解耦，独立 pcall 捕获错误并记 <code>flush ok=</code>；e. dogear 重绘用防御 ui。</li>
+        <li><span class="tag fix">修</span><code>ArtGalleryViewer:_openImageActionMenu</code>：删除书签菜单项回调与 ConfirmBox OK 回调各加一条 <code>logger.warn</code> 入口日志（含 <code>self.artgallery</code> 是否非 nil），用于区分"菜单未触发/确认未触发/函数未调用/落盘失败"四类断点。</li>
+      </ul>
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code>；工作副本 ≡ 干净副本 ≡ G 盘（<code>cmp</code> IDENTICAL，21:19）</span>
+      <span class="chip warn">⚠ 待 KPW3 复验：删除书签→立即退出 KOReader→读该书 <code>.sdr/metadata.*.lua</code> 时间戳应更新、annotations 已不含该书签（落盘闭环）；若仍异常，从 <code>G:/koreader/crash.log</code> 过滤 <code>[ArtGallery]</code> 看 DEL_MENU_ITEM / DEL_CONFIRM / CALLED / flush ok 走到哪一步</span>
+    </div>
+    <div class="card">
+      <div class="meta">触发：KPW3 实机复验再报「设备已连接，修复未生效」。本轮（21:24）读真机崩溃日志<b>决定性取证</b>：<code>G:/koreader/crash.log</code> 仅 1 条 <code>[ArtGallery]</code> 记录——<code>DEL_MENU_ITEM tapped; artgallery= true</code>（21:24:03），其后到 21:24:11 设备重启<b>无任何 DEL_CONFIRM / 报错 / stack traceback</b>；<code>metadata.epub.lua</code> 仍停在 10:34。这说明「删除书签」菜单项被点了、但 ConfirmBox 的 OK 回调从头没触发——断点精确卡在"菜单项点击 → 确认框确认"之间。</div>
+      <p><b>根因③（本轮·致命）：菜单项回调同步弹 ConfirmBox 的输入穿透/竞态</b>。KOReader 里菜单项的 <code>callback</code> 是在<b>菜单自身输入处理流程中同步执行</b>的；此时同步 <code>UIManager:show(ConfirmBox)</code> 会被同一次点按事件"穿透"——要么误触到确认框的「取消/背景」，要么菜单自身关闭把刚压栈的确认框一起从栈顶弹掉。结果：「删除书签」点了，确认框要么没正常弹、要么确认点不到回调，<code>DEL_CONFIRM</code> 永远不触发，书签纹丝不动——这正好解释<b>前 6 轮都"无效"且零 DEL_CONFIRM</b>。注：上一轮已证实 G 盘跑的就是带诊断的增强版（<code>cmp</code> 一致），故根因不在落盘逻辑，而在"确认回调根本没被调用"。</p>
+      <ul>
+        <li><span class="tag fix">修</span><code>ArtGalleryViewer:_openImageActionMenu</code>：删除书签菜单项回调中，把 <code>UIManager:show(ConfirmBox:new{...})</code> 整段包进 <code>UIManager:nextTick(function() ... end)</code>，将确认框推迟到本轮输入事件彻底结束、下一 UI 帧再弹，<b>彻底消除穿透/竞态</b>。（<code>UIManager:nextTick</code> 在 koreader <code>frontend/ui/uimanager.lua:354</code> 确认存在。）</li>
+        <li><span class="tag fix">修</span>诊断增强：确认框构造加 <code>cancel_callback</code> 记 <code>DEL_CANCEL tapped</code>；nextTick 内 <code>UIManager:show</code> 前记 <code>DEL_CB_SHOWN</code>。现四类断点可区分：<b>菜单未触发</b>（无 DEL_MENU_ITEM）/ <b>框没弹</b>（有 DEL_MENU_ITEM 无 DEL_CB_SHOWN）/ <b>框弹了但取消</b>（DEL_CANCEL）/ <b>框弹了且确认</b>（DEL_CONFIRM→CALLED→flush ok）。</li>
+      </ul>
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code>；<code>UIManager:nextTick</code> 经 koreader 源码核验存在</span>
+      <span class="chip ok">✓ 已 <code>cmp</code> 重部署 G 盘（21:29:56），待 KPW3 实机复验</span>
+      <span class="chip warn">⚠ 复验取证：长按书签→「删除书签」→（nextTick 后）确认框→「删除」→<b>立即退出 KOReader</b>→读该书 <code>.sdr/metadata.*.lua</code> 时间戳应更新、annotations 已不含该书签。若仍异常，从 crash.log 过滤 <code>[ArtGallery]</code> 看 DEL_MENU_ITEM / DEL_CB_SHOWN / DEL_CONFIRM / CALLED / flush ok= 走到哪一步，即可精确定位。</span>
+    </div>
+    <div class="card">
+      <div class="meta">触发：KPW3 实机复验再报「未生效」（21:39）。本轮（21:39）读真机日志决定性取证：<code>G:/koreader/crash.log</code> 新增 <code>DEL_CB_SHOWN</code>（21:39:43）——确认框这次<b>真的弹出来了</b>（nextTick 修复生效）；但之后<b>既无 DEL_CONFIRM 也无 DEL_CANCEL</b>，<code>metadata.epub.lua</code> 仍停在 10:34。断点缩小到：「框弹了，但「删除」/「取消」按钮回调都不触发」。</div>
+      <p><b>根因④（本轮·终极·ConfirmBox 字段名误用）</b>。经核查 koreader 源码 <code>frontend/ui/widget/confirmbox.lua:115-122</code>：ConfirmBox 的「确定」按钮调用的是 <code>self.ok_callback()</code>，其构造参数名为 <code>ok_callback</code>；而删除框代码写的是 <code>callback = function() ... DEL_CONFIRM ... end</code>——<b>ConfirmBox 完全不认 <code>callback</code> 字段</b>，于是「删除」按钮调用的是默认空 <code>ok_callback</code>（什么都不做）→ 框弹了却永远删不掉。注：「取消」按钮用的是 <code>cancel_callback</code>（正确），故若用户点「取消」会记 DEL_CANCEL；前几轮用户一直点「删除」试图删除，故只见 DEL_CB_SHOWN、不见 DEL_CONFIRM。<b>此前的落盘增强、nextTick 修复都是正确的，但被这个字段名错误完全架空</b>——这是第 5~8 轮"删除无效"的终极根因。</p>
+      <ul>
+        <li><span class="tag fix">修</span><code>ArtGalleryViewer:_openImageActionMenu</code> 删除书签 ConfirmBox：将 OK 动作字段由 <code>callback</code> 改为 <b><code>ok_callback</code></b>（与 koreader ConfirmBox 源码一致）。已全仓 grep 其余 5 处 ConfirmBox（1236/5433/5661/5676/6855）均正确用 <code>ok_callback</code>/<code>cancel_callback</code>，仅此一处误用，无同类潜伏。</li>
+      </ul>
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 已 <code>cmp</code> 重部署 G 盘（21:44:48），待 KPW3 实机复验</span>
+      <span class="chip warn">⚠ 复验：长按书签→「删除书签」→确认框→「删除」→<b>立即退出 KOReader</b>→读该书 <code>.sdr/metadata.*.lua</code> 时间戳应更新、annotations 已不含该书签（落盘闭环）；若仍异常，从 crash.log 过滤 <code>[ArtGallery]</code> 看 DEL_CONFIRM / CALLED / flush ok= 是否出现。</span>
+    </div>
+    <div class="card">
+      <div class="meta">触发：用户实机复验确认修复生效。授权清理第 5~8 轮为定位根因临时埋的诊断日志，恢复代码整洁（2026-08-16 深夜末轮）。</div>
+      <p><b>诊断代码清理（修复生效后）</b>。第 5~8 轮为逐步定位"删除无效"根因，在菜单回调与 <code>_removeBookmark</code> 内埋入一批 <code>logger.warn("[ArtGallery] ...")</code> 链路/步骤追踪日志（<code>DEL_MENU_ITEM</code> / <code>DEL_CB_SHOWN</code> / <code>DEL_CONFIRM</code> / <code>DEL_CANCEL</code> / <code>CALLED</code> / <code>matched index</code> / <code>fallback table.remove at</code> / <code>flush ok=</code>）。根因已坐实（ConfirmBox <code>ok_callback</code> 字段名），这些日志已无运营价值，且 <code>logger.warn</code> 默认写入 crash.log 会长期污染日志。本轮全部移除。</p>
+      <ul>
+        <li><span class="tag fix">清</span>移除菜单段 4 条链路日志：<code>DEL_MENU_ITEM</code>(2589) / <code>DEL_CB_SHOWN</code>(2599) / <code>DEL_CONFIRM</code>(2609) / <code>DEL_CANCEL</code>(2627)。</li>
+        <li><span class="tag fix">清</span>移除 <code>_removeBookmark</code> 内 4 条步骤日志：<code>CALLED</code>(4871) / <code>matched index</code>(4899) / <code>fallback table.remove at</code>(4915) / <code>flush ok=</code>(4932)。</li>
+        <li><span class="tag keep">留</span>保留 3 条有运维价值的真实错误告警：<code>bail, refs missing</code>(4870) / <code>no annotation matches</code>(4888) 作为删除失败的防御性诊断；<code>flush</code> 由原"成功也告警"改为<b>仅失败时</b>告警（<code>flush FAILED</code>，4922），去掉成功噪声但保留真实落盘失败的可见性。</li>
+        <li><span class="tag keep">留</span>业务逻辑（兜底 <code>table.remove</code> + 强制 <code>saveSetting+flush</code> + <code>updatePageNumbers</code> 与落盘解耦 + <code>nextTick</code> 弹确认框 + <code>ok_callback</code> 字段）全部保留——这些是正确修复，非调试残留。</li>
+      </ul>
+      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+      <span class="chip ok">✓ 工作副本 ≡ 干净副本（<code>cmp</code> IDENTICAL）</span>
+      <span class="chip ok">✓ 已 <code>cmp</code> 重部署 G 盘（21:57:34），三副本一致（工作副本 ≡ 干净副本 ≡ G 盘），v1.0.19 未升版 / 未 push / 未发 Release</span>
+    </div>
+  </section>
+
+  <section>
     <h2>阶段三十六 · 文档修正：更正「支持格式」声明 · v1.0.19</h2>
     <div class="meta">触发：用户严格核对 README 声称的支持格式，发现多处声明与代码实际行为不符，要求「若有误则修改」。经核查代码确认事实，修正文档与注释。</div>
     <div class="card">
@@ -1478,25 +1653,6 @@
       <span class="chip ok">✓ 版本：<code>_meta.lua</code> → <code>1.0.11</code></span>
       <span class="chip ok">✓ 备份：<code>Backup/plugins/artgallery.koplugin/main.lua.2026-08-11T002829</code></span>
       <span class="chip warn">⚠ 待 KPW3 实机复测：①「关于 美术馆」点击后约 0.3s 弹出可滚动说明、稳定显示且顶部无冗余 ⋯ 菜单；② 图库角标两倍、清晰可辨（阶段二十六遗留项）</span>
-    </div>
-  </section>
-
-  <section>
-    <h2>阶段三十八 · 文档/UI 修正：更新「关于美术馆」使用说明文本 · v1.0.19</h2>
-    <div class="meta">触发：用户要求更新插件「关于美术馆」对话框（main.lua:6136 起的 <code>guide</code> 变量，TextViewer 承载）中的使用说明文本，使与 v1.0.19 实际功能及菜单措辞一致；不升版本号、重发发行版。</div>
-    <div class="card">
-      <p><b>本次修正三处事实性 / 一致性偏差</b></p>
-      <ol>
-        <li><b>图库交互</b>：旧文写「三态循环」（点按在全部 / 收藏 / 忽略间循环），但 v1.0.19 已将图库改为「分段切换器」（底部 <code>ArtGallerySegmented</code>，显示各池实时数量 <code>全部[N]/收藏[F]/忽略[M]</code>，点按对应段直达该池，无忽略项时不显示「忽略」段）；已在「⋯ 更多菜单」与「图库（网格视图）」两处同步更正。</li>
-        <li><b>菜单项名称</b>：旧文写「快捷动作设置」，而插件菜单实际项为「快速操作」（main.lua:5946），已更正段名与该措辞，避免用户按说明找不到入口。</li>
-        <li><b>新增【设置项】段</b>：补充 v1.0.16 / v1.0.17 / v1.0.12 已落地但尚未在说明中提及的真实设置——手势（「手势」子菜单逐项开关双击放大 / 滑动翻页 / 捏合缩放）、最大放大倍数（1.5×–4.0×、默认 1.5×）、看图同步阅读进度（分页 CBZ 与 EPUB 各独立开关、默认开启）。</li>
-        <li>另将「缩放与平移」措辞「双指或双击」润色为「双指捏合或双击」。</li>
-      </ol>
-    </div>
-    <div class="chips">
-      <span class="chip ok">✓ 仅文档 / 说明文本改动，无运行行为变化</span>
-      <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
-      <span class="chip info">流程：同步干净副本 → commit → push main → 重发 v1.0.19 发行版资产（不升版本号），均在本轮完成</span>
     </div>
   </section>
 
