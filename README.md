@@ -190,9 +190,9 @@ Bookmarks never enter the Ignored pool. Rendering delegates to KOReader's built-
 
 ## 相比上游的改进 / Improvements over the upstreams
 
-**中文**：美术馆（ArtGallery）是 **Glimpse** 与 **Illustrations** 两个 KOReader 社区插件的合并与增强。为表述准确，下面**分别**对比两个上游的**最新版本**：
+**中文**：美术馆（ArtGallery）是 **Glimpse** 与 **Illustrations** 两个 KOReader 社区插件的合并与增强。为表述准确，下面以美术馆的**吸收基线**（Glimpse 截至 v1.2.5、Illustrations 截至 v0.5.2）**分别**对比两个上游：
 
-- **Glimpse** — 作者 Fank1（Erik Fanki）；最新 `main` 分支 **v1.2.5**（最新 Release **v1.2.0**，2026-07-29）：[github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
+- **Glimpse** — 作者 Fank1（Erik Fanki）；最新稳定版 **v1.3.0**（2026-08-15）。美术馆吸收其 **v1.2.5** 及之前的能力；v1.3.0 新增的「书签入画廊」由美术馆**独立实现**（见 §11），其「屏上 +/fit/− 缩放控件」与「全局总开关」美术馆未采用（改用双击/捏合与逐项开关）。[github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
 - **Illustrations** — 作者 agaragou；最新 **v0.5.2**（2026-04-25）：[github.com/agaragou/illustrations.koplugin](https://github.com/agaragou/illustrations.koplugin)
 
 > 说明：美术馆是"合并"而非"从零发明"。表中凡标注「同源 / 均具备」的项，表示该能力本就来自对应上游、美术馆继承沿用；标注「美术馆新增 / 增强」的，才是相对该上游的差异化改进。
@@ -215,6 +215,8 @@ Glimpse 是功能更完整的上游（"随时偷看书中参考图而不丢位�
 | 阅读进度 | 刻意"不改动你的位置" | **可主动同步书籍自身进度**（分页 / 滚动分别开关） | 方向相反：Glimpse 不推进，美术馆可选推进 |
 | 维护 | 独立仓库、自带更新器 | 合并为单插件，更新器统一指向本仓库 | 装一个即可，无需并存 |
 
+> **关于 Glimpse v1.3.0（2026-08-15）**：上表以美术馆吸收基线 **v1.2.5** 为准。v1.3.0 的核心新增「书签入画廊」美术馆已**独立实现**（独立「书签」段 · 轻点全屏看图 · 长按可跳转/收藏/删除，见 §11），二者机制不同——glimpse 把书签**并入图片池**按阅读顺序穿插，美术馆用**独立段**。v1.3.0 另增「屏上 +/fit/− 缩放控件」与「全局总开关 Enable Glimpse」——美术馆未采用，改用双击↔2× + 捏合缩放与逐项手势/功能开关（更贴合墨水屏免闪烁体验）。其「无闪烁切图 / 菜单提速」对墨水屏无额外收益，美术馆刷新系统本就免闪。
+
 ### 对比 Illustrations v0.5.2
 
 Illustrations 是较精简的上游（"浏览 EPUB 中所有插图"）。它本身具备：3×3 网格画廊、全屏插图模式、**全局收藏**（跨书，甚至书外可用）、更新检查、防剧透（当前页之前 / 全部两档）、点按 / 方向键导航、手势**分配**、最小图片尺寸阈值过滤、清缓存（当前 / 全部）。
@@ -235,9 +237,9 @@ Illustrations 是较精简的上游（"浏览 EPUB 中所有插图"）。它本�
 
 **中文小结**：美术馆把 Glimpse 的"智能过滤 / 手势开关 / 最大放大倍数 / 防剧透 / 忽略 / 记忆位置 / 反转 / 旋转"与 Illustrations 的"全局收藏 / 网格画廊 / 防剧透 / 手势分配"融合为一，并额外补上**全中文界面、三态填充模式、CBZ 漫画入口、统一分段切换器（实时计数）、可选的书籍进度主动同步**。你不再需要同时安装两个插件。
 
-**English**: ArtGallery merges two KOReader community plugins, **Glimpse** and **Illustrations**, and enhances them. For accuracy, the comparison below is made **separately** against each upstream's **latest version**:
+**English**: ArtGallery merges two KOReader community plugins, **Glimpse** and **Illustrations**, and enhances them. For accuracy, the comparison below is made **separately** against each upstream at the version ArtGallery absorbed (Glimpse up to v1.2.5, Illustrations up to v0.5.2):
 
-- **Glimpse** — by Fank1 (Erik Fanki); latest `main` **v1.2.5** (latest Release **v1.2.0**, 2026-07-29): [github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
+- **Glimpse** — by Fank1 (Erik Fanki); latest stable **v1.3.0** (2026-08-15). ArtGallery absorbed its capabilities **up to v1.2.5**; v1.3.0's new "bookmarks in Gallery" is **independently implemented** in ArtGallery (see §11), and its on-screen +/fit/− zoom controls and global master switch are not adopted (ArtGallery uses double-tap/pinch and per-item toggles instead). [github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
 - **Illustrations** — by agaragou; latest **v0.5.2** (2026-04-25): [github.com/agaragou/illustrations.koplugin](https://github.com/agaragou/illustrations.koplugin)
 
 > Note: ArtGallery is a *merge*, not invented from scratch. Rows marked "same / both have" mean the capability already came from that upstream and is inherited; rows marked "ArtGallery added / enhanced" are the differentiators vs that upstream.
@@ -259,6 +261,8 @@ Glimpse is the more complete upstream (the "peek at reference images" plugin). I
 | Spoiler protection | Chapter-scoped + one-time whole-book search | Three scopes (whole book / read-so-far / current-chapter-before) | Both have; ArtGallery adds one more |
 | Reading progress | Deliberately "doesn't change your place" | **Optionally syncs the book's own progress** (separate paged / scrolling toggles) | Opposite: Glimpse never advances; ArtGallery can |
 | Maintenance | Separate repo, own updater | Merged into one plugin, updater points to this repo | Install one, no need to coexist |
+
+> **On Glimpse v1.3.0 (2026-08-15)**: the table above uses ArtGallery's absorption baseline **v1.2.5**. v1.3.0's headline "bookmarks in Gallery" feature is **independently implemented** in ArtGallery (separate Bookmarks tab · tap to fullscreen · long-press to jump/favorite/delete, see §11) — the mechanism differs: Glimpse merges bookmarks into the image pool interleaved by reading order, while ArtGallery uses a dedicated tab. v1.3.0 also adds on-screen +/fit/− zoom controls and a global "Enable Glimpse" master switch — ArtGallery does not adopt these, using double-tap↔2× + pinch zoom and per-item toggles instead (better suited to flicker-free e-ink). Its "flashless image switching / faster menus" brings no extra benefit on e-ink, where ArtGallery's refresh system is already flicker-free.
 
 ### vs Illustrations v0.5.2
 
