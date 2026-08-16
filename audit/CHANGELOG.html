@@ -223,6 +223,46 @@
     </div>
   </section>
 
+  <!-- ===================== 阶段四一（最新） ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段四一 · 修复「返回」无反应（空主池 + 删除唯书签边界）</h2>
+      <span class="date">2026-08-17</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>真机（KPW3）复测：图库中仅有「一张书签」时删除该书签，再点底部「返回」按钮——无崩溃，但**无任何反应**（画廊卡住，无法退出）。</p>
+
+      <h3>根因</h3>
+      <p>画廊缩略图数据来自 <code>self:_tabList()</code>（按当前段过滤），<b>不重设</b> <code>self._images_list</code> / <code>self._images_list_nb</code>——后者始终是<b>主图池</b>计数。当用户处于「无当前单图」路径（书签段退回画廊后 <code>self.image == nil</code>），<code>_exitGallery</code> 走 <code>else</code> 分支调 <code>switchToImageNum(target)</code>。而 <code>switchToImageNum</code>（main.lua:3826）开头有硬守卫：<code>if ... or image_num &gt; self._images_list_nb then return end</code>。</p>
+      <p>边界触发：整本书<b>无常规图片</b>、唯一可看内容就是那张书签时，主池 <code>self._images_list_nb == 0</code>。删除唯书签后点「返回」：<code>target(=1) &gt; _images_list_nb(=0)</code> → 守卫**静默 <code>return</code>**（无切视图、无崩）→ 表现为「返回无反应」。此为「书签入画廊」（阶段三八）+ 阶段四十取图时序调整的边界交互回归。</p>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead>
+          <tr><th>文件</th><th>性质</th><th>改动说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>main.lua</code> · <code>ArtGalleryViewer:_exitGallery</code></td>
+            <td><span class="tag fix">修</span></td>
+            <td>在 <code>else</code> 分支：先判 <code>(self._images_list_nb or 0) &lt; 1</code>——主池已空（唯一内容即刚删掉的书签）时，直接 <code>self:onClose()</code> 关闭查看器回阅读页（与 <code>_ignoreImage</code> 在 <code>nb&lt;1</code> 时 <code>onClose</code> 的既有先例一致），避免 <code>switchToImageNum</code> 静默 no-op；否则对 <code>target</code> 做 <code>math.min/max</code> 范围夹紧后再 <code>switchToImageNum(target)</code>，杜绝越界静默失败。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>校验</h3>
+      <div class="chips">
+        <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code>（main.lua）</span>
+        <span class="chip ok">✓ 工作副本 ≡ 干净副本（<code>diff -q</code> IDENTICAL）</span>
+        <span class="chip warn">⚠ 真机复测待用户授权部署后执行（HITL）：无常规图片、仅一张书签的书，删除该书签后点「返回」应顺利关闭查看器回阅读页（不再无反应、不崩）</span>
+        <span class="chip ok">✓ 版本号维持 <code>v1.0.20</code> 未升版；未发 Release（依「发版须经同意」纪律）</span>
+      </div>
+    </div>
+  </section>
+
   <!-- ===================== 阶段一 ===================== -->
   <section class="phase open">
     <div class="phase-head">

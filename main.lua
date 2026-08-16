@@ -2515,6 +2515,16 @@ function ArtGalleryViewer:_exitGallery(idx)
         -- self.image，再重建单图 widget——否则 _new_image_wg 以 nil 建 ImageWidget，
         -- 重绘即崩（frontend/ui/widget/imagewidget.lua:264 cannot render image；
         -- 2026-08-16 设备 crash.log：点「返回」后 _repaint 崩溃，美术馆 v1.0.20）。
+        -- 边界（阶段四一）：整本书无常规图片、唯一可看内容就是刚删掉的书签时，
+        -- 主池 self._images_list_nb 已为 0；switchToImageNum 的守卫
+        -- (image_num > _images_list_nb) 会让 返回 静默 no-op（无反应、不崩）。
+        -- 此时画廊本就是唯一可看内容，直接关闭查看器回阅读页即可
+        -- （与 _ignoreImage 在 nb<1 时 onClose 的既有先例一致）。
+        if (self._images_list_nb or 0) < 1 then
+            self:onClose()
+            return
+        end
+        target = math.min(math.max(target, 1), self._images_list_nb)
         self:switchToImageNum(target) -- 内部加载 self.image 并 update()
     end
 end
