@@ -6923,7 +6923,7 @@ function ArtGallery:_menuItems()
                 local tv = TextViewer:new{
                     title = _("关于 美术馆"),
                     text = guide .. "\n\n--------\n\n" ..
-                        T(_("美术馆 / ArtGallery v%1\n\n基于 Glimpse 合并 Illustrations 的全屏看图能力。\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
+                        T(_("美术馆 / ArtGallery v%1\n\n由两个 KOReader 社区插件合并增强而来：\n· Glimpse（作者 Fank1 / Erik Fanki，最新 v1.3.0）— 吸收其 v1.2.5 及之前的能力；\n· Illustrations（作者 agaragou，最新 v0.5.2）— 继承其全局收藏等能力。\n\n其中 Glimpse v1.3.0 新增的「书签入画廊」，美术馆为独立实现（独立「书签」段），未采用其屏上缩放控件与全局总开关。\n\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
                             _installed_version()),
                     modal = true,
                     -- 关于说明为纯只读文档，关闭顶部冗余菜单图标（参考 poker24 的

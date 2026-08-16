@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美术馆 × 双母插件 版本对比</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --card2:#1d212b; --line:#2a2f3a;
+    --fg:#e6e9ef; --dim:#9aa3b2; --accent:#5b9dff; --ok:#43c98a;
+    --warn:#f5b955; --na:#6b7280; --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.6;padding:28px 18px 60px}
+  .wrap{max-width:980px;margin:0 auto}
+  h1{font-size:24px;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:22px}
+  .verdict{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:18px 20px;margin-bottom:24px}
+  .verdict b{color:var(--accent)}
+  h2{font-size:18px;margin:30px 0 12px;border-left:3px solid var(--accent);
+    padding-left:10px}
+  table{width:100%;border-collapse:collapse;background:var(--card);
+    border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13.5px}
+  th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--card2);color:var(--dim);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;
+    border-radius:20px;white-space:nowrap}
+  .t-ok{background:rgba(67,201,138,.15);color:var(--ok)}
+  .t-lead{background:rgba(91,157,255,.15);color:var(--accent)}
+  .t-warn{background:rgba(245,185,85,.15);color:var(--warn)}
+  .t-na{background:rgba(107,114,128,.18);color:var(--dim)}
+  .t-bad{background:rgba(255,107,107,.15);color:var(--bad)}
+  code{background:var(--card2);padding:1px 6px;border-radius:5px;font-size:12.5px;
+    color:#ffd479;font-family:ui-monospace,Consolas,monospace}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;margin:14px 0}
+  .box.lead{border-left:3px solid var(--accent)}
+  .box.absorb{border-left:3px solid var(--warn)}
+  .box h3{margin:0 0 8px;font-size:15px}
+  ul{margin:6px 0 6px 2px;padding-left:18px}
+  li{margin:5px 0}
+  .pill-row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+  .stat{background:var(--card2);border:1px solid var(--line);border-radius:10px;
+    padding:12px 16px;flex:1;min-width:140px}
+  .stat .n{font-size:22px;font-weight:700}
+  .stat .l{color:var(--dim);font-size:12px}
+  .note{color:var(--dim);font-size:12.5px;margin-top:8px}
+  .foot{color:var(--na);font-size:12px;margin-top:30px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>美术馆 × 双母插件 版本对比</h1>
+  <div class="sub">artgallery v1.0.20（Glimpse + Illustrations 合并成果）　vs　Glimpse v1.3.0（2026-08-15）＋ Illustrations v0.5.2（2026-04-25）</div>
+
+  <div class="verdict">
+    <p style="margin:0 0 6px"><b>结论：美术馆 = Glimpse 与 Illustrations 两个 KOReader 社区插件的合并与增强，三版（README / 本对比件 / 插件内「关于 美术馆」）事实统一。</b></p>
+    <p style="margin:0;color:var(--dim)">美术馆的吸收基线为 <b>Glimpse v1.2.5</b>（及之前）+ <b>Illustrations v0.5.2</b>。Glimpse 已于 2026-08-15 发布 <b>v1.3.0</b>，其新增的「书签入画廊」美术馆<b>独立实现</b>（独立「书签」段），其「屏上 +/fit/− 缩放控件」与「全局总开关 Enable Glimpse」美术馆<b>未采用</b>（改用双击↔2× + 捏合缩放与逐项手势/功能开关，更贴合墨水屏免闪烁体验）。Illustrations 仍停留在 v0.5.2，美术馆已继承其核心能力并增补。</p>
+  </div>
+
+  <div class="pill-row">
+    <div class="stat"><div class="n" style="color:var(--ok)">2</div><div class="l">合并来源母插件</div></div>
+    <div class="stat"><div class="n" style="color:var(--accent)">v1.3.0</div><div class="l">Glimpse 最新稳定版</div></div>
+    <div class="stat"><div class="n" style="color:var(--accent)">v0.5.2</div><div class="l">Illustrations 最新版</div></div>
+    <div class="stat"><div class="n" style="color:var(--warn)">1</div><div class="l">v1.3.0 新增、美术馆独立实现</div></div>
+    <div class="stat"><div class="n" style="color:var(--na)">2</div><div class="l">v1.3.0 新增、美术馆未采用</div></div>
+  </div>
+
+  <h2>对比 Glimpse（吸收基线 v1.2.5 · 最新 v1.3.0）</h2>
+  <p class="note">Glimpse 是功能更完整的上游（"随时偷看书中参考图而不丢位置"）。美术馆吸收其 v1.2.5 及之前的能力。</p>
+  <table>
+    <thead><tr><th>维度</th><th>Glimpse v1.2.5</th><th>美术馆 ArtGallery</th><th>差异</th></tr></thead>
+    <tbody>
+      <tr><td>界面语言</td><td>全英文</td><td><b>全中文菜单 + 关于对话框（双语元数据）</b></td><td><span class="tag t-lead">美术馆新增（中文化）</span></td></tr>
+      <tr><td>全屏填充</td><td>单一 "fit" 静止视图 + 最大缩放</td><td><b>铺满 / 适配 / 拉伸 三态</b>，可长按设默认；全屏自动隐藏控件</td><td><span class="tag t-lead">美术馆新增三态填充</span></td></tr>
+      <tr><td>漫画 / CBZ</td><td>明确不支持（PDF / 漫画 / manga 弹"格式不支持"）</td><td><b>CBZ 独立入口</b>（文件管理器"浏览 CBZ 漫画"）</td><td><span class="tag t-lead">美术馆新增 CBZ 浏览</span></td></tr>
+      <tr><td>收藏</td><td>无收藏（仅有"忽略"与书签）</td><td><b>全局收藏池</b>（源自 Illustrations，统一进分段切换器）</td><td><span class="tag t-lead">美术馆引入收藏</span></td></tr>
+      <tr><td>图库切换</td><td>画廊网格 + 分页箭头 + 忽略标签页 + 防剧透模式切换</td><td><b>全部 / 收藏 / 忽略 分段直达 + 实时计数</b>；无忽略项时自动隐藏"忽略"段</td><td><span class="tag t-lead">美术馆统一三池为一控件</span></td></tr>
+      <tr><td>最大放大倍数</td><td>150%–400% 可配（默认 200%）</td><td>1.5×–4.0× 可配（默认 1.5×）</td><td><span class="tag t-ok">同源思路，默认值不同</span></td></tr>
+      <tr><td>手势开关</td><td>双击 / 滑动 / 捏合 各自可关</td><td>同样可逐项关闭</td><td><span class="tag t-ok">同源 / 均具备</span></td></tr>
+      <tr><td>智能过滤</td><td>参考图名识别 + 图文书放宽（同引擎）</td><td>同引擎（吸收自 Glimpse）</td><td><span class="tag t-ok">同源 / 均具备</span></td></tr>
+      <tr><td>防剧透</td><td>章节级范围 + 一次性全书搜索</td><td>三档（全书 / 已读到 / 仅当前章节前）</td><td><span class="tag t-ok">均具备，美术馆多一档</span></td></tr>
+      <tr><td>阅读进度</td><td>刻意"不改动你的位置"</td><td><b>可主动同步书籍自身进度</b>（分页 / 滚动分别开关）</td><td><span class="tag t-warn">方向相反：Glimpse 不推进，美术馆可选推进</span></td></tr>
+      <tr><td>维护</td><td>独立仓库、自带更新器</td><td>合并为单插件，更新器统一指向本仓库</td><td><span class="tag t-ok">装一个即可，无需并存</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="box absorb">
+    <h3>关于 Glimpse v1.3.0（2026-08-15）新增项 · 美术馆对应情况</h3>
+    <ul>
+      <li><b>书签入画廊（核心新增）</b>：Glimpse 把书签<b>并入图片池</b>按阅读顺序穿插；美术馆为<b>独立实现</b>——独立「书签」段（轻点全屏看图、长按可跳转 / 收藏 / 删除，见 README §11）。二者机制不同，但都支持删除书签。</li>
+      <li><b>屏上 +/fit/− 缩放控件</b>：Glimpse 新增可选屏幕缩放条；美术馆<b>未采用</b>，沿用双击↔2× + 捏合缩放（墨水屏无需屏上按钮）。</li>
+      <li><b>全局总开关 "Enable Glimpse"</b>：Glimpse 新增一键开关整机；美术馆<b>未采用</b>，保留逐项手势 / 功能开关（更细粒度）。</li>
+      <li><b>无闪烁切图 / 菜单提速</b>：对墨水屏无额外收益——美术馆刷新系统本就免闪。</li>
+      <li><b>更聪明过滤（措辞版）</b>：地图 / 族谱 / 图表识别、非虚构放宽下限；美术馆 v1.0.18 已吸收同引擎核心逻辑，属同功能措辞强化，几无新增益。</li>
+    </ul>
+  </div>
+
+  <h2>对比 Illustrations（最新 v0.5.2 · 2026-04-25）</h2>
+  <p class="note">Illustrations 是较精简的上游（"浏览 EPUB 中所有插图"）。美术馆继承其核心能力并增补。</p>
+  <table>
+    <thead><tr><th>维度</th><th>Illustrations v0.5.2</th><th>美术馆 ArtGallery</th><th>差异</th></tr></thead>
+    <tbody>
+      <tr><td>智能过滤</td><td>仅"最小图片尺寸"阈值（按大小丢小图）</td><td><b>参考图名识别 + 图文书自动放宽 + 长宽比 / 重复 / 位置 / 说明多维判断</b></td><td><span class="tag t-lead">美术馆远强于单纯阈值</span></td></tr>
+      <tr><td>最大放大倍数</td><td>无配置（固定缩放）</td><td>1.5×–4.0× 可配</td><td><span class="tag t-lead">美术馆新增（源自 Glimpse）</span></td></tr>
+      <tr><td>手势开关</td><td>仅"分配手势到动作"，无逐项开 / 关</td><td>双击 / 滑动 / 捏合 可逐项关闭</td><td><span class="tag t-lead">美术馆新增（源自 Glimpse）</span></td></tr>
+      <tr><td>全屏填充</td><td>单一张图全屏</td><td>铺满 / 适配 / 拉伸 三态 + 长按默认</td><td><span class="tag t-lead">美术馆新增</span></td></tr>
+      <tr><td>防剧透范围</td><td>仅两档（当前页之前 / 全部）</td><td>三档（全书 / 已读到 / 仅当前章节前）</td><td><span class="tag t-lead">美术馆多一档</span></td></tr>
+      <tr><td>记忆上次位置</td><td>未保留缩放 / 平移</td><td>记住上次图片（含缩放级别与平移位置）</td><td><span class="tag t-ok">源自 Glimpse，美术馆继承</span></td></tr>
+      <tr><td>收藏与忽略</td><td>有<b>全局收藏</b>，但<b>无"忽略"池</b></td><td><b>全局收藏</b>（存于 <code>artgallery/favorites.lua</code>）+ <b>忽略池</b>，二者统一进「全部 / 收藏 / 忽略」分段切换器并显实时计数</td><td><span class="tag t-ok">收藏同源；美术馆新增"忽略"池并统一三池</span></td></tr>
+      <tr><td>漫画 / CBZ</td><td>仅 EPUB</td><td>CBZ 独立入口</td><td><span class="tag t-lead">美术馆新增</span></td></tr>
+      <tr><td>夜间反转 / 旋转</td><td>未提供</td><td>夜间模式反转图片 + 旋转 90°</td><td><span class="tag t-ok">源自 Glimpse，美术馆继承</span></td></tr>
+      <tr><td>界面语言</td><td>全英文</td><td>全中文</td><td><span class="tag t-lead">美术馆中文化</span></td></tr>
+      <tr><td>维护</td><td>独立仓库</td><td>合并为单插件，单仓库维护</td><td><span class="tag t-ok">装一个即可</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2>差异小结</h2>
+  <div class="box lead">
+    <ul>
+      <li><b>美术馆把 Glimpse 的</b>智能过滤 / 手势开关 / 最大放大倍数 / 防剧透 / 忽略 / 记忆位置 / 反转 / 旋转，与 <b>Illustrations 的</b>全局收藏 / 网格画廊 / 防剧透 / 手势分配融合为一。</li>
+      <li><b>美术馆额外补上</b>：全中文界面、三态填充模式、CBZ 漫画入口、统一分段切换器（实时计数）、可选的书籍进度主动同步、以及独立实现的「书签入画廊」（独立「书签」段）。</li>
+      <li><b>你不再需要同时安装两个插件。</b></li>
+    </ul>
+  </div>
+
+  <h2>致谢（合并来源）</h2>
+  <div class="box">
+    <ul>
+      <li><b>Glimpse</b> — 作者 <a style="color:var(--accent)" href="https://github.com/Fank1/glimpse">Fank1（Erik Fanki）</a>；最新稳定版 <b>v1.3.0</b>（2026-08-15）。</li>
+      <li><b>Illustrations</b> — 作者 <a style="color:var(--accent)" href="https://github.com/agaragou/illustrations.koplugin">agaragou</a>；最新版 <b>v0.5.2</b>（2026-04-25）。</li>
+      <li>当前 fork（ArtGallery）由 <b>ksaMask123</b> 维护：<a style="color:var(--accent)" href="https://github.com/ksaMask123/artgallery.koplugin">github.com/ksaMask123/artgallery.koplugin</a>。</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    数据来源：两母插件版本与功能经 GitHub 实时核实（Glimpse Releases v1.3.0 / Illustrations Releases v0.5.2，2026-08-16）；
+    美术馆经本地工作副本核验（v1.0.20）。对比基于真实源码与发布说明，非凭记忆。<br>
+    本件与插件 README「相比上游的改进」板块、插件内「关于 美术馆」对话框三者事实保持一致（三版统一）。
+  </div>
+</div>
+</body>
+</html>

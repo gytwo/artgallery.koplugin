@@ -128,14 +128,61 @@
     <div class="meta-grid">
       <div>插件 ID：<b>artgallery</b></div>
       <div>全称：<b>美术馆</b></div>
-      <div>当前版本：<b>1.0.0</b></div>
-      <div>上游来源：<b>Glimpse v1.2.0</b>（Erik Fanki）</div>
-      <div>Fork 维护：<b>ksaMask</b></div>
-      <div>GitHub：<b>ksaMask/artgallery</b></div>
+      <div>当前版本：<b>1.0.20</b></div>
+      <div>上游来源：<b>Glimpse v1.3.0</b>（Erik Fanki）＋ <b>Illustrations v0.5.2</b>（agaragou）</div>
+      <div>Fork 维护：<b>ksaMask123</b></div>
+      <div>GitHub：<b>ksaMask123/artgallery.koplugin</b></div>
       <div>目标设备：<b>KPW3（Kindle PaperWhite 3）</b></div>
       <div>日志约定：<b>每次修改追加，不事后补记</b></div>
     </div>
   </header>
+
+  <!-- ===================== 阶段三十九（最新） ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段三十九 · 三版统一上游对比（Glimpse v1.3.0 / Illustrations v0.5.2）</h2>
+      <span class="date">2026-08-16</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>用户核验发现：① README「相比上游的改进」对比段仍引用过时的 Glimpse「最新 v1.2.5」（实为 v1.3.0）；② 插件内「关于 美术馆」文本与 ③ 独立对比件 <code>artgallery_vs_glimpse_compare.html</code>（标题 artgallery v1.0.15 × glimpse v1.2.2，且只比 Glimpse 一个母插件）三方事实不一致。要求把三版统一，并把独立对比件刷新为覆盖<b>双母插件</b>的版本。</p>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead>
+          <tr><th>文件</th><th>性质</th><th>改动说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>README.md</code></td>
+            <td><span class="tag fix">修</span></td>
+            <td>「相比上游的改进」引言改「吸收基线」口径（Glimpse 截至 v1.2.5 / Illustrations 截至 v0.5.2）；Glimpse 版本注更正为真实最新稳定版 <b>v1.3.0</b>（2026-08-15，经 GitHub 核实）；表后补「关于 Glimpse v1.3.0」差异说明（书签美术馆独立实现 / 屏上缩放与全局开关未采用 / 无闪烁切图对 e-ink 无收益）。Illustrations 仍 v0.5.2，原本准确未动。</td>
+          </tr>
+          <tr>
+            <td><code>audit/artgallery_vs_glimpse_compare.html</code>（＋ 镜像至 <code>D:/Download/</code>）</td>
+            <td><span class="tag fix">刷</span></td>
+            <td>由「仅比 Glimpse v1.2.2、artgallery v1.0.15」刷新为覆盖<b>双母插件</b>新版（对比 Glimpse 吸收基线 v1.2.5·最新 v1.3.0；对比 Illustrations v0.5.2），深色离线可渲染，结论块声明「三版统一」。已 vendor 进仓库 <code>audit/</code> 受版本控制，避免漂移。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code>（「关于 美术馆」对话框）</td>
+            <td><span class="tag fix">修</span></td>
+            <td>重写说明文本：注明两母插件最新版本与作者（Glimpse v1.3.0 / Fank1；Illustrations v0.5.2 / agaragou）、美术馆吸收基线（Glimpse 截至 v1.2.5）、Glimpse v1.3.0「书签入画廊」美术馆为<b>独立实现</b>（独立「书签」段）、未采用其屏上缩放控件与全局总开关。仅文案，无运行行为变化。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>校验</h3>
+      <div class="chips">
+        <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code>（main.lua）</span>
+        <span class="chip ok">✓ 三版本事实一致：README § 相比上游的改进 ↔ 独立对比件 ↔ 插件内「关于」三者统一</span>
+        <span class="chip ok">✓ 版本号维持 <code>v1.0.20</code> 未升版；未发 Release（依「发版须经同意」纪律）</span>
+        <span class="chip ok">✓ 工作副本 ≡ 干净副本（<code>cmp</code> IDENTICAL）</span>
+        <span class="chip ok">✓ 已推送 GitHub（main 分支）</span>
+      </div>
+    </div>
+  </section>
 
   <!-- ===================== 阶段一 ===================== -->
   <section class="phase open">
