@@ -5,6 +5,24 @@
 
 ---
 
+## v1.0.21（2026-08-18）发布 / Released
+
+**中文**：在 v1.0.20 发版后累计完成并实机（KPW3）验证通过的改动，统一随 v1.0.21 发布：
+- **阶段四十 / 四一（hotfix，此前未入 v1.0.20 发行包）**：修复点画廊「返回」致 KOReader 崩溃（`_exitGallery` 在 `self.image==nil` 重建单图 widget 崩），以及图库仅一张书签删除后点「返回」无反应（主池空时 `switchToImageNum` 守卫静默 no-op）；现主池空即 `onClose()` 回阅读页。
+- **阶段四二**：吸收 Glimpse v1.3.0 的**菜单图标缓存**——弹出菜单行图标按「路径:尺寸」缓存 Blitbuffer 全会话复用，`onCloseWidget` 不再 free 共享 bb；菜单打开更跟手（刻意不缓存按态变色的 chrome 按钮）。
+- **阶段四三**：吸收 Glimpse v1.3.0 的**圆角渲染快填**——`make_rounded_stencil` 内部矩形一次性快填、仅算边缘，逐像素结果不变（像素一致），圆角绘制更省。
+- **阶段四四**：吸收 Glimpse v1.3.0 的**弹出菜单自动旋转修复**——新增 `ArtGalleryPopupMenu:onSetRotationMode`，菜单开着时旋转屏幕会先关菜单、再交还查看器按新方向重排。
+- **阶段四五**：「关于 美术馆」对话框严格审阅——footer 归属块现准确标注已采纳 v1.3.0 的部分内部优化（菜单图标缓存 / 圆角渲染快填 / 弹窗自动旋转），与 README、独立对比件三版一致。
+- 版本 **v1.0.20 → v1.0.21**；发版经用户明确授权（依「发版须经同意」纪律）；GitHub Release 资产 `artgallery.koplugin-v1.0.21.zip` 镜像结构（根 `artgallery.koplugin/`，含运行核心 + README/CHANGELOG/audit，不含 `.git`/`Backup`）。
+
+**English**: Changes completed and verified on-device (KPW3) after v1.0.20, all shipped with v1.0.21:
+- **Phase 40 / 41 (hotfixes, previously missing from the v1.0.20 zip)**: fixed a KOReader crash when tapping "返回" (Back) in the gallery (`_exitGallery` rebuilt a single-image widget from a nil `self.image`), and the "Back does nothing" regression when the only bookmark in the gallery is deleted (the main pool being empty made `switchToImageNum`'s guard silently no-op); now an empty main pool calls `onClose()` to return to reading.
+- **Phase 42**: adopted Glimpse v1.3.0's **menu-icon caching** — popup row icons are cached by (path:size) for the whole session and no longer freed on close; menus open more responsively (chrome buttons that recolor per state are intentionally not cached).
+- **Phase 43**: adopted Glimpse v1.3.0's **rounded-stencil fast-fill** — `make_rounded_stencil` fills the interior in one pass and only computes the edges, with pixel-identical results.
+- **Phase 44**: adopted Glimpse v1.3.0's **popup auto-rotation fix** — new `ArtGalleryPopupMenu:onSetRotationMode` closes the menu and hands rotation back to the viewer when the screen rotates while a menu is open.
+- **Phase 45**: strict review of the **About ArtGallery** dialog — its footer now accurately states the adopted v1.3.0 internal optimizations, consistent with the README and the standalone compare doc.
+- Version **v1.0.20 → v1.0.21**; released with explicit user authorization; GitHub Release asset `artgallery.koplugin-v1.0.21.zip` mirrors the plugin layout (root `artgallery.koplugin/`, running core + README/CHANGELOG/audit, no `.git`/`Backup`).
+
 ## 阶段四一 / Phase 41 — 修复「返回」无反应（空主池 + 删除唯书签边界）（2026-08-17）
 - **中文**：KPW3 实机复测（阶段四十部署后）：图库中仅有「一张书签」时删除该书签，再点底部「返回」按钮——无崩溃，但**无任何反应**（画廊卡住无法退出）。**根因**：画廊缩略图数据来自 `self:_tabList()`（按段过滤），**不重设** `self._images_list`/`self._images_list_nb`——后者始终是**主图池**计数；而 `self.image==nil` 的「无当前单图」返回路径走 `switchToImageNum(target)`，其开头硬守卫 `if ... or image_num > self._images_list_nb then return end`（main.lua:3826）会静默 no-op。边界触发：整本书**无常规图片**、唯一可看内容就是那张书签时，主池 `self._images_list_nb == 0`；删除唯书签后点「返回」：`target(=1) > _images_list_nb(=0)` → 守卫静默 return，表现「返回无反应」。此为「书签入画廊」（阶段三八）+ 阶段四十取图时序调整的边界交互回归。**修复**（`ArtGalleryViewer:_exitGallery`）：`else` 分支先判 `(self._images_list_nb or 0) < 1`——主池已空时直接 `self:onClose()` 关闭查看器回阅读页（与 `_ignoreImage` 在 `nb<1` 时 `onClose` 的既有先例一致），避免 `switchToImageNum` 静默 no-op；否则对 `target` 做 `math.min/max` 范围夹紧后再 `switchToImageNum(target)`，杜绝越界静默失败。校验：LuaJIT 语法 `SYNTAX_OK`；工作副本≡干净副本（`diff -q` IDENTICAL）。版本维持 **v1.0.20 未升版**、未 push、未发版；真机复测待用户授权部署后执行（无常规图片、仅一张书签的书，删除该书签后点「返回」应顺利关闭查看器回阅读页）。
 - **English**: KPW3 re-test after deploying phase 40: with only one bookmark in the gallery, delete that bookmark, then tap "返回" (Back) — no crash, but **no response** (gallery stuck, can't exit). Root cause: gallery thumbnails come from `self:_tabList()` (per-tab filtered) and do NOT overwrite `self._images_list`/`self._images_list_nb`, which always reflect the **main image pool** count; the `self.image==nil` "no current single image" back path calls `switchToImageNum(target)`, whose opening guard `if ... or image_num > self._images_list_nb then return end` (main.lua:3826) silently no-ops. Edge trigger: when the book has **no regular images** and the only viewable content is that one bookmark, the main pool `self._images_list_nb == 0`; after deleting the only bookmark, tapping Back gives `target(=1) > _images_list_nb(=0)` → guard silently returns, i.e. "Back does nothing". A boundary regression from the bookmark feature (phase 38) + the phase-40 timing change. Fix (`_exitGallery`): in the `else` branch, first check `(self._images_list_nb or 0) < 1` — if the main pool is empty, call `self:onClose()` to close the viewer and return to reading (mirroring `_ignoreImage`'s `onClose` when `nb<1`); otherwise clamp `target` with `math.min/max` before `switchToImageNum(target)` to prevent out-of-range silent failure. Verified: LuaJIT `SYNTAX_OK`; working≡clean identical. Version stays v1.0.20, no push, no release; on-device re-test pending deploy authorization.
@@ -190,6 +208,6 @@
 ---
 
 ### 备注 / Notes
-- 版本 / Version: `1.0.19`（见 `_meta.lua`）。
+- 版本 / Version: `1.0.21`（见 `_meta.lua`）。
 - 详细改动、风险表与方案文档见 `audit/` 目录（中文）。
   Detailed changes, risk tables, and design docs are in the `audit/` folder (Chinese).

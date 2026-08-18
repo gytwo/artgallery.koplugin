@@ -192,7 +192,7 @@ Bookmarks never enter the Ignored pool. Rendering delegates to KOReader's built-
 
 **中文**：美术馆（ArtGallery）是 **Glimpse** 与 **Illustrations** 两个 KOReader 社区插件的合并与增强。为表述准确，下面以美术馆的**吸收基线**（Glimpse 截至 v1.2.5、Illustrations 截至 v0.5.2）**分别**对比两个上游：
 
-- **Glimpse** — 作者 Fank1（Erik Fanki）；最新稳定版 **v1.3.0**（2026-08-15）。美术馆吸收其 **v1.2.5** 及之前的能力；v1.3.0 新增的「书签入画廊」由美术馆**独立实现**（见 §11），其「屏上 +/fit/− 缩放控件」与「全局总开关」美术馆未采用（改用双击/捏合与逐项开关）。[github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
+- **Glimpse** — 作者 Fank1（Erik Fanki）；最新稳定版 **v1.3.0**（2026-08-15）。美术馆吸收其 **v1.2.5** 的能力，并采纳 v1.3.0 的部分内部优化（菜单图标缓存、圆角渲染快填、弹出菜单自动旋转）；v1.3.0 新增的「书签入画廊」由美术馆**独立实现**（见 §11），其「屏上 +/fit/− 缩放控件」与「全局总开关」美术馆未采用（改用双击/捏合与逐项开关）。[github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
 - **Illustrations** — 作者 agaragou；最新 **v0.5.2**（2026-04-25）：[github.com/agaragou/illustrations.koplugin](https://github.com/agaragou/illustrations.koplugin)
 
 > 说明：美术馆是"合并"而非"从零发明"。表中凡标注「同源 / 均具备」的项，表示该能力本就来自对应上游、美术馆继承沿用；标注「美术馆新增 / 增强」的，才是相对该上游的差异化改进。
@@ -239,7 +239,7 @@ Illustrations 是较精简的上游（"浏览 EPUB 中所有插图"）。它本�
 
 **English**: ArtGallery merges two KOReader community plugins, **Glimpse** and **Illustrations**, and enhances them. For accuracy, the comparison below is made **separately** against each upstream at the version ArtGallery absorbed (Glimpse up to v1.2.5, Illustrations up to v0.5.2):
 
-- **Glimpse** — by Fank1 (Erik Fanki); latest stable **v1.3.0** (2026-08-15). ArtGallery absorbed its capabilities **up to v1.2.5**; v1.3.0's new "bookmarks in Gallery" is **independently implemented** in ArtGallery (see §11), and its on-screen +/fit/− zoom controls and global master switch are not adopted (ArtGallery uses double-tap/pinch and per-item toggles instead). [github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
+- **Glimpse** — by Fank1 (Erik Fanki); latest stable **v1.3.0** (2026-08-15). ArtGallery absorbed its capabilities **up to v1.2.5** and adopts some of v1.3.0's internal optimizations (menu-icon caching, rounded-stencil fast-fill, popup auto-rotation); v1.3.0's new "bookmarks in Gallery" is **independently implemented** in ArtGallery (see §11), and its on-screen +/fit/− zoom controls and global master switch are not adopted (ArtGallery uses double-tap/pinch and per-item toggles instead). [github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
 - **Illustrations** — by agaragou; latest **v0.5.2** (2026-04-25): [github.com/agaragou/illustrations.koplugin](https://github.com/agaragou/illustrations.koplugin)
 
 > Note: ArtGallery is a *merge*, not invented from scratch. Rows marked "same / both have" mean the capability already came from that upstream and is inherited; rows marked "ArtGallery added / enhanced" are the differentiators vs that upstream.
@@ -291,14 +291,14 @@ Illustrations is the leaner upstream ("browse all illustrations in an EPUB"). It
 ### 方式一：Release 安装包（推荐）/ Option 1: Release package (recommended)
 
 **中文**：
-1. 前往 [Releases · v1.0.20](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.20)；
-2. 下载 `artgallery.koplugin-v1.0.20.zip`；
+1. 前往 [Releases · v1.0.21](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.21)；
+2. 下载 `artgallery.koplugin-v1.0.21.zip`；
 3. 解压得到 `artgallery.koplugin` 文件夹，复制到 KOReader 的插件目录 `koreader/plugins/`（设备上路径为 `KOReader/plugins/artgallery.koplugin/`）；
 4. 重启 KOReader，即可在书籍内通过菜单「美术馆 / ArtGallery」打开看图。
 
 **English**:
-1. Go to [Releases · v1.0.20](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.20);
-2. Download `artgallery.koplugin-v1.0.20.zip`;
+1. Go to [Releases · v1.0.21](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.21);
+2. Download `artgallery.koplugin-v1.0.21.zip`;
 3. Extract the `artgallery.koplugin` folder and copy it into KOReader's plugin directory `koreader/plugins/` (i.e. `KOReader/plugins/artgallery.koplugin/` on your device);
 4. Restart KOReader. Open the viewer from the in-book menu item **美术馆 / ArtGallery**.
 

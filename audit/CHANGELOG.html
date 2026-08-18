@@ -128,7 +128,7 @@
     <div class="meta-grid">
       <div>插件 ID：<b>artgallery</b></div>
       <div>全称：<b>美术馆</b></div>
-      <div>当前版本：<b>1.0.20</b></div>
+      <div>当前版本：<b>1.0.21</b></div>
       <div>上游来源：<b>Glimpse v1.3.0</b>（Erik Fanki）＋ <b>Illustrations v0.5.2</b>（agaragou）</div>
       <div>Fork 维护：<b>ksaMask123</b></div>
       <div>GitHub：<b>ksaMask123/artgallery.koplugin</b></div>
@@ -136,6 +136,11 @@
       <div>日志约定：<b>每次修改追加，不事后补记</b></div>
     </div>
   </header>
+
+  <div class="callout" style="border-left-color: var(--ok);">
+    <b>v1.0.21 已发布（2026-08-18）</b> — KPW3 实机验证通过，GitHub Release 资产 <code>artgallery.koplugin-v1.0.21.zip</code> 已上传（latest）。<br>
+    本次发布含：阶段四十 / 四一（「返回」崩溃与无反应 hotfix，此前未入 v1.0.20 发行包）+ 阶段四二（菜单图标缓存）+ 阶段四三（圆角渲染快填）+ 阶段四四（弹出菜单自动旋转）+ 阶段四五（「关于 美术馆」严格审阅）。完整摘要见仓库根 <code>CHANGELOG.md</code> 顶部 v1.0.21 条目。
+  </div>
 
   <!-- ===================== 阶段三十九（最新） ===================== -->
   <section class="phase open">
@@ -259,6 +264,196 @@
         <span class="chip ok">✓ 工作副本 ≡ 干净副本（<code>diff -q</code> IDENTICAL）</span>
         <span class="chip warn">⚠ 真机复测待用户授权部署后执行（HITL）：无常规图片、仅一张书签的书，删除该书签后点「返回」应顺利关闭查看器回阅读页（不再无反应、不崩）</span>
         <span class="chip ok">✓ 版本号维持 <code>v1.0.20</code> 未升版；未发 Release（依「发版须经同意」纪律）</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段四二 ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段四二 · 吸收 Glimpse v1.3.0 菜单图标缓存（_menu_icon_cache）</h2>
+      <span class="date">2026-08-18</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>用户要求吸收 Glimpse v1.3.0 中值得借鉴的打磨（共三项，本阶段为①）。弹出菜单（长按图片菜单 / ⋯ 菜单 / 忽略菜单）每次 build 都 <code>renderSVGImageFile</code> 重渲染 SVG 行图标，e-ink 上既拖慢打开又纯属浪费。已据 GitHub 拉取 Glimpse v1.3.0 <code>plugin/main.lua</code> 逐行核对实现。</p>
+
+      <h3>根因</h3>
+      <p>这些行图标是一组<b>固定、不可变</b>的 SVG 集合，逐次重渲染没有意义；缓存一份 Blitbuffer 全会话复用即可（对齐 Glimpse v1.3.0 的 <code>_menu_icon_cache</code>）。</p>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead>
+          <tr><th>文件</th><th>性质</th><th>改动说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>main.lua</code> · 新增模块级 <code>_menu_icon_cache</code> + <code>menu_icon(path,size)</code></td>
+            <td><span class="tag feat">增</span></td>
+            <td>按 <code>"路径:尺寸"</code> 缓存渲染出的 Blitbuffer，全会话复用；渲染失败也缓存为 <code>false</code>，避免每次打开重试。对齐 Glimpse v1.3.0 实现。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · <code>ArtGalleryPopupMenu:init</code></td>
+            <td><span class="tag fix">改</span></td>
+            <td>行图标改走 <code>menu_icon(it.icon, self.icon_size)</code> 取共享缓存 bb；移除 <code>self._icon_bbs</code> 累积逻辑。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · <code>ArtGalleryPopupMenu:onCloseWidget</code></td>
+            <td><span class="tag fix">改</span></td>
+            <td>不再 <code>free</code> 行图标 bb（它们是共享缓存、随会话存活，free 会让下次打开变空白）；仅保留 <code>on_dismiss</code> 回调。符合 Glimpse v1.3.0 设计。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · chrome 按钮（<code>ArtGalleryMoreButton</code> 等，原 412/587/1117 行）</td>
+            <td><span class="tag note">注</span></td>
+            <td><b>刻意不缓存</b>：这些图标按 <code>disabled</code> 态就地改色（黑→灰），共享缓存会被污染。与 Glimpse 自身范围一致——只缓存弹出菜单行图标，chrome 按钮仍每次渲染。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>校验</h3>
+      <div class="chips">
+        <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code>（main.lua）</span>
+        <span class="chip ok">✓ 工作副本 ≡ 干净副本（<code>cmp</code> IDENTICAL）</span>
+        <span class="chip ok">✓ 三副本自检 harness：PASS=14 FAIL=0（A 代码完整 / B1 一致 / D 文档 / E 专案不变量全绿）</span>
+        <span class="chip warn">⚠ 真机复测待用户授权部署 G: 后执行（HITL）：弹出菜单打开更跟手、图标正常显示</span>
+        <span class="chip ok">✓ 版本号维持 <code>v1.0.20</code> 未升版；未发 Release（依「发版须经同意」纪律）</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段四三 ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段四三 · 吸收 Glimpse v1.3.0 圆角模板内部矩形快填（make_rounded_stencil）</h2>
+      <span class="date">2026-08-18</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>用户吸收项②。<code>make_rounded_stencil</code> 原本对每个像素跑 <code>sqrt</code>+coverage（整 <code>w*h</code> 双层循环），菜单卡片等大表面开销明显。对齐 Glimpse v1.3.0 的"内部矩形快填"优化，使阴影/卡片打开更快、更贴合 e-ink。</p>
+
+      <h3>根因</h3>
+      <p>内部矩形 <code>[r, w-r) × [r, h-r)</code> 是常数：实心填充时是整片不透明 <code>fill</code>、仅描边环时是空白，只有边缘/圆角带才需逐像素 <code>sqrt</code>。一次 C 矩形快填内部、只算边带即可，<b>像素一致</b>。</p>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead>
+          <tr><th>文件</th><th>性质</th><th>改动说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>main.lua</code> · <code>make_rounded_stencil</code></td>
+            <td><span class="tag feat">增</span></td>
+            <td>新增 <code>has_interior</code> 判定：非 <code>no_fill</code> 时先 <code>bb:paintRect</code> 一次性填内部矩形；主循环改为"边缘行只算 L/R 两侧、上/下整行"，逐像素 <code>emit</code> 逻辑（含 <code>no_fill</code> 环处理）原样保留。对齐 Glimpse v1.3.0。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · 全部 7 处调用方安全性核验</td>
+            <td><span class="tag note">注</span></td>
+            <td>已核验 pill / card / MoreButton 等所有调用方 <code>r = scaleBySize(4~10.5) ≫ stroke = scaleBySize(1~2)</code>，即 <code>r − stroke ≫ 0.5</code>，内部 <code>t_in ≡ 1</code>，快填结果与逐像素<b>像素一致</b>，无视觉回归。<code>bb:paintRect</code> 为 KOReader Blitbuffer 既有方法（<code>verticalscrollbar</code>/<code>textboxwidget</code> 等通用），不会运行时缺失。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>校验</h3>
+      <div class="chips">
+        <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code>（main.lua）</span>
+        <span class="chip ok">✓ 工作副本 ≡ 干净副本（<code>cmp</code> IDENTICAL）</span>
+        <span class="chip ok">✓ 三副本自检 harness：PASS=14 FAIL=0</span>
+        <span class="chip warn">⚠ 真机复测待用户授权部署 G: 后执行（HITL）：菜单卡片/阴影打开更快、圆角外观无变化</span>
+        <span class="chip ok">✓ 版本号维持 <code>v1.0.20</code> 未升版；未发 Release</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段四四（最新） ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段四四 · 吸收 Glimpse v1.3.0 弹出菜单自动旋转修复（PopupMenu:onSetRotationMode）</h2>
+      <span class="date">2026-08-18</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>用户吸收项③。弹出菜单（长按图片菜单 / ⋯ 菜单 / 忽略菜单）开启时，G 传感器的 <code>SetRotationMode</code> 事件只派发给最顶层 widget（即菜单本身），其下方的查看器收不到 → 自动旋转被静默阻断。对齐 Glimpse v1.3.0 的修复（官方 release note：「Auto-rotation works even with the ⋯ menu open」）。</p>
+
+      <h3>根因</h3>
+      <p><code>ArtGalleryPopupMenu</code> 此前没有 <code>onSetRotationMode</code> 处理器；旋转事件被它作为最顶层 widget 接收却不处理，查看器永远收不到，表现为「菜单开着时转不动屏幕」。</p>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead>
+          <tr><th>文件</th><th>性质</th><th>改动说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>main.lua</code> · 新增 <code>ArtGalleryPopupMenu:onSetRotationMode(rotation)</code></td>
+            <td><span class="tag feat">增</span></td>
+            <td>当 <code>self.on_rotate</code> 已设、<code>rotation</code> 有效且与当前方向不同 → <code>self:dismiss()</code> 关菜单并调用 <code>self.on_rotate(rotation)</code> 把旋转交还查看器重排，<code>return true</code>。对齐 Glimpse v1.3.0 的 <code>PopupMenu:onSetRotationMode</code>。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · 三处弹出菜单注入 <code>on_rotate</code></td>
+            <td><span class="tag fix">改</span></td>
+            <td>长按图片菜单（~2707）、忽略菜单（~2794）、⋯ 菜单（~3310）均注入 <code>on_rotate = function(rotation) self:onSetRotationMode(rotation) end</code>（<code>self</code> 为查看器）。旋转时菜单关闭、查看器按新方向重排并重新打开（zoom/pan 持久化保留视图）。未注入 <code>on_rotate</code> 的弹出菜单（如有）旋转时保持旧行为，<b>无回归</b>。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>校验</h3>
+      <div class="chips">
+        <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code>（main.lua）</span>
+        <span class="chip ok">✓ 工作副本 ≡ 干净副本（<code>cmp</code> IDENTICAL）</span>
+        <span class="chip ok">✓ 三副本自检 harness：PASS=14 FAIL=0（①~③ 每阶段均跑过）</span>
+        <span class="chip ok">✓ 残留 <code>self._icon_bbs</code> 引用已清零（阶段四二）；三处 <code>on_rotate</code> 接线到位（grep 核验）</span>
+        <span class="chip warn">⚠ 真机复测待用户授权部署 G: 后执行（HITL）：菜单开着时旋转屏幕，菜单应关闭、查看器按新方向重排</span>
+        <span class="chip ok">✓ 版本号维持 <code>v1.0.20</code> 未升版；未发 Release（依「发版须经同意」纪律）</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段四五（最新） ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段四五 · 「关于 美术馆」对话框内容审阅（贴合现版本）</h2>
+      <span class="date">2026-08-18</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>确立纪律：「关于 美术馆」对话框里的内容每次更新后都要严格审阅，使其功能、界面和操作介绍贴合现版本（规则已写入项目记忆 MEMORY.md）。本次为 v1.0.20 发版 + 阶段四二/四三/四四 吸收后的首轮审阅。</p>
+
+      <h3>审阅结论</h3>
+      <p>逐段核对 <code>main.lua</code> 关于对话框（~6938–6990）与现版本功能/界面/操作：</p>
+      <ul>
+        <li><b>主体（功能/界面/操作）</b>：单图控制、⋯ 菜单四段切换器（全部/收藏/书签/忽略 + 实时计数）、长按三选一、图库角标（⭐/划掉眼睛 + 反白）、收藏与忽略、CBZ、设置项（手势/最大放大/书签页/同步进度）、快速操作——均与 v1.0.20 现版本一致，<b>无失真</b>。</li>
+        <li><b>footer 归属块（唯一需更新处）</b>：原写「吸收其 v1.2.5 及之前的能力」，但阶段四二/四三/四四 已额外采纳 Glimpse v1.3.0 的<b>内部优化</b>（菜单图标缓存、圆角渲染快填、弹窗自动旋转）。修正为「吸收其 v1.2.5 能力，并采纳 v1.3.0 的部分内部优化（菜单图标缓存、圆角渲染快填、弹窗自动旋转）」，更诚实反映吸收范围；仍保留「未采用其屏上缩放控件与全局总开关」。用户可见功能/界面/操作描述不变（内部优化不改变交互）。</li>
+      </ul>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead>
+          <tr><th>文件</th><th>性质</th><th>改动说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>main.lua</code> · 「关于 美术馆」footer 归属文本（~6989）</td>
+            <td><span class="tag doc">改</span></td>
+            <td>补述已采纳 v1.3.0 部分内部优化；其余功能/界面/操作文案维持不变（经审阅均贴合现版本）。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>校验</h3>
+      <div class="chips">
+        <span class="chip ok">✓ LuaJIT 语法校验：<code>SYNTAX OK</code></span>
+        <span class="chip ok">✓ 工作副本 ≡ 干净副本（<code>cmp</code> IDENTICAL）</span>
+        <span class="chip ok">✓ 三副本自检 harness：PASS=14 FAIL=0</span>
+        <span class="chip ok">✓ 版本号维持 <code>v1.0.20</code> 未升版；未发 Release（依「发版须经同意」纪律）</span>
+        <span class="chip warn">⚠ 真机复测未执行（本修改为纯文案校对，不改变运行行为；部署 G: 后随其他改动一并 HITL）</span>
       </div>
     </div>
   </section>

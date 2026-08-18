@@ -6,5 +6,5 @@ return {
     fullname = _("美术馆 / ArtGallery"),
     description = _("浏览本书中的地图、族谱和其他参考图片，不丢失阅读位置；支持抽屉预览与一键全屏查看，可缩放、平移、收藏。基于 Glimpse 合并 Illustrations 的全屏看图能力。"),
     author = "ksaMask123",
-    version = "1.0.20",
+    version = "1.0.21",
 }

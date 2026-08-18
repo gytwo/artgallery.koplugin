@@ -214,30 +214,46 @@ end
 local function make_rounded_stencil(w, h, r, stroke, fill, outline)
     local bb = Blitbuffer.new(w, h, Blitbuffer.TYPE_BBRGB32)
     local no_fill = fill == nil
-    for py = 0, h - 1 do
-        for px = 0, w - 1 do
-            local sx = math.min(math.max(px + 0.5, r), w - r)
-            local sy = math.min(math.max(py + 0.5, r), h - r)
-            local dx, dy = px + 0.5 - sx, py + 0.5 - sy
-            local d = math.sqrt(dx * dx + dy * dy)
-            local cov = math.min(math.max(r - d + 0.5, 0), 1)
-            if cov > 0 then
-                local t_in = math.min(math.max((r - stroke) - d + 0.5, 0), 1)
-                if no_fill then
-                    -- keep only the ring: full alpha in the stroke band,
-                    -- fading to transparent as t_in rises into the interior
-                    local a = cov * (1 - t_in)
-                    if a > 0 then
-                        bb:setPixel(px, py, Blitbuffer.ColorRGB32(
-                            outline, outline, outline,
-                            math.floor(a * 255 + 0.5)))
-                    end
-                else
-                    local g = math.floor(outline + t_in * (fill - outline) + 0.5)
+    -- 内部矩形 [r, w-r) x [r, h-r) 是常数：完全覆盖的实心内部（不透明 fill）
+    -- 或（仅描边环时）空白。只有边缘/圆角带才需要逐像素 sqrt+coverage。用一次
+    -- C 矩形快填内部、只算边带——像素一致，但大表面（如 ⋯ 菜单卡片）不再付出
+    -- 整 w*h 的开销。（对齐 Glimpse v1.3.0）
+    local iL, iR, iT, iB = r, w - r, r, h - r
+    local has_interior = iR > iL and iB > iT
+    if has_interior and not no_fill then
+        bb:paintRect(iL, iT, iR - iL, iB - iT,
+            Blitbuffer.ColorRGB32(fill, fill, fill, 0xFF))
+    end
+    local function emit(px, py)
+        local sx = math.min(math.max(px + 0.5, r), w - r)
+        local sy = math.min(math.max(py + 0.5, r), h - r)
+        local dx, dy = px + 0.5 - sx, py + 0.5 - sy
+        local d = math.sqrt(dx * dx + dy * dy)
+        local cov = math.min(math.max(r - d + 0.5, 0), 1)
+        if cov > 0 then
+            local t_in = math.min(math.max((r - stroke) - d + 0.5, 0), 1)
+            if no_fill then
+                -- keep only the ring: full alpha in the stroke band,
+                -- fading to transparent as t_in rises into the interior
+                local a = cov * (1 - t_in)
+                if a > 0 then
                     bb:setPixel(px, py, Blitbuffer.ColorRGB32(
-                        g, g, g, math.floor(cov * 255 + 0.5)))
+                        outline, outline, outline,
+                        math.floor(a * 255 + 0.5)))
                 end
+            else
+                local g = math.floor(outline + t_in * (fill - outline) + 0.5)
+                bb:setPixel(px, py, Blitbuffer.ColorRGB32(
+                    g, g, g, math.floor(cov * 255 + 0.5)))
             end
+        end
+    end
+    for py = 0, h - 1 do
+        if has_interior and py >= iT and py < iB then   -- 边缘行：只算 L/R 两侧
+            for px = 0, iL - 1 do emit(px, py) end
+            for px = iR, w - 1 do emit(px, py) end
+        else                                            -- 整行（上/下）
+            for px = 0, w - 1 do emit(px, py) end
         end
     end
     return bb
@@ -903,6 +919,24 @@ end
 -- rows; tap a row to fire its callback, tap outside to dismiss. Built in
 -- our own style instead of ButtonDialog because a ButtonDialog button
 -- shows an icon OR text, never both.
+-- 菜单图标缓存：弹出菜单的行图标是一组固定、不可变的 SVG，每次 build menu
+-- 都 renderSVGImageFile 重渲染既浪费（e-ink 上尤甚）又拖慢打开。这些图标
+-- 小巧且集合固定，按 "路径:尺寸" 缓存一份 Blitbuffer 供全会话复用
+-- （对齐 Glimpse v1.3.0 的 _menu_icon_cache）。注意：缓存的 bb 归模块所有、
+-- 跨所有弹出菜单实例共享，关闭菜单时**绝不能 free**（否则下次打开变空白）。
+local _menu_icon_cache = {}
+local function menu_icon(path, size)
+    local key = path .. ":" .. size
+    local ibb = _menu_icon_cache[key]
+    if ibb == nil then
+        local ok, r = pcall(RenderImage.renderSVGImageFile, RenderImage,
+            path, size, size)
+        ibb = (ok and r) or false   -- 连渲染失败也缓存，避免每次打开重试
+        _menu_icon_cache[key] = ibb
+    end
+    return ibb or nil
+end
+
 local ArtGalleryPopupMenu = InputContainer:extend{
     items = nil,    -- { {text=, icon=<svg path or nil>, callback=}, ... }
     anchor = nil,   -- function -> Geom (like MovableContainer's anchor)
@@ -914,7 +948,6 @@ local ArtGalleryPopupMenu = InputContainer:extend{
 }
 
 function ArtGalleryPopupMenu:init()
-    self._icon_bbs = {}
     local any_lead = false
     for _, it in ipairs(self.items) do
         if it.icon or it.check ~= nil then any_lead = true break end
@@ -939,12 +972,8 @@ function ArtGalleryPopupMenu:init()
     for i, it in ipairs(self.items) do
         local icon_bb, lead_wg
         if it.icon then
-            local ok, ibb = pcall(RenderImage.renderSVGImageFile, RenderImage,
-                it.icon, self.icon_size, self.icon_size)
-            if ok and ibb then
-                icon_bb = ibb
-                self._icon_bbs[#self._icon_bbs + 1] = ibb
-            end
+            -- 共享、缓存的 bb（关闭时勿 free，见 _menu_icon_cache）
+            icon_bb = menu_icon(it.icon, self.icon_size)
         elseif it.check ~= nil then
             -- checkbox glyph, a bit larger than the label, drawn in the
             -- icon column so it aligns with the other rows' icons
@@ -1026,9 +1055,22 @@ function ArtGalleryPopupMenu:onClose()
     return true
 end
 
+-- G 传感器的 SetRotationMode 事件只派发给最顶层 widget，故弹出菜单开启时
+-- 其下方的查看器收不到旋转事件、自动旋转被静默阻断。关掉菜单并把旋转交给
+-- 查看器（经 on_rotate）即可恢复自动旋转：菜单关闭、查看器按新方向重排。
+-- （对齐 Glimpse v1.3.0 的 PopupMenu:onSetRotationMode）
+function ArtGalleryPopupMenu:onSetRotationMode(rotation)
+    if self.on_rotate and rotation ~= nil
+            and rotation ~= Screen:getRotationMode() then
+        self:dismiss()
+        self.on_rotate(rotation)
+        return true
+    end
+end
+
 function ArtGalleryPopupMenu:onCloseWidget()
-    for _, ibb in ipairs(self._icon_bbs) do ibb:free() end
-    self._icon_bbs = {}
+    -- 行图标来自 _menu_icon_cache 的共享 bb，不能在此 free（free 会让下次
+    -- 打开变空白）；它们随会话存活，符合 Glimpse v1.3.0 设计。
     if self.on_dismiss then self.on_dismiss() end
 end
 
@@ -2662,7 +2704,8 @@ function ArtGalleryViewer:_openImageActionMenu(meta, pos)
                 return Geom:new{ x = x, y = y, w = 0, h = 0 }, false
             end,
         }
-        UIManager:show(menu, function() return "ui", menu.movable.dimen end)
+        menu.on_rotate = function(rotation) self:onSetRotationMode(rotation) end
+    UIManager:show(menu, function() return "ui", menu.movable.dimen end)
         return
     end
     self:_ensureDerived()
@@ -2748,8 +2791,9 @@ function ArtGalleryViewer:_openImageActionMenu(meta, pos)
             return Geom:new{ x = x, y = y, w = 0, h = 0 }, false
         end,
     }
+    menu.on_rotate = function(rotation) self:onSetRotationMode(rotation) end
     UIManager:show(menu, function() return "ui", menu.movable.dimen end)
-end
+    end
 
 -- 收藏/忽略态变化后：派生列表与缩略图（含 ⭐/眼睛 角标）可能过期，清缓存刷新。
 function ArtGalleryViewer:_afterCollectionChange()
@@ -3263,6 +3307,7 @@ function ArtGalleryViewer:_showMoreMenu()
     local menu
     menu = ArtGalleryPopupMenu:new{
         items = items,
+        on_rotate = function(rotation) self:onSetRotationMode(rotation) end,
         -- anchor to the ⋯ button (bottom row): right edge aligned to the
         -- button's right edge (MovableContainer left-aligns on the anchor,
         -- so shift left by our own width, known by the time ensureAnchor
@@ -6941,7 +6986,7 @@ function ArtGallery:_menuItems()
                 local tv = TextViewer:new{
                     title = _("关于 美术馆"),
                     text = guide .. "\n\n--------\n\n" ..
-                        T(_("美术馆 / ArtGallery v%1\n\n由两个 KOReader 社区插件合并增强而来：\n· Glimpse（作者 Fank1 / Erik Fanki，最新 v1.3.0）— 吸收其 v1.2.5 及之前的能力；\n· Illustrations（作者 agaragou，最新 v0.5.2）— 继承其全局收藏等能力。\n\n其中 Glimpse v1.3.0 新增的「书签入画廊」，美术馆为独立实现（独立「书签」段），未采用其屏上缩放控件与全局总开关。\n\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
+                        T(_("美术馆 / ArtGallery v%1\n\n由两个 KOReader 社区插件合并增强而来：\n· Glimpse（作者 Fank1 / Erik Fanki，最新 v1.3.0）— 吸收其 v1.2.5 能力，并采纳 v1.3.0 的部分内部优化（菜单图标缓存、圆角渲染快填、弹窗自动旋转）；\n· Illustrations（作者 agaragou，最新 v0.5.2）— 继承其全局收藏等能力。\n\n其中 Glimpse v1.3.0 新增的「书签入画廊」，美术馆为独立实现（独立「书签」段），未采用其屏上缩放控件与全局总开关。\n\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
                             _installed_version()),
                     modal = true,
                     -- 关于说明为纯只读文档，关闭顶部冗余菜单图标（参考 poker24 的
