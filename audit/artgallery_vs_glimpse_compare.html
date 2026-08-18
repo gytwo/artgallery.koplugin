@@ -55,11 +55,11 @@
 <body>
 <div class="wrap">
   <h1>美术馆 × 双母插件 版本对比</h1>
-  <div class="sub">artgallery v1.0.20（Glimpse + Illustrations 合并成果）　vs　Glimpse v1.3.0（2026-08-15）＋ Illustrations v0.5.2（2026-04-25）</div>
+  <div class="sub">artgallery v1.0.21（Glimpse + Illustrations 合并成果）　vs　Glimpse v1.3.0（2026-08-15）＋ Illustrations v0.5.2（2026-04-25）</div>
 
   <div class="verdict">
     <p style="margin:0 0 6px"><b>结论：美术馆 = Glimpse 与 Illustrations 两个 KOReader 社区插件的合并与增强，三版（README / 本对比件 / 插件内「关于 美术馆」）事实统一。</b></p>
-    <p style="margin:0;color:var(--dim)">美术馆的吸收基线为 <b>Glimpse v1.2.5</b>（及之前）+ <b>Illustrations v0.5.2</b>。Glimpse 已于 2026-08-15 发布 <b>v1.3.0</b>，其新增的「书签入画廊」美术馆<b>独立实现</b>（独立「书签」段），其「屏上 +/fit/− 缩放控件」与「全局总开关 Enable Glimpse」美术馆<b>未采用</b>（改用双击↔2× + 捏合缩放与逐项手势/功能开关，更贴合墨水屏免闪烁体验）。Illustrations 仍停留在 v0.5.2，美术馆已继承其核心能力并增补。</p>
+    <p style="margin:0;color:var(--dim)">美术馆的吸收基线为 <b>Glimpse v1.2.5</b>（及之前）+ <b>Illustrations v0.5.2</b>，并采纳 v1.3.0 的部分内部优化（菜单图标缓存、圆角渲染快填、弹出菜单自动旋转，均属 e-ink 打磨、非用户可见功能新增）。Glimpse 已于 2026-08-15 发布 <b>v1.3.0</b>，其新增的「书签入画廊」美术馆<b>独立实现</b>（独立「书签」段），其「屏上 +/fit/− 缩放控件」与「全局总开关 Enable Glimpse」美术馆<b>未采用</b>（改用双击↔2× + 捏合缩放与逐项手势/功能开关，更贴合墨水屏免闪烁体验）。Illustrations 仍停留在 v0.5.2，美术馆已继承其核心能力并增补。</p>
   </div>
 
   <div class="pill-row">
@@ -68,10 +68,11 @@
     <div class="stat"><div class="n" style="color:var(--accent)">v0.5.2</div><div class="l">Illustrations 最新版</div></div>
     <div class="stat"><div class="n" style="color:var(--warn)">1</div><div class="l">v1.3.0 新增、美术馆独立实现</div></div>
     <div class="stat"><div class="n" style="color:var(--na)">2</div><div class="l">v1.3.0 新增、美术馆未采用</div></div>
+    <div class="stat"><div class="n" style="color:var(--ok)">3</div><div class="l">v1.3.0 内部优化、美术馆已采纳</div></div>
   </div>
 
   <h2>对比 Glimpse（吸收基线 v1.2.5 · 最新 v1.3.0）</h2>
-  <p class="note">Glimpse 是功能更完整的上游（"随时偷看书中参考图而不丢位置"）。美术馆吸收其 v1.2.5 及之前的能力。</p>
+  <p class="note">Glimpse 是功能更完整的上游（"随时偷看书中参考图而不丢位置"）。美术馆吸收其 v1.2.5 及之前的能力，并采纳 v1.3.0 的部分内部优化（菜单图标缓存 / 圆角渲染快填 / 弹出菜单自动旋转，属 e-ink 打磨、非用户可见功能新增）。</p>
   <table>
     <thead><tr><th>维度</th><th>Glimpse v1.2.5</th><th>美术馆 ArtGallery</th><th>差异</th></tr></thead>
     <tbody>
@@ -95,7 +96,10 @@
       <li><b>书签入画廊（核心新增）</b>：Glimpse 把书签<b>并入图片池</b>按阅读顺序穿插；美术馆为<b>独立实现</b>——独立「书签」段（轻点全屏看图、长按可跳转 / 收藏 / 删除，见 README §11）。二者机制不同，但都支持删除书签。</li>
       <li><b>屏上 +/fit/− 缩放控件</b>：Glimpse 新增可选屏幕缩放条；美术馆<b>未采用</b>，沿用双击↔2× + 捏合缩放（墨水屏无需屏上按钮）。</li>
       <li><b>全局总开关 "Enable Glimpse"</b>：Glimpse 新增一键开关整机；美术馆<b>未采用</b>，保留逐项手势 / 功能开关（更细粒度）。</li>
-      <li><b>无闪烁切图 / 菜单提速</b>：对墨水屏无额外收益——美术馆刷新系统本就免闪。</li>
+      <li><b>无闪烁切图</b>：Glimpse 新增无闪烁切图；美术馆<b>未采用</b>，其刷新系统本就免闪（更贴合墨水屏，无额外收益）。</li>
+      <li><b>菜单提速（图标缓存）</b>：Glimpse 新增菜单图标缓存提速；美术馆<b>已采纳</b>——v1.0.21 起新增 <code>_menu_icon_cache</code>，弹出菜单行图标渲染结果全会话复用，菜单打开更跟手（属 e-ink 打磨，无新的用户可见开关）。</li>
+      <li><b>圆角渲染快填 <code>make_rounded_stencil</code></b>：Glimpse v1.3.0 的内部优化；美术馆<b>已采纳</b>——v1.0.21 起内部矩形一次填充，像素级一致、更省。</li>
+      <li><b>弹出菜单自动旋转 <code>onSetRotationMode</code></b>：Glimpse v1.3.0 的内部修复；美术馆<b>已采纳</b>——v1.0.21 起菜单开着时旋转屏幕正常关闭菜单并重新排布查看器。</li>
       <li><b>更聪明过滤（措辞版）</b>：地图 / 族谱 / 图表识别、非虚构放宽下限；美术馆 v1.0.18 已吸收同引擎核心逻辑，属同功能措辞强化，几无新增益。</li>
     </ul>
   </div>
@@ -139,7 +143,7 @@
 
   <div class="foot">
     数据来源：两母插件版本与功能经 GitHub 实时核实（Glimpse Releases v1.3.0 / Illustrations Releases v0.5.2，2026-08-16）；
-    美术馆经本地工作副本核验（v1.0.20）。对比基于真实源码与发布说明，非凭记忆。<br>
+    美术馆经本地工作副本核验（v1.0.21），本件于 2026-08-18 随 v1.0.21 同步更新。对比基于真实源码与发布说明，非凭记忆。<br>
     本件与插件 README「相比上游的改进」板块、插件内「关于 美术馆」对话框三者事实保持一致（三版统一）。
   </div>
 </div>

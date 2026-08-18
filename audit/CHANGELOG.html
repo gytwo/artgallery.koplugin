@@ -458,6 +458,52 @@
     </div>
   </section>
 
+  <!-- ===================== 阶段四六 ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成</span>
+      <h2>阶段四六 · 修正「与母插件对比」独立对比件（三版统一补正）</h2>
+      <span class="date">2026-08-18</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>阶段三九确立「三版统一」：README「相比上游的改进」+ 独立对比件 <code>audit/artgallery_vs_glimpse_compare.html</code> + 插件内「关于 美术馆」对话框须事实一致。v1.0.21 发版时更新了 README 与「关于」对话框，但<b>漏掉了这张独立对比件</b>——它停在阶段三九的 <code>14c1bcc</code>（2026-08-16），第 98 行仍写「无闪烁切图 / 菜单提速：对墨水屏无额外收益」，与 v1.0.21 已采纳「菜单图标缓存」等三项内部优化冲突，破坏了三版统一纪律。用户指出后按既定方案修正。</p>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead>
+          <tr><th>文件</th><th>性质</th><th>改动说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>audit/artgallery_vs_glimpse_compare.html</code></td>
+            <td><span class="tag doc">改</span></td>
+            <td>
+              <ul>
+                <li>副标题 <code>artgallery v1.0.20 → v1.0.21</code>。</li>
+                <li>结论段补「并采纳 v1.3.0 的部分内部优化（菜单图标缓存、圆角渲染快填、弹出菜单自动旋转，均属 e-ink 打磨、非用户可见功能新增）」。</li>
+                <li>统计药丸新增第 6 个：<code>3 · v1.3.0 内部优化、美术馆已采纳</code>（原「未采用」计数 2 不变：屏上缩放控件 + 全局总开关）。</li>
+                <li>Glimpse 段注释补采纳说明。</li>
+                <li>v1.3.0 清单重写：拆「无闪烁切图」为<b>未采用</b>；新增「菜单提速（图标缓存）/ 圆角渲染快填 <code>make_rounded_stencil</code> / 弹出菜单自动旋转 <code>onSetRotationMode</code>」三项为<b>已采纳</b>（标注 v1.0.21 起生效）。</li>
+                <li>页脚版本 <code>v1.0.20 → v1.0.21</code>，注明 2026-08-18 随 v1.0.21 同步更新。</li>
+              </ul>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>校验</h3>
+      <div class="chips">
+        <span class="chip ok">✓ 三版统一复核：README / 对比件 / 「关于」对话框 现一致标注「已采纳 v1.3.0 内部优化」</span>
+        <span class="chip ok">✓ 工作副本 ≡ 干净副本（<code>cmp</code> IDENTICAL）</span>
+        <span class="chip ok">✓ 三副本自检 harness：PASS=14 FAIL=0（文档改动不引入运行风险）</span>
+        <span class="chip ok">✓ 版本号维持 <code>v1.0.21</code> 未升版（仅文档修正，不改运行行为）</span>
+        <span class="chip warn">⚠ 已发 v1.0.21 Release 的 zip 资产仍含旧版对比件；本修正仅进仓库 main，是否重切 zip 待用户拍板</span>
+      </div>
+    </div>
+  </section>
+
   <!-- ===================== 阶段一 ===================== -->
   <section class="phase open">
     <div class="phase-head">
