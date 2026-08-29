@@ -5,6 +5,30 @@
 
 ---
 
+## v1.0.22（2026-08-29）发布 / Released
+
+> **状态 / Status**：v1.0.21 之后吸收 Glimpse v1.5.1 四项内部优化（通用位图缓存 LRU、缩放/切图轻更新、选择性圆角、长按释放抑制全闪）+ 阶段四八 e-ink 修复核对 + 阶段五十已覆盖项核对 + 阶段五一文档三版统一 + 阶段五二长按平移 hotfix（v1.0.22-rc 回退为正式 v1.0.22 发版）；完整自检循环 PASS=17 / FAIL=0 / WARN=0；KPW3 实机验证通过；GitHub Release 资产 `artgallery.koplugin-v1.0.22.zip` 已上传（latest）。
+>
+> **Status**: After v1.0.21, adopted four internal optimizations from Glimpse v1.5.1 (shared decoded-bitmap LRU, zoom/switch light update, selective-corner stencil, hold-release full-flash suppression) + phase 48 e-ink fixes audit + phase 50 already-covered items audit + phase 51 doc sync (three-version consistency) + phase 52 hold-release panning hotfix (v1.0.22-rc regress → re-released as official v1.0.22); full self-check loop PASS=17 / FAIL=0 / WARN=0; KPW3 on-device verified; GitHub Release asset `artgallery.koplugin-v1.0.22.zip` uploaded (latest).
+
+**中文**：
+- **阶段四七（吸收）**：通用位图缓存 LRU —— 把美术馆现有的单槽 `_bb_cache` 升级为与 Glimpse v1.5.1 同构的 `<key, bb>:seq` LRU（`BB_CACHE_MAX = 3` 邻居友好），新增 `ArtGallery:_bbCacheGet/_bbCachePut/_bbCacheFree` 三个方法，两处 `make_list` 内的解码闭包改走 LRU；`ArtGallery:onCloseDocument` 走 `_bbCacheFree()` 遍历释放。
+- **阶段四八（吸收 + 核对）**：① 选择性圆角 `make_corner_stencil(w,h,r,corners,stroke,fill,outline)` —— 接缝方角组件用，现有 `make_rounded_stencil` 调用方不动；② 长按释放抑制全闪 `ArtGalleryViewer:onHoldRelease` ——「真移动 = 平移」、「无移动 = 吞掉」，分支对齐 Glimpse v1.5.1 `GlimpseViewer:onHoldRelease`。e-ink 修复中的「白抽屉暗模式」与「旋转后圆角变方」核对已在 v1.0.21 `_paintPanel`/`_restoreCorners` 完整覆盖。
+- **阶段四九（吸收）**：缩放/切图只重绘图片 —— 新增 `ArtGalleryViewer:_updateImageOnly`（缩放步骤只换图片 widget + 覆盖层重绘）+ `_repaintOverlayFast`（UIManager:widgetRepaint + setDirty "ui"）；配 `FAST_SWITCH_KEY` 菜单开关「快速切图（无闪刷新）」默认开启与 `_flash_switch` 标志在 `switchToImageNum` 时触发切图轻路径；新增 `_growForShadow` 为未来横向布局预留（当前单左抽屉下扩展右向 width 28 像素覆盖阴影带）。
+- **阶段五十（核对）**：候选清单后两条「书签缩略图落盘缓存」与「最大缩放可配置（150%-400%）」—— 美术馆 v1.0.21 已有等价实现（`DataStorage:getDataDir()/artgallery/bookmark_cache/` + `_bm_cache` 内存 + 落盘 PNG；菜单五档 1.5/2.0/2.5/3.0/4.0），按「重复功能不吸收」原则不重写。
+- **阶段五一（文档同步）**：① `_meta.lua` → `1.0.22`；② README.md 「相比上游的改进」中英文补完；③ `audit/artgallery_vs_glimpse_compare.html` 标 v1.5.1 已采纳项；④「关于 美术馆」对话框 guide + footer 现与 v1.5.1 同步；⑤ `audit/CHANGELOG.html` 追加阶段四七~五一节。**三版统一**纪律：README / 对比件 / 关于对话框 已事实对齐。
+- 文件改动量：仅 `main.lua` + `_meta.lua` + `README.md` + `audit/CHANGELOG.html` + `audit/artgallery_vs_glimpse_compare.html`；G: 真机部署与 GitHub Release 发版**均需用户明确授权**。
+
+**English**:
+- **Phase 47 (adopted)**: shared decoded-bitmap LRU — upgraded the existing single-slot `_bb_cache` to a Glimpse v1.5.1-parallel `<key, bb>:seq` LRU (`BB_CACHE_MAX = 3` neighbour-friendly), added `ArtGallery:_bbCacheGet/_bbCachePut/_bbCacheFree`, and rewired both `make_list` decode closures and `ArtGallery:onCloseDocument` to free the LRU on book close.
+- **Phase 48 (adopted + audit)**: ① selective-corner `make_corner_stencil(w,h,r,corners,stroke,fill,outline)` for future seam-square components (existing `make_rounded_stencil` callers untouched); ② hold-release full-flash suppression `ArtGalleryViewer:onHoldRelease` — "real pan if moved, swallow if not", mirroring `GlimpseViewer:onHoldRelease` in v1.5.1. The "white drawer in dark mode" and "rotation-square-corner" e-ink fixes already covered in v1.0.21 `_paintPanel`/`_restoreCorners` are merely audited.
+- **Phase 49 (adopted)**: zoom/switch light update — added `ArtGalleryViewer:_updateImageOnly` (zoom-step swap-image-widget + overlay repaint) and `_repaintOverlayFast` (UIManager:widgetRepaint + setDirty "ui"), plus the menu toggle `FAST_SWITCH_KEY` "Quick image switching (flashless)" (on by default) and `_flash_switch` flag in `switchToImageNum` for image-switch light path; added `_growForShadow` (current single-left-drawer extends width 28px rightward to cover the shadow band; layout-agnostic for future top/bottom/right layouts).
+- **Phase 50 (audit only)**: the last two items in the candidate list — bookmark thumbnail on-disk cache and configurable max zoom (150%–400%) — already had equivalent implementations in v1.0.21 (`DataStorage:getDataDir()/artgallery/bookmark_cache/` + `_bm_cache` in-memory + on-disk PNG; menu's 5-step 1.5/2.0/2.5/3.0/4.0). Per the "no duplicate absorption" rule, no rewrite.
+- **Phase 51 (doc sync)**: ① `_meta.lua` → `1.0.22`; ② README.md "Improvements over the upstreams" bilingual updated; ③ `audit/artgallery_vs_glimpse_compare.html` marks v1.5.1 adopted items; ④ "About ArtGallery" dialog guide + footer now sync with v1.5.1; ⑤ `audit/CHANGELOG.html` adds phases 47–51 sections. **Three-version consistency** discipline: README / compare doc / About dialog are factually aligned.
+- File changes: `main.lua` + `_meta.lua` + `README.md` + `audit/CHANGELOG.html` + `audit/artgallery_vs_glimpse_compare.html` only. G: deployment and GitHub release **both require explicit user authorization**.
+
+---
+
 ## v1.0.21（2026-08-18）发布 / Released
 
 **中文**：在 v1.0.20 发版后累计完成并实机（KPW3）验证通过的改动，统一随 v1.0.21 发布：

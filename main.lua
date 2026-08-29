@@ -73,6 +73,10 @@ local CAPTIONS_KEY = "artgallery_captions"        -- caption overlay, ON by defa
 local TOP_MENU_KEY = "artgallery_top_menu_zone"   -- tap top strip → KOReader top menu, ON by default (nilOrTrue)
 local SHADOW_KEY = "artgallery_disable_shadow"    -- drop the drawer's gradient shadow, OFF by default (e-ink ghost source)
 local GESTURE_TIP_KEY = "artgallery_gesture_tip_shown" -- one-time menu-open nudge to bind a gesture
+-- 「快速切图」开关：ON 时切换图片走 flashless 局部刷新（与 Glimpse v1.5.1
+-- 的 FAST_SWITCH_KEY 同构）；OFF 即还原 GC16 full 清场，避免详图被前图
+-- 鬼影穿透。默认 ON（与上游一致）。
+local FAST_SWITCH_KEY = "artgallery_fast_image_switch"
 -- 最大放大倍数（相对图片原生尺寸）：抽屉态上限，全屏态 _maxScale 再 ×2。
 -- 默认 1.5 与旧行为一致；可调到 4.0 以便看清扫描版/细节图。
 local MAX_ZOOM_KEY = "artgallery_max_zoom"
@@ -202,6 +206,82 @@ function ArtGalleryEllipsis:paintTo(bb, x, y)
     paint_dot(bb, cx - 3 * r, cy, r, 0x00, 0xFF)
     paint_dot(bb, cx, cy, r, 0x00, 0xFF)
     paint_dot(bb, cx + 3 * r, cy, r, 0x00, 0xFF)
+end
+
+-- 选择性圆角 stencil（与 Glimpse v1.5.1 make_corner_stencil 同构）：
+-- 只对传入的 corners={tl,tr,bl,br} 为真的角做圆弧；其余的角走直角路径，
+-- 不付出 sqrt+coverage 代价，便于做"两角方两角圆"的接缝组件
+-- （如徽章傍边卡片、接缝对齐的胶囊等）。参数语义与 make_rounded_stencil
+-- 保持一致：stroke/fill/outline 同上，fill=nil 走仅描边环路径。
+-- 现有 make_rounded_stencil 调用方（徽章/卡片/⋯按钮/胶囊等）一律不变
+-- —— 四角都圆，无需切到本函数。
+local function make_corner_stencil(w, h, r, corners, stroke, fill, outline)
+    local bb = Blitbuffer.new(w, h, Blitbuffer.TYPE_BBRGB32)
+    local no_fill = fill == nil
+    -- arc_center：当前像素落在哪个圆角象限里，返回该象限圆心坐标；
+    -- nil 代表不属于任何圆角 → 该像素在直边上、按完全覆盖算。
+    local function arc_center(px, py)
+        local cx, cy, on
+        if px < r and py < r then
+            cx, cy, on = r, r, corners.tl
+        elseif px >= w - r and py < r then
+            cx, cy, on = w - r, r, corners.tr
+        elseif px < r and py >= h - r then
+            cx, cy, on = r, h - r, corners.bl
+        elseif px >= w - r and py >= h - r then
+            cx, cy, on = w - r, h - r, corners.br
+        end
+        if on then return cx, cy end
+    end
+    -- 真正需要逐像素计算的区域：仅四角 r×r 的「象限带」。
+    -- 其余像素要么「直边 + 不在角的描边带」、要么「直边 + 描边带」，
+    -- 全部都在直边完全覆盖的范畴里 → 一次性快填；与 v1.3.0 fast-fill
+    -- 同等几何意义，但「角不全 = true 时」只有真正开启的角需要 emit。
+    -- 内部矩形 = [r, w-r) × [r, h-r)，仅当至少有 1 个角是圆的才画，
+    -- 否则整体是普通矩形 → 没有弧贡献，完全不需要去噪。
+    local any_round = corners.tl or corners.tr or corners.bl or corners.br
+    local iL, iR, iT, iB = r, w - r, r, h - r
+    local has_interior = iR > iL and iB > iT and not no_fill
+    if has_interior and any_round then
+        bb:paintRect(iL, iT, iR - iL, iB - iT,
+            Blitbuffer.ColorRGB32(fill, fill, fill, 0xFF))
+    end
+    local function emit(px, py)
+        local ccx, ccy = arc_center(px, py)
+        if not ccx then return end -- 直边象限：已被矩形快填/未启用该角
+        local dx, dy = px + 0.5 - ccx, py + 0.5 - ccy
+        local d = math.sqrt(dx * dx + dy * dy)
+        local cov = math.min(math.max(r - d + 0.5, 0), 1)
+        if cov > 0 then
+            local t_in = math.min(math.max((r - stroke) - d + 0.5, 0), 1)
+            if no_fill then
+                local a = cov * (1 - t_in)
+                if a > 0 then
+                    bb:setPixel(px, py, Blitbuffer.ColorRGB32(
+                        outline, outline, outline,
+                        math.floor(a * 255 + 0.5)))
+                end
+            else
+                local g = math.floor(outline + t_in * (fill - outline) + 0.5)
+                bb:setPixel(px, py, Blitbuffer.ColorRGB32(
+                    g, g, g, math.floor(cov * 255 + 0.5)))
+            end
+        end
+    end
+    if any_round then
+        -- 仅四个 r×r 角区需要逐像素 emit，其余行/列有 paintRect 已填。
+        -- 真正圆的角才进入：tl→[0,r) × [0,r); tr→[w-r,w) × [0,r) 等等。
+        local function emit_quad(x0, x1, y0, y1)
+            for py = y0, y1 - 1 do
+                for px = x0, x1 - 1 do emit(px, py) end
+            end
+        end
+        if corners.tl then emit_quad(0, r, 0, r) end
+        if corners.tr then emit_quad(w - r, w, 0, r) end
+        if corners.bl then emit_quad(0, r, h - r, h) end
+        if corners.br then emit_quad(w - r, w, h - r, h) end
+    end
+    return bb
 end
 
 -- Per-pixel-alpha BBRGB32 stencil of a rounded rectangle with an
@@ -1342,6 +1422,19 @@ end
 -- panel_ratio, and the dot pill and ⋯ button are OVERLAID on the image
 -- instead of stacked below it.
 function ArtGalleryViewer:update()
+    -- 轻更新路径：缩放步骤只重建图片 widget 并刷覆盖层，跳过 chrome / 阴影 /
+    -- FrameContainer 嵌套的全量重建。触发条件：上一帧里已成功构建了 image_layer
+    -- 并标记了 mid-zoom 标志（来自 _applyNewScaleFactor）。
+    -- 顶部立刻消费 _fast_refresh，避免它意外地影响下一次 update() 调用。
+    -- （对齐 Glimpse v1.5.1 GlimpseViewer._updateImageOnly 入口检查。）
+    local _zoom_fast = self._fast_refresh
+    self._fast_refresh = nil
+    if _zoom_fast and not self._gallery_mode
+            and self._image_layer and self._image_layer.dimen
+            and self._overlay and self.image_container
+            and self.main_frame and self.main_frame.dimen then
+        return self:_updateImageOnly()
+    end
     self:_clean_image_wg()
     local orig_dimen = self.main_frame.dimen
     -- 丢弃 main_frame 被 paint 缓存的旧尺寸：FrameContainer:paintTo 只在首次
@@ -1392,6 +1485,11 @@ function ArtGalleryViewer:update()
         dimen = Geom:new{ w = self.width, h = self.height },
         image_layer,
     }
+    -- Save handles for the light path (_updateImageOnly / _repaintOverlayFast):
+    -- a zoom step swaps the freshly-scaled image_container into this same layer
+    -- and refreshes only the overlay region, without rebuilding any other widget.
+    self._image_layer = image_layer
+    self._overlay = overlay
     -- chrome is centered/aligned on the image area (content minus the gap
     -- that keeps it clear of the rounded right edge), like the design
     local image_area_w = self.width - self.image_right_gap
@@ -1653,8 +1751,23 @@ function ArtGalleryViewer:update()
     -- suppress return so an open-time switch never leaves the flag dangling.
     local flash_switch = self._flash_switch
     self._flash_switch = nil
-    if flash_switch and not fast then wfm_mode = "full" end
+    -- 「快速切图」开启时不走 GC16 full 清场，下方 _repaintOverlayFast 会用
+    -- flashless "ui" 局部刷新区把旧图擦掉 —— 默认 ON。关闭时仍走 "full"
+    -- （详图鬼影穿透的话）。
+    if flash_switch and not fast
+            and not G_reader_settings:nilOrTrue(FAST_SWITCH_KEY) then
+        wfm_mode = "full"
+    end
     self.dithered = not fast
+    -- 快速切图 + 轻路径：跳过 setDirty/rebuild，覆盖层 wave 区域重刷覆盖图即可。
+    if flash_switch and not fast
+            and not self._gallery_mode and not self._suppress_refresh
+            and self._image_layer and self._image_layer.dimen
+            and self._overlay and self.image_container
+            and self.main_frame and self.main_frame.dimen
+            and G_reader_settings:nilOrTrue(FAST_SWITCH_KEY) then
+        return self:_repaintOverlayFast(wfm_mode)
+    end
     if self._suppress_refresh then
         -- showViewer builds the full initial state (remembered image,
         -- restored zoom) before showing, then refreshes once
@@ -3974,6 +4087,39 @@ function ArtGalleryViewer:onHold(_, ges)
     return ImageViewer.onHold(self, _, ges)
 end
 
+-- 上游 ImageViewer:onHoldRelease 把「长按但没移动」走「全屏闪一次」
+-- (self.dithered + setDirty "full")：抽屉上那种整页闪、还要把侧栏阴影
+-- 重混合一次，闲手一长按就闪一下，体验糟。所以这里自己做完整分流：
+-- 移动量达标 → 平移；不够 → 什么都不做，吞掉那次整屏闪。图库态长按已经
+-- 在 onHold 里拦了 → 这里不动它。
+-- （对齐 Glimpse v1.5.1 GlimpseViewer:onHoldRelease 的分支过滤。）
+--
+-- ⚠ 关键坑：这里**绝不能**在把 self._panning 清成 false 之后再委托
+-- `ImageViewer.onHoldRelease` —— 上游的入口守卫就是 `if self._panning then`，
+-- 标志已被提前清掉 → 上游整个平移分支被跳过 → 长按拖动释放时什么都不
+-- 发生（表现为「长按拖动无法平移图片」）。必须自己把「清标志 + 算位移 +
+-- 达标即平移」做完。（v1.0.22-rc 首版踩过，见 audit/CHANGELOG.html 阶段五二）
+function ArtGalleryViewer:onHoldRelease(_, ges)
+    if self._gallery_mode then return true end
+    if self._panning then
+        self._panning = false
+        -- 防御：_pan_relative_* 理论上由 onHold/onPan 写入，若缺失则退化为
+        -- 「零位移」，绝不产生 nil 算术崩溃。
+        local ox, oy = self._pan_relative_x, self._pan_relative_y
+        local gx = ges and ges.pos and ges.pos.x or 0
+        local gy = ges and ges.pos and ges.pos.y or 0
+        self._pan_relative_x = gx - (ox or gx)
+        self._pan_relative_y = gy - (oy or gy)
+        local thr = self.pan_threshold or Screen:scaleBySize(5)
+        if math.abs(self._pan_relative_x) >= thr
+                or math.abs(self._pan_relative_y) >= thr then
+            self:panBy(-self._pan_relative_x, -self._pan_relative_y)
+        end
+        -- 移动量小于阈值：原样吞掉，不触发上游那次整屏 full 闪。
+    end
+    return true
+end
+
 -- On the SDL emulator, mouse wheel / two-finger trackpad scroll arrives as
 -- a fake pan gesture tagged mousewheel_direction (real devices never send
 -- it): treat it as zoom, so pinch can be tested without a touchscreen.
@@ -4124,7 +4270,75 @@ function ArtGalleryViewer:_applyNewScaleFactor(new_factor)
         end
         return
     end
+    -- Path B：缩放步骤只重建图片 widget，不重建 chrome（按钮/胶囊/标题）和
+    -- 阴影。update() 在最顶上看到 _fast_refresh + 已有 self._image_layer 时
+    -- 走 _updateImageOnly 轻路径；构造/重布局型 update()（首开、抽屉⇄全屏）
+    -- 还是走全量重建（self._image_layer 不存在或无 dimen）。
     ImageViewer._applyNewScaleFactor(self, new_factor)
+end
+
+-- 轻更新：缩放步骤里只换图片 widget + 刷覆盖层。
+-- 与上游 Glimpse v1.5.1 GlimpseViewer:_updateImageOnly 同构，省掉 build 阶段
+-- 的 FrameContainer/OverlapGroup 重建，让缩放步骤避开 full rebuild → 局部刷新
+-- 即可进入 update()。条件不足时回退到全量 update()。
+function ArtGalleryViewer:_updateImageOnly()
+    if not (self._image_layer and self._image_layer.dimen
+            and self._overlay and self.image_container
+            and self.main_frame and self.main_frame.dimen) then
+        return self:update()
+    end
+    self:_clean_image_wg()
+    self:_new_image_wg()
+    -- 把新 image_container 换进已存在的 FrameContainer（_image_layer）；FrameContainer
+    -- 在下次 paintTo 按新子节点重算 dimen 并沿用现有 overlay 位置。
+    self._image_layer[1] = self.image_container
+    self._image_layer.dimen = nil
+    return self:_repaintOverlayFast("ui")
+end
+
+-- 局部覆盖层重绘：只刷主框矩形区域，waveform = "ui"（KPW3 走 partial，
+-- 无闪烁）。覆盖层里的 chrome 不重建，paintTo 时按当前状态自然出图。
+function ArtGalleryViewer:_repaintOverlayFast(mode)
+    if not self._overlay then return false end
+    if not (self.main_frame and self.main_frame.dimen) then return false end
+    self.dithered = false
+    -- 仅清覆盖层坐标处的旧像素 + 调 setDirty 触发目标区域 paintTo。
+    -- 用 _image_layer 的 (x,y) 作为锚点（若维度未就绪，退到主框内）。
+    local ox, oy
+    if self._image_layer and self._image_layer.dimen then
+        ox, oy = self._image_layer.dimen.x, self._image_layer.dimen.y
+    else
+        local mf = self.main_frame.dimen
+        ox = (mf.x or 0)
+        oy = (mf.y or 0)
+    end
+    UIManager:widgetRepaint(self._overlay, ox, oy)
+    local region = self.main_frame.dimen
+    UIManager:setDirty(nil, mode, region)
+    return true
+end
+
+-- setDirty 区域是否要扩到投影带？：美术馆只有单左抽屉、阴影在右。
+-- 现有 update() 已通过 self.main_frame.dimen:combine(orig_dimen) 自动覆盖
+-- 阴影带，本函数升级抽象层级、供未来可能的横向布局（top/bottom）调用；
+-- 现阶段是安全的 no-op（默认走 nil → else/left 分支，扩右向宽度 extra 像素，
+-- 保证阴影强制区被包含进 setDirty）。
+function ArtGalleryViewer:_growForShadow(d)
+    -- 默认行为：扩展到右侧覆盖阴影；其它布局由 self._place 字段决定。
+    local extra = Screen:scaleBySize(28)
+    local place = self._place or "left"
+    if place == "right" then
+        local nx = math.max(0, d.x - extra)
+        d.w = d.w + (d.x - nx); d.x = nx
+    elseif place == "top" then
+        d.h = math.min(Screen:getHeight() - d.y, d.h + extra)
+    elseif place == "bottom" then
+        local ny = math.max(0, d.y - extra)
+        d.h = d.h + (d.y - ny); d.y = ny
+    else -- "left" or nil
+        d.w = math.min(Screen:getWidth() - d.x, d.w + extra)
+    end
+    return d
 end
 
 -- The scale_factor (in capped-bitmap units) at which the image shows at
@@ -4269,6 +4483,9 @@ local ArtGallery = WidgetContainer:extend{
     -- GitHub repo the in-plugin updater checks (class field so tests can
     -- point it at a repo with known releases)
     github_repo = "ksaMask123/artgallery.koplugin",
+    -- 解码-位图小 LRU 容量上限：前后邻居 + 当前；低 RAM 设备上 bounded footprint
+    -- （与 Glimpse v1.5.1 Glimpse.BB_CACHE_MAX 同构）。
+    BB_CACHE_MAX = 3,
 }
 
 function ArtGallery:onDispatcherRegisterActions()
@@ -4304,11 +4521,60 @@ function ArtGallery:onArtGalleryShowFavorites()
 end
 
 function ArtGallery:onCloseDocument()
-    -- the decoded-bitmap cache slot (see showViewer) is per book
-    if self._bb_cache then
-        if self._bb_cache.bb then self._bb_cache.bb:free() end
-        self._bb_cache = nil
+    -- the decoded-bitmap LRU cache (see showViewer / showOneImage) is per book:
+    -- free every held Blitbuffer to avoid leaks across books.
+    self:_bbCacheFree()
+end
+
+-- 共享在前后邻居-当前之间的小 LRU（与 Glimpse v1.5.1 _bbCache 同构）。
+-- 每条记录 = { bb = 已解码位图, seq = 命中递增 }；命中返回 bb:copy()，
+-- 让 viewer 拥有并释放自己拿到的 bb；满时驱逐最旧。 key 已 baked 进
+-- path|night|checked，避免不同极性/反色命中错的位图。
+function ArtGallery:_bbCacheGet(key)
+    local c = self._bb_cache
+    local e = c and c.map[key]
+    if not e then return nil end
+    c.seq = c.seq + 1
+    e.seq = c.seq
+    return e.bb
+end
+
+function ArtGallery:_bbCachePut(key, bb)
+    local c = self._bb_cache
+    if not c then
+        c = { map = {}, n = 0, seq = 0 }
+        self._bb_cache = c
     end
+    local prev = c.map[key]
+    if prev then
+        if prev.bb then prev.bb:free() end
+        c.n = c.n - 1
+    end
+    c.seq = c.seq + 1
+    c.map[key] = { bb = bb, seq = c.seq }
+    c.n = c.n + 1
+    while c.n > ArtGallery.BB_CACHE_MAX do
+        local lru_key, lru_seq
+        for k_, e_ in pairs(c.map) do
+            if not lru_seq or e_.seq < lru_seq then
+                lru_seq, lru_key = e_.seq, k_
+            end
+        end
+        if not lru_key then break end
+        if c.map[lru_key].bb then c.map[lru_key].bb:free() end
+        c.map[lru_key] = nil
+        c.n = c.n - 1
+    end
+end
+
+function ArtGallery:_bbCacheFree()
+    local c = self._bb_cache
+    if not c then return end
+    for k_, e_ in pairs(c.map) do
+        if e_.bb then e_.bb:free() end
+        c.map[k_] = nil
+    end
+    self._bb_cache = nil
 end
 
 -- ── settings ────────────────────────────────────────────────────────────────
@@ -5322,16 +5588,13 @@ function ArtGallery:_showExternalGallery(imgs, read_file, close, opts)
             list[i] = function()
                 local night = Screen.night_mode
                 local checked = G_reader_settings:isTrue(INVERT_KEY)
+                -- shared decoded-bitmap LRU (see ArtGallery:_bbCacheGet). The
+                -- key bakes in everything baked into pixels.
                 local key = im.path .. "|" .. tostring(night) .. tostring(checked)
-                local slot = self._bb_cache
-                if slot and slot.key == key and slot.bb then
-                    return slot.bb:copy()
-                end
+                local cached = self:_bbCacheGet(key)
+                if cached then return cached:copy() end
                 local bb = decode(im, false)
-                if bb then
-                    if slot and slot.bb then slot.bb:free() end
-                    self._bb_cache = { key = key, bb = bb:copy() }
-                end
+                if bb then self:_bbCachePut(key, bb:copy()) end
                 return bb
             end
         end
@@ -5801,21 +6064,19 @@ function ArtGallery:showViewer(whole_book_once)
             list[i] = function()
                 local night = Screen.night_mode
                 local checked = G_reader_settings:isTrue(INVERT_KEY)
-                -- single-slot decoded-bitmap cache: reopening on the image
-                -- you left (the common "peek at the map again" flow) skips
-                -- the decode and cap-scale — on device that is most of the
-                -- open time. The key bakes in everything baked into pixels.
+                -- shared decoded-bitmap LRU (see ArtGallery:_bbCacheGet): the
+                -- neighbours are warmed by ArtGalleryViewer:_prefetchNeighbors
+                -- after a switch settles, so the LRU holds prev/cur/next and a
+                -- reopen or a neighbour switch skips the decode + cap-scale.
+                -- The key bakes in everything baked into pixels.
                 local key = im.path .. "|" .. tostring(night) .. tostring(checked)
-                local slot = self._bb_cache
-                if slot and slot.key == key and slot.bb then
+                local cached = self:_bbCacheGet(key)
+                if cached then
                     -- hand out a copy: the viewer owns and frees what we return
-                    return slot.bb:copy()
+                    return cached:copy()
                 end
                 local bb = decode(im, false)
-                if bb then
-                    if slot and slot.bb then slot.bb:free() end
-                    self._bb_cache = { key = key, bb = bb:copy() }
-                end
+                if bb then self:_bbCachePut(key, bb:copy()) end
                 return bb
             end
         end
@@ -6848,6 +7109,16 @@ function ArtGallery:_menuItems()
                     separator = true,
                 },
                 {
+                    text = _("快速切图（无闪刷新）"),
+                    help_text = _("切换图片时使用 flashless 局部刷新（速度更快、无闪烁）；关闭则回到 GC16 full 全刷清场，避免详图被前图鬼影穿透（例如实景地图、纹理复杂的扫描版）。默认开启。"),
+                    checked_func = function()
+                        return G_reader_settings:nilOrTrue(FAST_SWITCH_KEY)
+                    end,
+                    callback = function()
+                        G_reader_settings:flipNilOrTrue(FAST_SWITCH_KEY)
+                    end,
+                },
+                {
                     -- rarely needed, so tucked in here rather than the main list
                     text = _("重新扫描本书"),
                     help_text = _("ArtGallery 会缓存本书的扫描结果。若书籍文件被替换或图片过时可使用此选项。"),
@@ -6941,6 +7212,7 @@ function ArtGallery:_menuItems()
                     "· ⤢ 全屏切换：隐藏顶部信息与底部按钮，进入沉浸看图；再次点按恢复。\n" ..
                     "· 全屏填充模式（铺满 / 适配 / 拉伸）：底部按钮，短按在三种模式间循环——铺满（裁切溢出、填满屏幕）/ 适配（留白全图、完整显示）/ 拉伸（变形填充、铺满屏幕）；长按可将当前模式设为默认全屏看图方式。\n" ..
                     "· 缩放与平移：双指捏合或双击放大，放大后拖动平移；双击或点按底部圆点恢复 100%。\n" ..
+                    "· e-ink 性能：缩放与切图走「轻更新」路径，仅刷覆盖层图片区、跳过 chrome 全量重建，墨水屏上几乎无闪烁（来自 Glimpse v1.5.1 内部优化，阶段四九采用）。\n" ..
                     "\n【⋯ 更多菜单】\n" ..
                     "· ⤢ 全屏查看 / 退出全屏：进入或退出全屏沉浸式。\n" ..
                     "· ▦ 图库（全部 / 收藏 / 书签 / 忽略）：底部为分段切换器，显示各池实时数量（全部[N] / 收藏[F] / 书签[B] / 忽略[M]），点按对应段直达该池；没有忽略项时不显示「忽略」段，没有书签时不显示「书签」段（需先在插件菜单开启「图库包含书签页」）。\n" ..
@@ -6951,6 +7223,7 @@ function ArtGallery:_menuItems()
                     "· ☑ 显示导航按钮 / 显示图片标题 / 夜间模式反转图片：均为开关项（菜单中以勾选框标记），勾选即时生效（分别显示 ◀▶、图片标题、夜间反转图片明暗）。\n" ..
                     "\n【长按图片】\n" ..
                     "· 长按任意图片弹出三选一菜单：⭐ 收藏图片 / 取消收藏、忽略图片 / 取消忽略。已处于对应状态的选项会自动置灰（不可用）。\n" ..
+                    "· 长按后若无移动地松开，不会触发「整屏闪一次」（长按释放抑制，来自 Glimpse v1.5.1 内部修复，阶段四八采用）。\n" ..
                     "\n【图库（网格视图）】\n" ..
                     "· 底部圆点表示当前页码，可点按快速跳转；底部为「图库（全部 / 收藏 / 书签 / 忽略）」分段切换器，点按对应段直达该池，段上显示各池实时数量。\n" ..
                     "· 点按缩略图回到对应的单图查看；右上角数字为该图在全部图片中的序号。\n" ..
@@ -6965,6 +7238,8 @@ function ArtGallery:_menuItems()
                     "· 最大放大倍数：插件菜单「最大放大倍数」可设 1.5×–4.0×（默认 1.5×），限制放大的上限以看清扫描版 / 细节图。\n" ..
                     "· 图库包含书签页：把您在书中手工添加的「狗耳朵」书签页渲染成缩略图，作为图库里独立的「书签」段（不计入「全部」、永不进「忽略」、可单独长按收藏）；默认关闭，开启后需重新打开美术馆生效。\n" ..
                     "· 看图同步阅读进度：分页文档（CBZ）与 EPUB 各有一个独立开关（默认开启），开启后看图会自动推进书籍自身阅读进度；普通插图文字书若因此被误跳进度，可单独关闭对应项。\n" ..
+                    "· 禁用阴影：移除抽屉的投影，避免某些详情图刷新后残留的墨水屏鬼影；默认关闭（保留阴影）。\n" ..
+                    "· 快速切图（无闪刷新）：切换图片时使用 flashless 「ui」局部刷新，避免闪烁与前图鬼影穿透；默认开启。OFF 时回退到 GC16 full 清场。\n" ..
                     "\n【快速操作】\n" ..
                     "· 插件菜单「快速操作」可自定义 ⋯ 菜单中显示哪些功能；关闭全部后 ⋯ 按钮会自动隐藏。"
                 )
@@ -6986,7 +7261,7 @@ function ArtGallery:_menuItems()
                 local tv = TextViewer:new{
                     title = _("关于 美术馆"),
                     text = guide .. "\n\n--------\n\n" ..
-                        T(_("美术馆 / ArtGallery v%1\n\n由两个 KOReader 社区插件合并增强而来：\n· Glimpse（作者 Fank1 / Erik Fanki，最新 v1.3.0）— 吸收其 v1.2.5 能力，并采纳 v1.3.0 的部分内部优化（菜单图标缓存、圆角渲染快填、弹窗自动旋转）；\n· Illustrations（作者 agaragou，最新 v0.5.2）— 继承其全局收藏等能力。\n\n其中 Glimpse v1.3.0 新增的「书签入画廊」，美术馆为独立实现（独立「书签」段），未采用其屏上缩放控件与全局总开关。\n\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
+                        T(_("美术馆 / ArtGallery v%1\n\n由两个 KOReader 社区插件合并增强而来：\n· Glimpse（作者 Fank1 / Erik Fanki，最新 v1.5.1）— 吸收其 v1.2.5 能力，并采纳 v1.3.0 与 v1.5.1 的内部优化（v1.3.0：菜单图标缓存、圆角渲染快填、弹窗自动旋转；v1.5.1：通用位图缓存 LRU、缩放/切图轻更新、选择性圆角、长按释放抑制全闪、快速切图开关）；\n· Illustrations（作者 agaragou，最新 v0.5.2）— 继承其全局收藏等能力。\n\n其中 Glimpse v1.3.0 新增的「书签入画廊」，美术馆为独立实现（独立「书签」段），未采用其屏上缩放控件、全局总开关与屏上 MiniMap。\n\n作者：ksaMask123\n更新：GitHub ksaMask123/artgallery.koplugin"),
                             _installed_version()),
                     modal = true,
                     -- 关于说明为纯只读文档，关闭顶部冗余菜单图标（参考 poker24 的

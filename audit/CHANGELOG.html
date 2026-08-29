@@ -128,8 +128,8 @@
     <div class="meta-grid">
       <div>插件 ID：<b>artgallery</b></div>
       <div>全称：<b>美术馆</b></div>
-      <div>当前版本：<b>1.0.21</b></div>
-      <div>上游来源：<b>Glimpse v1.3.0</b>（Erik Fanki）＋ <b>Illustrations v0.5.2</b>（agaragou）</div>
+      <div>当前版本：<b>1.0.22-rc（阶段四七~五一，本地未发布）</b></div>
+      <div>上游来源：<b>Glimpse v1.5.1</b>（Erik Fanki，源码吸收基线 v1.3.0）＋ <b>Illustrations v0.5.2</b>（agaragou）</div>
       <div>Fork 维护：<b>ksaMask123</b></div>
       <div>GitHub：<b>ksaMask123/artgallery.koplugin</b></div>
       <div>目标设备：<b>KPW3（Kindle PaperWhite 3）</b></div>
@@ -137,9 +137,16 @@
     </div>
   </header>
 
-  <div class="callout" style="border-left-color: var(--ok);">
-    <b>v1.0.21 已发布（2026-08-18）</b> — KPW3 实机验证通过，GitHub Release 资产 <code>artgallery.koplugin-v1.0.21.zip</code> 已上传（latest）。<br>
-    本次发布含：阶段四十 / 四一（「返回」崩溃与无反应 hotfix，此前未入 v1.0.20 发行包）+ 阶段四二（菜单图标缓存）+ 阶段四三（圆角渲染快填）+ 阶段四四（弹出菜单自动旋转）+ 阶段四五（「关于 美术馆」严格审阅）。完整摘要见仓库根 <code>CHANGELOG.md</code> 顶部 v1.0.21 条目。
+  <div class="callout" style="border-left-color: var(--accent);">
+    <b>v1.0.22-rc 即将发布（2026-08-29 · 阶段四七~五一已完成本地开发，待 G: 实机验证 + 用户授权发版）</b> — 基于对 Glimpse v1.5.1 <i>真实源码</i> 的 diff（不是更新日志），逐项核对吸收 / 已覆盖 / 跳过，确认落地 6 项：<br>
+    <ol>
+      <li>通用位图缓存 <code>ArtGallery:_bbCacheGet/_bbCachePut/_bbCacheFree</code>（小 LRU，max=3 邻居友好）</li>
+      <li>选择性圆角 <code>make_corner_stencil</code>（与 Glimpse v1.5.1 同构，给将来「接缝方角」组件用）</li>
+      <li>缩放/切图轻更新：<code>_updateImageOnly</code> + <code>_repaintOverlayFast</code>，配 <code>FAST_SWITCH_KEY</code> 菜单开关与 <code>_flash_switch</code> 标志，缩放步骤与切图步骤都跳过 chrome 全量重建</li>
+      <li>e-ink 修复：长按释放无移动抑制（全屏闪避）+ <code>_growForShadow</code> 阴影带扩展</li>
+      <li>已覆盖核对：书签缩略图落盘缓存（<code>artgallery/bookmark_cache/</code>）、最大缩放 1.5×~4.0× 五档 — 与 Glimpse v1.5.1 同构，按「重复功能不吸收」原则保留原实现</li>
+    </ol>
+    待办：真实机测试（缩放轻路径的 chrome 不重建不抖动、切图轻路径快且无鬼影）+ 版本号定档 + G: 部署 + 三副本同步 + GitHub Release（<b>每一步均需用户明确授权</b>）。
   </div>
 
   <!-- ===================== 阶段三十九（最新） ===================== -->
@@ -500,6 +507,349 @@
         <span class="chip ok">✓ 三副本自检 harness：PASS=14 FAIL=0（文档改动不引入运行风险）</span>
         <span class="chip ok">✓ 版本号维持 <code>v1.0.21</code> 未升版（仅文档修正，不改运行行为）</span>
         <span class="chip warn">⚠ 已发 v1.0.21 Release 的 zip 资产仍含旧版对比件；本修正仅进仓库 main，是否重切 zip 待用户拍板</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段四七 ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成（本地开发）</span>
+      <h2>阶段四七 · 通用位图缓存 LRU（_bbCache）</h2>
+      <span class="date">2026-08-29</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>用户给出 Glimpse v1.5.1 六项候选升级清单后，本地工具链（Python urllib 从 <code>raw.githubusercontent.com</code> 拉取 v1.3.0 与 v1.5.1 两份真实 <code>plugin/main.lua</code>，grep + 函数级 diff）揭示：美术既有单槽 <code>self._bb_cache</code>（key+bb）只能保留「最近一张」命中——邻居 prefetch 不可能再救。Glimpse v1.5.1 用 <code>_bbCacheGet/Put/Free</code> + LRU（max=3 邻居友好）替换单槽。</p>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead>
+          <tr><th>文件</th><th>性质</th><th>改动说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>main.lua</code> · <code>ArtGallery</code> extend</td>
+            <td><span class="tag add">加</span></td>
+            <td><code>BB_CACHE_MAX = 3</code> 作为类字段静态常量。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · <code>ArtGallery:onCloseDocument</code></td>
+            <td><span class="tag refactor">重</span></td>
+            <td>改走 <code>self:_bbCacheFree()</code>：遍历全部条目 free 各 bb，并把 _bb_cache 置 nil。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · 新增 <code>ArtGallery:_bbCacheGet/_bbCachePut/_bbCacheFree</code></td>
+            <td><span class="tag add">加</span></td>
+            <td>与 Glimpse v1.5.1 Glimpse:_bbCache* 同构：<code>{map, n, seq}</code> 表，按 key 命中并 bump seq，put 时驱逐最旧；get/put 都返回 <code>copy()</code>，所有权交由 viewer。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · 两处 <code>make_list(metas)</code> 中的解码闭包</td>
+            <td><span class="tag refactor">重</span></td>
+            <td>替换单槽的 <code>slot = self._bb_cache</code>+<code>self._bb_cache = { key=…, bb=… }</code> 为 <code>self:_bbCacheGet(key)</code> + <code>self:_bbCachePut(key, bb:copy())</code>。两条路径（外部画廊 + 书本 per-book viewer）一致改造。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>关键代码片段</h3>
+      <pre><code>function ArtGallery:_bbCacheGet(key)
+    local c = self._bb_cache
+    local e = c and c.map[key]
+    if not e then return nil end
+    c.seq = c.seq + 1
+    e.seq = c.seq
+    return e.bb
+end</code></pre>
+
+      <h3>校核结果</h3>
+      <div class="chips">
+        <span class="chip ok">✓ LuaJIT 语法：<code>luajit -bl</code> PASS</span>
+        <span class="chip ok">✓ 自检循环：<code>PASS=16 FAIL=1 WARN=0</code>（仅 G: 待授权部署）</span>
+        <span class="chip ok">✓ 类顺序检查：OK</span>
+        <span class="chip ok">✓ 加载期代理测试：LOAD_OK</span>
+        <span class="chip ok">✓ 三副本同步：工作副本 ≡ 干净副本（<code>cmp</code>）</span>
+        <span class="chip warn">⚠ 待 G: 实机测试：邻居 prefetch 后切图是否明显加速</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段四八 ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成（本地开发）</span>
+      <h2>阶段四八 · 选择性圆角 + 多项 e-ink 修复</h2>
+      <span class="date">2026-08-29</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>Glimpse v1.5.1 引入 <code>make_corner_stencil(corners={tl,tr,bl,br})</code> 让调用方选哪些角走圆弧（用于 minimap ↔ zoomcontrol 接缝处的「两角方两角圆」拼接）。同时把 4 项 e-ink 修复整理成可独立开关的清单：① 白抽屉在暗模式 ② 旋转后圆角变方 ③ 长按释放整屏闪 ④ 切图鬼影穿透。美术馆当前 v1.0.21 已前两条（<code>_paintPanel</code>/<code>_restoreCorners</code>，1724+ 与 1694+ 段），本阶段补 ③ 长按抑制 + 落地选择圆角工具，对 ④ 切图轻路径留到阶段四九整体做。</p>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead>
+          <tr><th>文件</th><th>性质</th><th>改动说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>main.lua</code> · 新增模块函数 <code>make_corner_stencil</code></td>
+            <td><span class="tag add">加</span></td>
+            <td>与 Glimpse v1.5.1 同构：接收 <code>w, h, r, corners={tl,tr,bl,br}, stroke, fill, outline</code>。内部仍走 <code>paintRect</code> 快填内部矩形（v1.3.0 优化），但只对真正开启的角做逐像素 emit，其余像素已被快填覆盖。<br>现有 <code>make_rounded_stencil</code> 调用方（徽章/卡片/⋯按钮/胶囊）一律不变——四角都圆，无需切到本函数，仅留作「将来接缝方角」组件的备选项。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · 新增 <code>ArtGalleryViewer:onHoldRelease</code></td>
+            <td><span class="tag add">加</span></td>
+            <td>对齐 Glimpse v1.5.1 <code>GlimpseViewer:onHoldRelease</code>：图库态（<code>_gallery_mode</code>）继续返回 true；缩放态（<code>_panning=true</code>）直接委托 <code>ImageViewer.onHoldRelease</code>；其余「长按但没移动」路径里没有「真移动 = 平移」的语义，吞掉那次 full 闪以避免整页闪烁 + 阴影重混合。<br>verify：上游 <code>_panning</code> 字段确实由 ImageViewer.onHold/onPan 设置（<code>frontend/ui/widget/imageviewer.lua:631</code>）。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code></td>
+            <td><span class="tag fix">修</span></td>
+            <td>核对项 ①（白抽屉暗模式）和 ②（旋转后圆角变方）的现状：<code>_paintPanel</code> 在 1701-1759 段已实现完整夜模式分支（HW-invert 走 logical polarity；SW-invert 走 raw + setInverse）；<code>_paintPanel + _restoreCorners + orig_paintTo</code> 三段式钩子（1694-1702）已在 旋转 / 翻页后会再次修复圆角。本阶段无需新增代码，仅核验并列入 audit。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>校核结果</h3>
+      <div class="chips">
+        <span class="chip ok">✓ LuaJIT 语法：PASS</span>
+        <span class="chip ok">✓ 自检循环：<code>PASS=16 FAIL=1</code>（仅 G: 待授权）</span>
+        <span class="chip ok">✓ 类顺序：OK</span>
+        <span class="chip ok">✓ LOAD_OK（无 nil 全局索引）</span>
+        <span class="chip ok">✓ 原 <code>make_rounded_stencil</code> 调用方未触动</span>
+        <span class="chip warn">⚠ 待 G: 实机测试：长按图片（非移动）确认不再闪全屏</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段四九 ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成（本地开发）</span>
+      <h2>阶段四九 · 缩放/切图只重绘图片（轻更新）</h2>
+      <span class="date">2026-08-29</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>Glimpse v1.5.1 的核心 e-ink 性能升级：缩放步骤（pinch / 双击 / 滚轮）和切图步骤（滑动 / 翻页键）只重绘对应的图片 widget 与覆盖层，跳过 chrome 全量重建与 FrameContainer 嵌套重布局。最显著的差别在 KPW3 这类小 RAM 设备上：每次缩放不再算到「主框 FrameContainer 重新排子」+「按钮对象 free/new」+「更新 setDirty 整矩形 → GC16 flash」。</p>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead>
+          <tr><th>文件</th><th>性质</th><th>改动说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>main.lua</code> · 新增 <code>FAST_SWITCH_KEY</code></td>
+            <td><span class="tag add">加</span></td>
+            <td><code>"artgallery_fast_image_switch"</code>，默认 ON（nilOrTrue）。OFF 时回退到 GC16 full 清场，避免详图被前图鬼影穿透。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · 新增菜单项「快速切图（无闪刷新）」</td>
+            <td><span class="tag add">加</span></td>
+            <td>在「禁用阴影」条目之后，<code>nilOrTrue(FAST_SWOOM_KEY)</code> + <code>flipNilOrTrue</code>。 help_text 与 Glimpse v1.5.1 菜单文案同构（详图穿透场景 + LCD 无可见效果）。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · 新增 <code>ArtGalleryViewer:_updateImageOnly</code></td>
+            <td><span class="tag add">加</span></td>
+            <td>清理 _image_wg、_new_image_wg，把新 image_container 换进已存在的 <code>_image_layer[1]</code>，最后调 <code>_repaintOverlayFast("ui")</code>。条件不足时回退 <code>update()</code>（首开、抽屉⇄全屏、图库态）。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · 新增 <code>ArtGalleryViewer:_repaintOverlayFast</code></td>
+            <td><span class="tag add">加</span></td>
+            <td>set <code>self.dithered = false</code> → <code>UIManager:widgetRepaint(self._overlay, ox, oy)</code> → <code>UIManager:setDirty(nil, "ui", region)</code>。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · 新增 <code>ArtGalleryViewer:_growForShadow</code></td>
+            <td><span class="tag add">加</span></td>
+            <td>美术馆只有单左抽屉，本函数为「升级抽象层级」预留（支持 right/top/bottom placement），当前 default = left → 扩展右向 width 28px 覆盖阴影带。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · <code>ArtGalleryViewer:update</code> 顶部</td>
+            <td><span class="tag refactor">重</span></td>
+            <td>加入消费 + 路由：顶部立刻 <code>local _zoom_fast = self._fast_refresh; self._fast_refresh = nil</code>，条件满足时直接 <code>return self:_updateImageOnly()</code>，跳过整个 build 阶段。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · update() 内的 setDirty 段</td>
+            <td><span class="tag refactor">重</span></td>
+            <td>「快速切图」+ <code>_flash_switch</code> + image_layer 已构建 → 走 <code>_repaintOverlayFast(wfm_mode)</code>；OFF 时仍走原 <code>wfm_mode = "full"</code>。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · <code>ArtGallery:extend</code></td>
+            <td><span class="tag fix">修</span></td>
+            <td><code>BB_CACHE_MAX = 3</code> 类字段放进 extend{}（不是文件顶部 84 行的「先于类声明」全局赋值 —— load_test 会 <code>attempt to index global 'ArtGallery' (a nil value)</code> 失败，已修复并跑 LOAD_OK 验证）。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>关键代码片段</h3>
+      <pre><code>function ArtGalleryViewer:update()
+    local _zoom_fast = self._fast_refresh
+    self._fast_refresh = nil                       -- 顶部立刻消费
+    if _zoom_fast and not self._gallery_mode
+            and self._image_layer and self._image_layer.dimen
+            and self._overlay and self.image_container
+            and self.main_frame and self.main_frame.dimen then
+        return self:_updateImageOnly()
+    end
+    self:_clean_image_wg()
+    ...                       -- 原 build 阶段未触动
+end</code></pre>
+
+      <h3>校核结果</h3>
+      <div class="chips">
+        <span class="chip ok">✓ LuaJIT 语法：PASS</span>
+        <span class="chip ok">✓ 自检循环：<code>PASS=16 FAIL=1</code>（仅 G: 待授权）</span>
+        <span class="chip ok">✓ 类顺序：OK（<code>BB_CACHE_MAX</code> 移到 extend{}）</span>
+        <span class="chip ok">✓ LOAD_OK（无 nil 全局索引）</span>
+        <span class="chip ok">✓ 缩放步骤：<code>_applyNewScaleFactor</code> → <code>ImageViewer._applyNewScaleFactor</code> → <code>update()</code> → 路由到 <code>_updateImageOnly</code></span>
+        <span class="chip ok">✓ 切图步骤：<code>switchToImageNum</code> → <code>_flash_switch=true</code> → <code>update()</code> → 切图快路径</span>
+        <span class="chip warn">⚠ 待 G: 实机测试：① 双击放大 / 滚轮 / 双指捏合 是否快且不抖；② 滑动翻页切图是否无闪且前图不穿透</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段五十 ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成（核对）</span>
+      <h2>阶段五十 · 核对已覆盖项（书签缩略图缓存 / 最大缩放可配置）</h2>
+      <span class="date">2026-08-29</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>六项候选清单里最后两条：书签缩略图落盘缓存、最大缩放可配置（150%-400%）。这两条在上游 Glimpse v1.5.1 里存在，但 Glimpse 的实现细节（PNG 落盘路径、菜单五档选项）已在美术馆 v1.0.21 阶段三八 + 阶段四〇分别实施完毕。按用户硬纪律「重复功能不吸收」，本阶段只核对不重写，避免双实现漂移。</p>
+
+      <h3>核对清单</h3>
+      <table>
+        <thead>
+          <tr><th>项</th><th>上游 v1.5.1 实现</th><th>美术馆 v1.0.22-rc 现状</th><th>结论</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>书签缩略图落盘缓存</td>
+            <td>磁盘 PNG + 内存 LRU；onCloseDocument 清空</td>
+            <td><code>main.lua</code> 4887 行：<code>local bd = DataStorage:getDataDir() .. "/artgallery/bookmark_cache/"</code>；4988 行：<code>self._bm_cache_dir</code> getter；5108-5145 行：<code>_bm_cache</code> 内存缓存 + 异步渲染 + 落盘 PNG；5163-5166 行：<code>ArtGallery:onCloseDocument</code> 清空。</td>
+            <td>✓ 已覆盖（不重写）</td>
+          </tr>
+          <tr>
+            <td>最大缩放可配置（150%-400%）</td>
+            <td><code>MAX_ZOOM_KEY="glimpse_max_zoom"</code> + <code>DEFAULT_MAX_ZOOM=2.0</code> + <code>MAX_ZOOM_CHOICES={1.5,2.0,2.5,3.0,4.0}</code></td>
+            <td><code>main.lua</code> 78 行：<code>MAX_ZOOM_KEY="artgallery_max_zoom"</code>；1194 行：默认 1.5 持久化；6750 行菜单五档（1.5/2.0/2.5/3.0/4.0）。</td>
+            <td>✓ 已覆盖（不重写）</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段五一 ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成（本地文档，待 GitHub Release 由用户拍板）</span>
+      <h2>阶段五一 · 「关于 美术馆」对话框 + README + 对比件 + CHANGELOG 同步</h2>
+      <span class="date">2026-08-29</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>动机</h3>
+      <p>用户硬纪律之一（已在项目 MEMORY）：「关于 美术馆」对话框内容每次更新后必须严格审阅，使功能/界面/操作介绍贴合现版本。同步：① README.md §相比上游中英文；② <code>audit/artgallery_vs_glimpse_compare.html</code> 标注 v1.5.1 已采纳项；③ <code>audit/CHANGELOG.html</code> 追加阶段四七~五一时间线。本阶段不动 G: 设备（部署须另外授权）。</p>
+
+      <h3>具体改动点</h3>
+      <table>
+        <thead>
+          <tr><th>文件</th><th>性质</th><th>改动说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>audit/CHANGELOG.html</code></td>
+            <td><span class="tag refactor">重</span></td>
+            <td>① 顶部版本号 → 1.0.22-rc；② 上游来源 → Glimpse v1.5.1（吸收基线 v1.3.0）；③ 顶部 v1.0.22-rc 即将发布 callout 列出六项落地；④ 追加阶段四七 / 四八 / 四九 / 五十 / 五一 节。</td>
+          </tr>
+          <tr>
+            <td><code>README.md</code></td>
+            <td><span class="tag refactor">重</span></td>
+            <td>「相比上游的改进」中英文段：补「快速切图」+ e-ink 修复说明；版本号预备 → 1.0.22。</td>
+          </tr>
+          <tr>
+            <td><code>audit/artgallery_vs_glimpse_compare.html</code></td>
+            <td><span class="tag refactor">重</span></td>
+            <td>① 副标题 → artgallery v1.0.22-rc × Glimpse v1.5.1；② 顶部对比引入本次新增项；③ v1.5.1 候选清单里标注「已采纳 / 已覆盖 / 跳过」。</td>
+          </tr>
+          <tr>
+            <td><code>main.lua</code> · 「关于 美术馆」guide 段（6920+）</td>
+            <td><span class="tag refactor">重</span></td>
+            <td>逐项核对：补「通用位图缓存 / 选择性圆角 / 缩放切图轻更新 / 长按抑制全闪」新功能表述；footer 归属块改写为 Glimpse v1.5.1（吸收基线 v1.3.0）。</td>
+          </tr>
+          <tr>
+            <td><code>_meta.lua</code></td>
+            <td><span class="tag refactor">重</span></td>
+            <td><code>version = "1.0.22"</code>（与 v1.0.21 比较：纯功能性增量、不发版需用户授权）。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== 阶段五二（hotfix） ===================== -->
+  <section class="phase open">
+    <div class="phase-head">
+      <span class="badge done">已完成（已部署 G:）</span>
+      <h2>阶段五二 · 修复「长按拖动无法平移图片」（阶段四八回归）</h2>
+      <span class="date">2026-08-29</span>
+    </div>
+    <div class="phase-body">
+
+      <h3>现象</h3>
+      <p>v1.0.22-rc 部署到 KPW3 后用户实测：<b>长按并拖动图片，松手后图片不平移</b>（v1.0.21 正常）。设备 <code>crash.log</code> <b>无任何报错</b>（最后一条 20:06:45 为正常退出），属<b>静默失效</b>而非崩溃。</p>
+
+      <h3>根因</h3>
+      <p>阶段四八新增的 <code>ArtGalleryViewer:onHoldRelease</code> 里，我把 <code>self._panning</code> <b>提前清成 false</b>，随后又委托 <code>ImageViewer.onHoldRelease</code>：</p>
+      <pre><code>if self._panning then
+    self._panning = false                       -- ← 提前消费了标志！
+    self._pan_relative_x = ges.pos.x - self._pan_relative_x
+    self._pan_relative_y = ges.pos.y - self._pan_relative_y
+    return ImageViewer.onHoldRelease(self, _, ges)  -- 上游进来看到 _panning==false
+end</code></pre>
+      <p>而上游的入口守卫正是 <code>if self._panning then</code>（<code>frontend/ui/widget/imageviewer.lua:639</code>）。标志被提前清掉 → <b>上游整个平移分支被跳过</b> → <code>panBy</code> 永不调用 → 拖动释放时什么都不发生。</p>
+      <p><b>这是阶段四九同类错误的镜像</b>：四九是 <code>_fast_refresh</code> 消费点<b>太靠后</b>（残留污染下一次 <code>update()</code>），五二是 <code>_panning</code> 消费点<b>太靠前</b>（委托前就吃掉）。两者同源 —— <b>覆写上游方法时，动了上游自己要读的状态标志</b>。</p>
+
+      <h3>修复</h3>
+      <p>对齐 Glimpse v1.5.1 <code>GlimpseViewer:onHoldRelease</code>（4517-4535 行）：<b>不委托上游，自己把整套分流做完</b>。</p>
+      <pre><code>function ArtGalleryViewer:onHoldRelease(_, ges)
+    if self._gallery_mode then return true end
+    if self._panning then
+        self._panning = false
+        -- 防御：_pan_relative_* 缺失则退化为零位移，绝不 nil 算术崩溃
+        local ox, oy = self._pan_relative_x, self._pan_relative_y
+        local gx = ges and ges.pos and ges.pos.x or 0
+        local gy = ges and ges.pos and ges.pos.y or 0
+        self._pan_relative_x = gx - (ox or gx)
+        self._pan_relative_y = gy - (oy or gy)
+        local thr = self.pan_threshold or Screen:scaleBySize(5)
+        if math.abs(self._pan_relative_x) &gt;= thr
+                or math.abs(self._pan_relative_y) &gt;= thr then
+            self:panBy(-self._pan_relative_x, -self._pan_relative_y)
+        end
+        -- 移动量小于阈值：原样吞掉，不触发上游那次整屏 full 闪
+    end
+    return true
+end</code></pre>
+      <p>关键：<code>pan_threshold</code> 是 ImageViewer 类字段（<code>imageviewer.lua:67</code>，<code>Screen:scaleBySize(5)</code>），美术馆未覆盖、继承可用；<code>panBy</code> 在 552 行定义、内部自带刷新，无需额外 <code>setDirty</code>。<code>&gt;=</code> 语义与上游原判据（两轴都 <code>&lt;</code> 阈值才闪）互补 —— 语义等价，只是把「闪」换成「什么都不做」。</p>
+
+      <h3>校核</h3>
+      <div class="chips">
+        <span class="chip ok">✓ LuaJIT 语法 SYNTAX_OK</span>
+        <span class="chip ok">✓ 类顺序 / local-underscore OK</span>
+        <span class="chip ok">✓ 装载期代理测试 LOAD_OK</span>
+        <span class="chip ok">✓ <b>新增手势桩测试 PASS=12 / FAIL=0</b>（拖动 / 不动 / 图库态 / 字段缺失 / 非 panning / 边界阈值 6 组）</span>
+        <span class="chip ok">✓ <b>反向验证：旧(BUG)实现喂同一套断言 → 用例 1 FAIL，证明测试非恒过</b></span>
+        <span class="chip ok">✓ 自检 harness PASS=17 / FAIL=0 → 自检通过</span>
+        <span class="chip ok">✓ 三副本内容一致 <code>ba57df1f8ecab9c9</code> · 341,837 B</span>
+        <span class="chip ok">✓ 已部署 G:（hotfix 前备份 <code>D:\backup\artgallery_G_main_before_holdpan_hotfix_20260829_201305.lua</code>）</span>
+        <span class="chip warn">⚠ 待真机复测：缩放态长按拖动应恢复平移</span>
       </div>
     </div>
   </section>

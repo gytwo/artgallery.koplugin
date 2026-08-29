@@ -192,7 +192,7 @@ Bookmarks never enter the Ignored pool. Rendering delegates to KOReader's built-
 
 **中文**：美术馆（ArtGallery）是 **Glimpse** 与 **Illustrations** 两个 KOReader 社区插件的合并与增强。为表述准确，下面以美术馆的**吸收基线**（Glimpse 截至 v1.2.5、Illustrations 截至 v0.5.2）**分别**对比两个上游：
 
-- **Glimpse** — 作者 Fank1（Erik Fanki）；最新稳定版 **v1.3.0**（2026-08-15）。美术馆吸收其 **v1.2.5** 的能力，并采纳 v1.3.0 的部分内部优化（菜单图标缓存、圆角渲染快填、弹出菜单自动旋转）；v1.3.0 新增的「书签入画廊」由美术馆**独立实现**（见 §11），其「屏上 +/fit/− 缩放控件」与「全局总开关」美术馆未采用（改用双击/捏合与逐项开关）。[github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
+- **Glimpse** — 作者 Fank1（Erik Fanki）；最新稳定版 **v1.5.1**（2026-08-15 起迭代 v1.3.0 → v1.5.1）。美术馆吸收其 **v1.2.5** 的能力，并采纳 v1.3.0 与 v1.5.1 的内部优化（v1.3.0：菜单图标缓存、圆角渲染快填、弹出菜单自动旋转；v1.5.1：通用位图缓存 LRU、缩放/切图轻更新、选择性圆角、长按释放抑制全闪）。v1.3.0 的「书签入画廊」由美术馆**独立实现**（见 §11），其「屏上 +/fit/− 缩放控件」与「全局总开关」美术馆未采用（改用双击/捏合与逐项开关）。[github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
 - **Illustrations** — 作者 agaragou；最新 **v0.5.2**（2026-04-25）：[github.com/agaragou/illustrations.koplugin](https://github.com/agaragou/illustrations.koplugin)
 
 > 说明：美术馆是"合并"而非"从零发明"。表中凡标注「同源 / 均具备」的项，表示该能力本就来自对应上游、美术馆继承沿用；标注「美术馆新增 / 增强」的，才是相对该上游的差异化改进。
@@ -215,7 +215,7 @@ Glimpse 是功能更完整的上游（"随时偷看书中参考图而不丢位�
 | 阅读进度 | 刻意"不改动你的位置" | **可主动同步书籍自身进度**（分页 / 滚动分别开关） | 方向相反：Glimpse 不推进，美术馆可选推进 |
 | 维护 | 独立仓库、自带更新器 | 合并为单插件，更新器统一指向本仓库 | 装一个即可，无需并存 |
 
-> **关于 Glimpse v1.3.0（2026-08-15）**：上表以美术馆吸收基线 **v1.2.5** 为准。v1.3.0 的核心新增「书签入画廊」美术馆已**独立实现**（独立「书签」段 · 轻点全屏看图 · 长按可跳转/收藏/删除，见 §11），二者机制不同——glimpse 把书签**并入图片池**按阅读顺序穿插，美术馆用**独立段**。v1.3.0 另增「屏上 +/fit/− 缩放控件」与「全局总开关 Enable Glimpse」——美术馆未采用，改用双击↔2× + 捏合缩放与逐项手势/功能开关（更贴合墨水屏免闪烁体验）。其「无闪烁切图 / 菜单提速」对墨水屏无额外收益，美术馆刷新系统本就免闪。
+> **关于 Glimpse v1.3.0 → v1.5.1（2026-08-15 起迭代）**：上表以美术馆吸收基线 **v1.2.5** 为准。v1.3.0 核心新增「书签入画廊」美术馆已**独立实现**（独立「书签」段 · 轻点全屏看图 · 长按可跳转/收藏/删除，见 §11），二者机制不同——glimpse 把书签**并入图片池**按阅读顺序穿插，美术馆用**独立段**。v1.3.0 另增「屏上 +/fit/− 缩放控件」与「全局总开关 Enable Glimpse」——美术馆未采用，改用双击↔2× + 捏合缩放与逐项手势/功能开关（更贴合墨水屏免闪烁体验）。v1.5.1 的「通用位图缓存 LRU / 缩放切图轻更新 / 选择性圆角 / 长按释放抑制全闪」等内部优化已在美术馆**逐项采纳**（阶段四七~五一，见 `audit/CHANGELOG.html`），其「屏上 MiniMap」因墨水屏刷新开销过大被划入 SKIP。其「无闪烁切图」与上游 `FAST_SWITCH_KEY` 同构，作为菜单开关「快速切图（无闪刷新）」开放，默认开启。
 
 ### 对比 Illustrations v0.5.2
 
@@ -239,7 +239,7 @@ Illustrations 是较精简的上游（"浏览 EPUB 中所有插图"）。它本�
 
 **English**: ArtGallery merges two KOReader community plugins, **Glimpse** and **Illustrations**, and enhances them. For accuracy, the comparison below is made **separately** against each upstream at the version ArtGallery absorbed (Glimpse up to v1.2.5, Illustrations up to v0.5.2):
 
-- **Glimpse** — by Fank1 (Erik Fanki); latest stable **v1.3.0** (2026-08-15). ArtGallery absorbed its capabilities **up to v1.2.5** and adopts some of v1.3.0's internal optimizations (menu-icon caching, rounded-stencil fast-fill, popup auto-rotation); v1.3.0's new "bookmarks in Gallery" is **independently implemented** in ArtGallery (see §11), and its on-screen +/fit/− zoom controls and global master switch are not adopted (ArtGallery uses double-tap/pinch and per-item toggles instead). [github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
+- **Glimpse** — by Fank1 (Erik Fanki); latest stable **v1.5.1** (iterated from v1.3.0 → v1.5.1 since 2026-08-15). ArtGallery absorbed its capabilities **up to v1.2.5** and adopts some of v1.3.0's and v1.5.1's internal optimizations (v1.3.0: menu-icon caching, rounded-stencil fast-fill, popup auto-rotation; v1.5.1: shared decoded-bitmap LRU cache, zoom/switch light update, selective-corner stencil, hold-release full-flash suppression). v1.3.0's "bookmarks in Gallery" is **independently implemented** in ArtGallery (see §11), and its on-screen +/fit/− zoom controls and global master switch are not adopted (ArtGallery uses double-tap/pinch and per-item toggles instead). [github.com/Fank1/glimpse](https://github.com/Fank1/glimpse)
 - **Illustrations** — by agaragou; latest **v0.5.2** (2026-04-25): [github.com/agaragou/illustrations.koplugin](https://github.com/agaragou/illustrations.koplugin)
 
 > Note: ArtGallery is a *merge*, not invented from scratch. Rows marked "same / both have" mean the capability already came from that upstream and is inherited; rows marked "ArtGallery added / enhanced" are the differentiators vs that upstream.
@@ -262,7 +262,7 @@ Glimpse is the more complete upstream (the "peek at reference images" plugin). I
 | Reading progress | Deliberately "doesn't change your place" | **Optionally syncs the book's own progress** (separate paged / scrolling toggles) | Opposite: Glimpse never advances; ArtGallery can |
 | Maintenance | Separate repo, own updater | Merged into one plugin, updater points to this repo | Install one, no need to coexist |
 
-> **On Glimpse v1.3.0 (2026-08-15)**: the table above uses ArtGallery's absorption baseline **v1.2.5**. v1.3.0's headline "bookmarks in Gallery" feature is **independently implemented** in ArtGallery (separate Bookmarks tab · tap to fullscreen · long-press to jump/favorite/delete, see §11) — the mechanism differs: Glimpse merges bookmarks into the image pool interleaved by reading order, while ArtGallery uses a dedicated tab. v1.3.0 also adds on-screen +/fit/− zoom controls and a global "Enable Glimpse" master switch — ArtGallery does not adopt these, using double-tap↔2× + pinch zoom and per-item toggles instead (better suited to flicker-free e-ink). Its "flashless image switching / faster menus" brings no extra benefit on e-ink, where ArtGallery's refresh system is already flicker-free.
+> **On Glimpse v1.3.0 → v1.5.1 (iterated since 2026-08-15)**: the table above uses ArtGallery's absorption baseline **v1.2.5**. v1.3.0's headline "bookmarks in Gallery" feature is **independently implemented** in ArtGallery (separate Bookmarks tab · tap to fullscreen · long-press to jump/favorite/delete, see §11) — the mechanism differs: Glimpse merges bookmarks into the image pool interleaved by reading order, while ArtGallery uses a dedicated tab. v1.3.0 also adds on-screen +/fit/− zoom controls and a global "Enable Glimpse" master switch — ArtGallery does not adopt these, using double-tap↔2× + pinch zoom and per-item toggles instead (better suited to flicker-free e-ink). v1.5.1's "shared decoded-bitmap LRU / zoom/switch light update / selective-corner stencil / hold-release full-flash suppression" internal optimizations have been adopted one-by-one in ArtGallery (stages 四七~五一, see `audit/CHANGELOG.html`); its on-screen MiniMap is SKIPPED because e-ink refresh overhead is excessive. Its "flashless image switching" parallels the upstream `FAST_SWITCH_KEY` — exposed as the menu toggle "Quick image switching (flashless)" and on by default.
 
 ### vs Illustrations v0.5.2
 
@@ -291,14 +291,14 @@ Illustrations is the leaner upstream ("browse all illustrations in an EPUB"). It
 ### 方式一：Release 安装包（推荐）/ Option 1: Release package (recommended)
 
 **中文**：
-1. 前往 [Releases · v1.0.21](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.21)；
-2. 下载 `artgallery.koplugin-v1.0.21.zip`；
+1. 前往 [Releases · v1.0.22](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.22)（若 Release 尚未发布，可从 [main 分支](https://github.com/ksaMask123/artgallery.koplugin) 直接下载 `main.lua` 与 `_meta.lua` 自行覆盖，或使用方式二）；
+2. 下载 `artgallery.koplugin-v1.0.22.zip`；
 3. 解压得到 `artgallery.koplugin` 文件夹，复制到 KOReader 的插件目录 `koreader/plugins/`（设备上路径为 `KOReader/plugins/artgallery.koplugin/`）；
 4. 重启 KOReader，即可在书籍内通过菜单「美术馆 / ArtGallery」打开看图。
 
 **English**:
-1. Go to [Releases · v1.0.21](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.21);
-2. Download `artgallery.koplugin-v1.0.21.zip`;
+1. Go to [Releases · v1.0.22](https://github.com/ksaMask123/artgallery.koplugin/releases/tag/v1.0.22) (if the release is not yet published, grab `main.lua` and `_meta.lua` directly from the [main branch](https://github.com/ksaMask123/artgallery.koplugin), or use Option 2);
+2. Download `artgallery.koplugin-v1.0.22.zip`;
 3. Extract the `artgallery.koplugin` folder and copy it into KOReader's plugin directory `koreader/plugins/` (i.e. `KOReader/plugins/artgallery.koplugin/` on your device);
 4. Restart KOReader. Open the viewer from the in-book menu item **美术馆 / ArtGallery**.
 
