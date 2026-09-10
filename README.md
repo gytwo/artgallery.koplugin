@@ -1,5 +1,6 @@
 # 美术馆 / ArtGallery — KOReader 看图插件「美术馆 / ArtGallery修改版」
-**说明**：本项目fork自上游项目ArtGallery.koplugin,在其基础上做了以下修改：
+**说明**：本项目fork自上游项目[artgallery.koplugin](https://github.com/ksaMask123/artgallery.koplugin),在其基础上做了以下修改：
+
 ### 删除全屏沉浸式看图模式，代之以抽屉比例（0.8/1/0/0.5）配置
 - 任何比例均保持原有沉浸式看图所有额外功能
 - 双击/双指打开/捏合/滑动手势缩放移动
