@@ -1416,6 +1416,7 @@ function ArtGalleryViewer:update()
 
     -- 判断哪些按钮显示（从高优先级到低优先级隐藏）
     -- 必须保留：填充模式、更多菜单
+    local show_smart = true
     local show_fill = true
     local show_more = true
     
@@ -1485,33 +1486,33 @@ function ArtGalleryViewer:update()
         show_pill = false
         total_needed = total_needed - pill_width - btn_gap
     end
-    
-    -- 优先级3：图库
-    if total_needed > avail_width - safety_margin and show_gallery then
-        show_gallery = false
-        left_width = left_width - gallery_btn_width - btn_gap
-        total_needed = total_needed - gallery_btn_width - btn_gap
+
+    -- 优先级3：收藏
+    if total_needed > avail_width - safety_margin and show_fav then
+        show_fav = false
+        right_width = right_width - fav_btn_width - btn_gap
+        total_needed = total_needed - fav_btn_width - btn_gap
     end
-    
-    -- 优先级4：智能旋转
-    if total_needed > avail_width - safety_margin and show_smart then
-        show_smart = false
-        right_width = right_width - smart_btn_width - btn_gap
-        total_needed = total_needed - smart_btn_width - btn_gap
+
+    -- 优先级4：适配（填充模式按钮）
+    if total_needed > avail_width - safety_margin and show_fill then
+        show_fill = false
+        left_width = left_width - fill_btn_width - btn_gap
+        total_needed = total_needed - fill_btn_width - btn_gap
     end
-    
+
     -- 优先级5：比例切换
     if total_needed > avail_width - safety_margin and show_ratio then
         show_ratio = false
         left_width = left_width - ratio_btn_width - btn_gap
         total_needed = total_needed - ratio_btn_width - btn_gap
     end
-    
-    -- 优先级6：收藏（最后隐藏）
-    if total_needed > avail_width - safety_margin and show_fav then
-        show_fav = false
-        right_width = right_width - fav_btn_width - btn_gap
-        total_needed = total_needed - fav_btn_width - btn_gap
+
+    -- 优先级6：图库（最后隐藏）
+    if total_needed > avail_width - safety_margin and show_gallery then
+        show_gallery = false
+        left_width = left_width - gallery_btn_width - btn_gap
+        total_needed = total_needed - gallery_btn_width - btn_gap
     end
 
     -- optional prev/next buttons: always shown while the toggle is on
