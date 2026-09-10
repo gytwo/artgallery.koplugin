@@ -15,35 +15,27 @@
 - 添加已过滤图库视图并优化循环顺序
 - 添加/编辑/删除图片备注
 - 添加复习模式（显示备注隐藏图片，单击切换图片显示/隐藏）
-
+> 抽屉比例：0.5、0.8、1（点击底部最左侧比例按钮循环切换）
 <table>
   <tr>
-    <td><img src="assets
-/screenshots/修改版-0.5倍抽屉.png" alt="修改版-0.5倍抽屉" width="300" /></td>
-    <td><img src="assets
-/screenshots/修改版-0.8倍抽屉.png" alt="修改版-0.8倍抽屉" width="300" /></td>
-    <td><img src="assets
-/screenshots/修改版-1倍抽屉.png" alt="修改版-1倍抽屉" width="300" /></td>
+    <td><img src="assets/screenshots/修改版-0.5倍抽屉.png" alt="修改版-0.5倍抽屉" width="300" /></td>
+    <td><img src="assets/screenshots/修改版-0.8倍抽屉.png" alt="修改版-0.8倍抽屉" width="300" /></td>
+    <td><img src="assets/screenshots/修改版-1倍抽屉.png" alt="修改版-1倍抽屉" width="300" /></td>
   </tr>
 </table>
-
+> 图库界面：底部按钮自动根据可用空间显示/隐藏计数项目
 <table>
   <tr>
-    <td><img src="assets
-/screenshots/修改版-图库按钮-0.5倍抽屉.png" alt="修改版-图库按钮-0.5倍抽屉" width="400" /></td>
-    <td><img src="assets
-/screenshots/修改版-图库按钮-0.8倍抽屉.png" alt="修改版-图库按钮-0.8倍抽屉" width="400" /></td>
+    <td><img src="assets/screenshots/修改版-图库按钮-0.5倍抽屉.png" alt="修改版-图库按钮-0.5倍抽屉" width="400" /></td>
+    <td><img src="assets/screenshots/修改版-图库按钮-0.8倍抽屉.png" alt="修改版-图库按钮-0.8倍抽屉" width="400" /></td>
   </tr>
 </table>
-
+> 更多菜单/添加备注/智能旋转功能
 <table>
   <tr>
-    <td><img src="assets
-/screenshots/修改版-更多菜单.png" alt="修改版-更多菜单" width="300" /></td>
-    <td><img src="assets
-/screenshots/修改版-添加备注.png" alt="修改版-添加备注" width="300" /></td>
-    <td><img src="assets
-/screenshots/修改版-智能旋转.png" alt="修改版-智能旋转" width="300" /></td>
+    <td><img src="assets/screenshots/修改版-更多菜单.png" alt="修改版-更多菜单" width="300" /></td>
+    <td><img src="assets/screenshots/修改版-添加备注.png" alt="修改版-添加备注" width="300" /></td>
+    <td><img src="assets/screenshots/修改版-智能旋转.png" alt="修改版-智能旋转" width="300" /></td>
   </tr>
 </table>
 
