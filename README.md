@@ -16,6 +16,37 @@
 - 添加/编辑/删除图片备注
 - 添加复习模式（显示备注隐藏图片，单击切换图片显示/隐藏）
 
+<table>
+  <tr>
+    <td><img src="assets
+/screenshots/修改版-0.5倍抽屉.png" alt="修改版-0.5倍抽屉" width="300" /></td>
+    <td><img src="assets
+/screenshots/修改版-0.8倍抽屉.png" alt="修改版-0.8倍抽屉" width="300" /></td>
+    <td><img src="assets
+/screenshots/修改版-1倍抽屉.png" alt="修改版-1倍抽屉" width="300" /></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td><img src="assets
+/screenshots/修改版-图库按钮-0.5倍抽屉.png" alt="修改版-图库按钮-0.5倍抽屉" width="400" /></td>
+    <td><img src="assets
+/screenshots/修改版-图库按钮-0.8倍抽屉.png" alt="修改版-图库按钮-0.8倍抽屉" width="400" /></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td><img src="assets
+/screenshots/修改版-更多菜单.png" alt="修改版-更多菜单" width="300" /></td>
+    <td><img src="assets
+/screenshots/修改版-添加备注.png" alt="修改版-添加备注" width="300" /></td>
+    <td><img src="assets
+/screenshots/修改版-智能旋转.png" alt="修改版-智能旋转" width="300" /></td>
+  </tr>
+</table>
+
 > 中文说明在上，English below. / Chinese description first, English below.
 
 ---
