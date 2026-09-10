@@ -714,8 +714,13 @@ function ArtGallerySegmented:init()
     self._text_wgs = {}
     local total = 0
     for i, seg in ipairs(self.segments) do
+        -- count 为 nil 时不拼 [N]，只显示标签（空间不足的紧凑形态）
+        local label_text = seg.label
+        if seg.count ~= nil then
+            label_text = label_text .. "[" .. tostring(seg.count) .. "]"
+        end
         local tw = TextWidget:new{
-            text = seg.label .. "[" .. tostring(seg.count) .. "]",
+            text = label_text,
             face = self.face,
             bold = true,
             fgcolor = seg.active and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK,
@@ -1632,9 +1637,7 @@ function ArtGalleryViewer:update()
 
     -- 画廊模式：返回按钮
     if self._gallery_mode then
-        self._close_frame = ArtGalleryTextButton:new{
-            text = _("返回"),
-            bold = true,
+        self._close_frame = ArtGalleryMoreButton:new{
             icon = _PLUGIN_DIR .. "/assets/back.svg",
         }
         local size = self._close_frame:getSize()
@@ -2378,7 +2381,7 @@ function ArtGalleryViewer:_buildPill()
         local _fav_list, fav_metas = self:_favoritesLists()  -- 走 _fav_cache，无性能回归
         local fav_count = fav_metas and #fav_metas or 0
         local cur = self._gallery_filter or "all"
-        local segs = {
+         local segs = {
             { key = "all",       label = _("全部"), count = all_count,
               active = cur == "all" },
             { key = "favorites", label = _("收藏"), count = fav_count,
@@ -2391,6 +2394,24 @@ function ArtGalleryViewer:_buildPill()
         if self:_hasBookmarkTab() then
             segs[#segs + 1] = { key = "bookmarks", label = _("书签"),
                 count = self:_bookmarkCount(), active = cur == "bookmarks" }
+        end
+        -- 空间不足时不显示各段数量：估算「带数量」的自然总宽，
+        -- 超过可用宽度就把每段 count 置 nil（init 里会只拼标签）。
+        do
+            local avail = self.width - 4 * Screen:scaleBySize(16)
+            local probe = Font:getFace("cfont", 15)
+            local need = 0
+            for _, s in ipairs(segs) do
+                local tw = TextWidget:new{
+                    text = s.label .. "[" .. tostring(s.count) .. "]",
+                    face = probe, bold = true,
+                }
+                need = need + tw:getSize().w + 2 * ArtGallerySegmented.padding_h
+                tw:free()
+            end
+            if need > avail then
+                for _, s in ipairs(segs) do s.count = nil end
+            end
         end
         self._pill_frame = ArtGallerySegmented:new{ segments = segs, text = self:_galleryFilterLabel(), bold = true }
         return
