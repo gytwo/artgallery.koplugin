@@ -539,7 +539,7 @@ local ArtGalleryCaption = Widget:extend{
 }
 
 function ArtGalleryCaption:init()
-    local face = Font:getFace("cfont", 12)
+    local face = Font:getFace("cfont", 24)
     local probe = TextWidget:new{ text = self.text, face = face, bold = true }
     local natural = probe:getSize().w
     probe:free()
