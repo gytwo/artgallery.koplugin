@@ -1145,7 +1145,7 @@ end
 
 function ArtGalleryViewer:init()
     self._cur_rotation = self:_prefFor(1).rotation or 0
-    self._fullscreen_fill = G_reader_settings:readSetting("artgallery_default_fill") or "cover"
+    self._fullscreen_fill = G_reader_settings:readSetting("artgallery_default_fill") or "contain"
     local saved = G_reader_settings:readSetting(PANEL_RATIO_KEY)
     self.panel_ratio = saved or PANEL_RATIO_DEFAULT
     -- 最大放大倍数（相对图片原生尺寸）：抽屉态上限，全屏态 _maxScale 再 ×2。
