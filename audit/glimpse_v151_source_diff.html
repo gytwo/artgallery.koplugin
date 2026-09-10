@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美术馆 vs Glimpse v1.5.1 源码级差异与吸收建议</title>
+<style>
+  :root{ --bg:#0f1419; --panel:#1b222b; --card:#222b36; --ink:#e6edf3; --muted:#9fb0bf;
+         --red:#e5484d; --green:#30a46c; --amber:#e8b341; --line:#33414f; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;line-height:1.65;padding:28px;}
+  h1{font-size:24px;margin:0 0 4px}
+  h2{font-size:18px;margin:30px 0 10px;border-left:4px solid var(--amber);padding-left:10px}
+  .sub{color:var(--muted);margin:0 0 18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px}
+  th,td{border:1px solid var(--line);padding:8px 10px;vertical-align:top;text-align:left}
+  th{background:var(--card);color:var(--ink)}
+  .p0{color:var(--red);font-weight:700}
+  .p1{color:var(--amber);font-weight:700}
+  .p2{color:var(--green);font-weight:700}
+  code{background:var(--card);padding:1px 6px;border-radius:5px;font-size:12.5px;color:#9cdcfe}
+  .ok{color:var(--green)}
+  .no{color:var(--red)}
+  .tag{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;margin-right:4px}
+  footer{color:var(--muted);font-size:12px;margin-top:28px;border-top:1px solid var(--line);padding-top:12px}
+  .warn{background:#2a1d1d;border:1px solid var(--red);color:#ffd7d7;padding:12px 14px;border-radius:10px;margin:14px 0}
+</style>
+</head>
+<body>
+<h1>美术馆 vs Glimpse v1.5.1 — 源码级差异与吸收建议</h1>
+<p class="sub">基于真实源码 diff，而非更新日志。基线 = Glimpse v1.3.0（美术馆已吸收基线）；目标 = v1.5.1。</p>
+
+<div class="warn">
+⚠️ 方法论说明：本报告的「差异」全部来自对 GitHub 上两份真实 <code>plugin/main.lua</code> 的函数级 diff，并用上游 CHANGELOG 做<b>反向核对</b>（防止作者封闭测试期间加入、但日志遗漏的内容），再用 grep 核验美术馆当前源码覆盖情况。结论不依赖更新日志措辞。
+</div>
+
+<div class="card">
+<b>源码体量（字符数）</b><br>
+Glimpse v1.3.0：263,653　|　Glimpse v1.5.1：341,479　|　美术馆当前：294,213<br>
+v1.3.0→v1.5.1 <b>新增函数 47 个</b>（含方法）；其中 93 个 v1.5.1 符号在美术馆中未出现（多数因命名差异/未吸收上游特性）。
+</div>
+
+<h2>一、上游 v1.3.0 → v1.5.1 实际新增（按源码归类）</h2>
+<div class="card">
+<table>
+<tr><th>功能区</th><th>上游关键实现（函数名，已归一化）</th><th>性质</th></tr>
+<tr><td>缩放/手势性能</td><td><code>_updateImageOnly</code> <code>_repaintOverlayFast</code> <code>_displayedImageSize</code> <code>_growForShadow</code> <code>_zoomStep</code> <code>onPinch</code> <code>onSpread</code> <code>onHoldRelease</code> <code>_cornerGeom</code></td><td>缩放只重绘图片、圆角几何</td></tr>
+<tr><td>屏幕缩放按钮</td><td><code>ArtGalleryZoomControl</code>（<code>:init/:free/:getSize/:paintTo/_ensureIcons</code>）</td><td>+/fit/− 条</td></tr>
+<tr><td>迷你地图</td><td><code>ArtGalleryMiniMap</code>（<code>_buildMiniMap/_toggleMiniMap/_minimapThumb/_viewportRect</code>）</td><td>视口导航</td></tr>
+<tr><td>抽屉布局对话框</td><td><code>ArtGalleryLayoutDialog</code> + <code>ArtGalleryLayoutPreview</code> + <code>_prefAlign</code> <code>_portraitPos</code> <code>render_layout_svg</code></td><td>左/右对齐、竖屏位置、实时预览</td></tr>
+<tr><td>标签切换</td><td><code>ArtGalleryTabSwitcher</code>（<code>setWidth/hitSegment/paintTo</code>）+ <code>_switchGalleryTab</code></td><td>Gallery/Ignored 切换</td></tr>
+<tr><td>位图缓存</td><td><code>_bbCacheGet/_bbCachePut/_bbCacheFree</code></td><td>Blitbuffer 缓存（更通用的图标缓存）</td></tr>
+<tr><td>圆角/阴影</td><td><code>make_corner_stencil</code> <code>arc_center</code> <code>drop_shadow_bb</code> <code>paint_drop_shadow</code> + <code>ArtGalleryDimVeil</code></td><td>选择性圆角、软阴影、遮罩</td></tr>
+<tr><td>书签增强</td><td><code>bookmark_dot_stencil</code> <code>ArtGalleryBookmarkPill</code> <code>_restoreDogear</code> <code>_suppressDogear</code> <code>_bmDiskDir/_bmDiskPath</code> <code>_removeCurrentBookmark</code></td><td>书签小图标、落盘缓存、狗耳清理</td></tr>
+<tr><td>预取/重绘</td><td><code>_prefetchNeighbors</code> <code>_recenterTo</code> <code>_flashZoomZone</code></td><,td>邻图预取、缩放回中</td></tr>
+<tr><td>其他</td><td><code>_artgalleryGestures</code> <code>_metaPageNumber</code> <code>_showLayoutDialog</code> 等</td><td>手势配置、页码</td></tr>
+</table>
+</div>
+
+<h2>二、逐项吸收建议（按 ROI 排序）</h2>
+
+<h3 class="p0">P0 — 强烈建议吸收（低风险、电子墨水高收益）</h3>
+<div class="card">
+<table>
+<tr><th>功能</th><th>上游实现</th><th>美术馆现状</th><th>建议 / 风险</th></tr>
+<tr>
+  <td>缩放/切图只重绘图片而非重建视图</td>
+  <td><code>_updateImageOnly</code> <code>_repaintOverlayFast</code> <code>_displayedImageSize</code> <code>_growForShadow</code></td>
+  <td class="no">未确认；zoom 已有但可能仍重建视图</td>
+  <td class="ok">吸收。直接减少 e-ink 残影/ghost，与我们「免闪」目标一致。需逐条核对实现再移植。</td>
+</tr>
+<tr>
+  <td>多项 e-ink 修复（ghost 残影、长按时整屏闪、旋转后圆角变方、白抽屉暗模式）</td>
+  <td>CHANGELOG 列多条；源码含 <code>_repaintOverlayFast</code> <code>menu._restore_region</code> <code>_cornerGeom</code> 等</td>
+  <td class="no">未覆盖或不确定</td>
+  <td class="ok">逐条比对源码后吸收。对 KPW3 是刚需，优先于新功能。</td>
+</tr>
+<tr>
+  <td>最大缩放可配置（150%–400%）</td>
+  <td><code>_maxScale</code> 上游已参数化；CHANGELOG「Advanced → Maximum zoom」</td>
+  <td class="ok">已有 <code>_maxScale()</code>，但需核实是否写死上限</td>
+  <td class="ok">核实后加配置项，低风险。</td>
+</tr>
+</table>
+</div>
+
+<h3 class="p1">P1 — 按需吸收（价值明确，但需评估适配）</h3>
+<div class="card">
+<table>
+<tr><th>功能</th><th>上游实现</th><th>美术馆现状</th><th>建议 / 风险</th></tr>
+<tr>
+  <td>屏幕 +/-/fit 缩放按钮</td>
+  <td><code>ArtGalleryZoomControl</code></td>
+  <td class="no">无（仅有双击↔2× + 捏合）</td>
+  <td>Kindle 无捏合时更友好；但会增加 UI 复杂度，建议作为可选开关。</td>
+</tr>
+<tr>
+  <td>数字页码指示器（3 / 42）</td>
+  <td><code>NUMERIC_PILL_KEY</code>（可选）</td>
+  <td class="no">无</td>
+  <td>可选增强；注意中国习惯「涨红跌绿」不适用此处（纯计数），默认 CNY/RMB 也不适用。</td>
+</tr>
+<tr>
+  <td>通用位图缓存 <code>_bbCache</code></td>
+  <td><code>_bbCacheGet/Put/Free</code></td>
+  <td class="ok">已有图标缓存（v1.3.0 吸收）</td>
+  <td>可统一为一套缓存机制，降低重复代码。</td>
+</tr>
+<tr>
+  <td>选择性圆角 <code>make_corner_stencil</code></td>
+  <td><code>make_corner_stencil</code> <code>arc_center</code></td>
+  <td class="ok">已有 <code>make_rounded_stencil</code></td>
+  <td>扩展现有圆角快填，仅当抽屉需要单边圆角时引入。</td>
+</tr>
+<tr>
+  <td>书签缩略图落盘缓存 / 书签小图标</td>
+  <td><code>_bmDiskDir/_bmDiskPath</code> <code>bookmark_dot_stencil</code></td>
+  <td class="ok">书签体系已有（Stage 38）；dog-ear 用 KOReader 原生</td>
+  <td>对照片断；书签小图标可提升画廊可读性，建议评估。</td>
+</tr>
+</table>
+</div>
+
+<h3 class="p2">P2 — 暂不建议 / 上游独有</h3>
+<div class="card">
+<table>
+<tr><th>功能</th><th>说明</th><th>结论</th></tr>
+<tr><td>迷你地图 MiniMap</td><td>视口导航，电子墨水开销大、刷新频繁</td><td class="no">SKIP（与 e-ink 省电/防残影冲突）</td></tr>
+<tr><td>Gallery/Ignored 标签切换</td><td><code>ArtGalleryTabSwitcher</code></td><td class="ok">美术馆已有等价能力（<code>_tabList</code>/<code>, _ignoredCount</code>/<code>_hasIgnoredTab</code>），无需重复</td></tr>
+<tr><td>全局开关 / Crowdin 翻译 / GitHub DNS 重试 / 扫描随书存储</td><td>上游特有工作流</td><td class="no">不适用或低优先（美术馆暂无更新检查，扫描已用 doc_settings）</td></tr>
+</table>
+</div>
+
+<h2>三、已确认美术馆已覆盖（避免重复造轮子）</h2>
+<div class="card">
+<ul>
+<li class="ok">✓ Gallery/Ignored 切换：<code>_tabList</code> / <code>_hasIgnoredTab</code> / <code>_ignoredCount</code></li>
+<li class="ok">✓ 书签双向同步 + dog-ear 即时重绘：直接复用 KOReader 原生 <code>ui.view.dogear</code></li>
+<li class="ok">✓ 图标缓存、圆角快填、弹窗自动旋转（v1.3.0 已采纳）</li>
+<li class="ok">✓ 最大缩放函数 <code>_maxScale()</code> 已存在（待核实是否可配置）</li>
+<li class="ok">✓ 已有「numeric-alpha below-repaint」性能优化（低于整页重绘）</li>
+</ul>
+</div>
+
+<h2>四、文档一致性提示</h2>
+<div class="card">
+现有对比件 <code>audit/artgallery_vs_glimpse_compare.html</code> 仅记录到 v1.3.0。本次发现 v1.5.1 大量新增特性尚未纳入三版统一文档（README / 对比件 / 「关于」对话框）。若后续吸收，须同步更新，维持「三版一致」纪律。
+</div>
+
+<h2>五、下一步</h2>
+<div class="card">
+<ol>
+<li><b>阶段四七（建议）</b>：吸收 P0 —— 缩放只重绘优化 + 逐条核对 e-ink ghost/闪/圆角修复。</li>
+<li>每吸收一项：跑自检循环（PASS=14/FAIL=0）→ 三副本一致 → 同步 CHANGELOG + 对比件 + 「关于」文本。</li>
+<li>若授权，优先做 P0，再评估 P1；P2 暂不纳入。</li>
+</ol>
+</div>
+
+<footer>
+数据来源：GitHub 真实源码 <code>plugin/main.lua</code>（tag v1.3.0 与 v1.5.1，Fank1/glimpse）+ 美术馆 E 盘工作副本。CHANGELOG 仅作反向核对，不作为事实来源。
+</footer>
+</body>
+</html>
