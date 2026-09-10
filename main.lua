@@ -4492,6 +4492,19 @@ function ArtGalleryViewer:_nativeScale()
     return nat_w / lo_w
 end
 
+-- Zoom ceiling in capped-bitmap units: native size × the readability
+-- multiplier (max_zoom_of_native). Both the pinch clamp and the double-tap
+-- target land here.
+function ArtGalleryViewer:_maxScale()
+    local nat = self:_nativeScale()
+    -- 每次实时读，菜单改完立即生效（不再用 init 缓存的实例字段）
+    local m = G_reader_settings:readSetting(MAX_ZOOM_KEY) or 1.5
+    -- 全屏 cover 的基准可能超过 1.5（横图按高度铺满时），放宽缩放上限，
+    -- 避免「放大手势反而把图片缩小」的怪异表现。
+    if self._fullscreen then m = m * 2 end
+    return nat and nat * m
+end
+
 function ArtGalleryViewer:panBy(x, y)
     local wg = self._image_wg
     if not wg or not wg._bb then return end
