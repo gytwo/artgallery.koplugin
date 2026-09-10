@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>artgallery.koplugin v1.0.19 · KPW3 实机验证清单（阶段三八 书签入画廊）</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#30363d;
+    --txt:#c9d1d9; --dim:#8b949e; --ok:#3fb950; --warn:#d29922; --bad:#f85149; --accent:#58a6ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:"Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;line-height:1.6;padding:28px 20px 60px}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:22px;border-left:4px solid var(--accent);padding-left:12px;margin:0 0 6px}
+  h2{font-size:17px;margin:28px 0 10px;padding:6px 10px;background:var(--panel2);border-radius:6px;border-left:3px solid var(--accent)}
+  .sub{color:var(--dim);font-size:13px;margin:0 0 18px}
+  .note{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 16px;font-size:13.5px;margin:14px 0}
+  .note.warn{border-color:var(--warn);background:rgba(210,153,34,.08)}
+  .note.ok{border-color:var(--ok);background:rgba(63,185,80,.08)}
+  ul{list-style:none;padding:0;margin:8px 0}
+  li{padding:7px 10px 7px 36px;position:relative;border-bottom:1px dashed var(--line);font-size:14px}
+  li:last-child{border-bottom:none}
+  li::before{content:"☐";position:absolute;left:10px;top:7px;color:var(--accent);font-size:15px}
+  li code{background:var(--panel2);padding:1px 6px;border-radius:4px;color:var(--accent);font-size:12.5px}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;margin-left:6px;vertical-align:middle}
+  .tag.req{background:rgba(88,166,255,.15);color:var(--accent)}
+  .tag.opt{background:rgba(139,148,158,.15);color:var(--dim)}
+  .tag.kpw3{background:rgba(63,185,80,.15);color:var(--ok)}
+  .err{color:var(--bad);font-weight:600}
+  .okt{color:var(--ok);font-weight:600}
+  .warnv{color:var(--warn);font-weight:600}
+  footer{margin-top:34px;color:var(--dim);font-size:12.5px;border-top:1px solid var(--line);padding-top:14px}
+  kbd{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>KPW3 实机验证清单</h1>
+  <p class="sub">artgallery.koplugin <b>v1.0.19</b> · 阶段三八「书签入画廊」 · 已部署 G 盘待复验（Kindle PaperWhite 3）<br>
+  生成时间：2026-08-16 · 状态：<span class="okv">已部署 G 盘（21:57:34 · ok_callback 修复 + 诊断代码清理）三副本一致；长按书签→删除书签→确认框→删除→立即退出 KOReader→读 .sdr/metadata.*.lua 时间戳应更新、annotations 不含该书签即落盘闭环</span></p>
+
+  <div class="note warn">
+    <b>⚠ 发版纪律</b>：本次改动<b>未涨版本号（仍 v1.0.19）、未 push、未发 Release</b>。须由您实机确认稳定后，<b>明确同意</b>才发版。请不要在本轮擅自发布。
+  </div>
+
+  <div class="note">
+    <b>本轮删除落盘增强（2026-08-16 深夜二轮）</b>：上一轮「删除仍无效」经真机取证锁定根因为运行时 <code>bm:removeItem</code> 未能真正从 <code>annotations</code> 移除该项 → 二次校验 <code>still</code> 为 true → 跳过 <code>flush</code>。<code>_removeBookmark</code> 已增强：先定位索引 → 优先原生删除 → 若内存数量未减则直接 <code>table.remove</code> 兜底 → <b>无论如何强制 flush 落盘</b> → 加 <code>logger.info</code> 诊断。    <b>复验取证</b>：删除任一书签后<b>立即退出 KOReader</b>，读取该书 <code>.sdr/metadata.*.lua</code> 确认时间戳已更新、annotations 已不含该书签，即验证落盘闭环（无需重开本书即可确认）。
+  </div>
+
+  <div class="note warn">
+    <b>本轮（第 7 轮 · 21:29:56 部署）输入穿透根因 + nextTick 修复</b>：上一轮（21:24）读真机崩溃日志决定性取证——<code>G:/koreader/crash.log</code> 仅 1 条 <code>[ArtGallery]</code>：<code>DEL_MENU_ITEM tapped; artgallery= true</code>，其后到重启<b>无任何 DEL_CONFIRM / 报错</b>；<code>metadata.epub.lua</code> 仍 10:34。即「删除书签」菜单项被点了，但 ConfirmBox 的 OK 回调从头没触发。<b>根因</b>：KOReader 菜单项 <code>callback</code> 在菜单自身输入流程里同步执行，此时同步 <code>UIManager:show(ConfirmBox)</code> 会被本次点按事件"穿透"（误触取消/背景，或菜单关闭把确认框一起弹掉），导致确认回调永远走不到——这正好解释<b>前 6 轮都"无效"且零 DEL_CONFIRM</b>。<b>修复</b>：把 ConfirmBox 整段包进 <code>UIManager:nextTick</code>，推迟到本轮输入事件结束、下一 UI 帧再弹，消除穿透/竞态（<code>nextTick</code> 已在 koreader 源码 uimanager.lua:354 核验存在）。另加 <code>DEL_CB_SHOWN</code>（框已弹）/ <code>DEL_CANCEL</code>（点了取消）日志，断点可四选一区分。<b>复验</b>：长按书签→「删除书签」→（nextTick 后）确认框→「删除」→<b>立即退出 KOReader</b>→读该书 <code>.sdr/metadata.*.lua</code> 时间戳应更新、annotations 不含该书签；若仍异常，过滤 <code>[ArtGallery]</code> 看 DEL_MENU_ITEM / DEL_CB_SHOWN / DEL_CONFIRM / CALLED / flush ok= 走到哪一步。
+  </div>
+
+  <div class="note warn">
+    <b>本轮（第 8 轮 · 21:44:48 部署）ConfirmBox 字段名误用——终极根因</b>：第 7 轮部署后复验（21:39）读真机日志——新增 <code>DEL_CB_SHOWN</code>（21:39:43），确认框<b>这次真的弹出来了</b>（nextTick 生效）；但之后<b>既无 DEL_CONFIRM 也无 DEL_CANCEL</b>，metadata 仍 10:34。断点缩小到"框弹了但按钮回调都不触发"。<b>根因（终极）</b>：经核查 koreader 源码 <code>frontend/ui/widget/confirmbox.lua:115-122</code>，ConfirmBox 的「确定」按钮调用 <code>self.ok_callback()</code>，构造参数名为 <code>ok_callback</code>；而删除框代码写的是 <code>callback = function()...DEL_CONFIRM...end</code>——<b>ConfirmBox 完全不认 <code>callback</code> 字段</b>，「删除」按钮因此走默认空 <code>ok_callback</code>（啥也不做）→ 框弹了却永远删不掉。「取消」用的是 <code>cancel_callback</code>（正确），故点「取消」会记 DEL_CANCEL，前几轮用户一直点「删除」故只见 DEL_CB_SHOWN。<b>此前的落盘增强、nextTick 修复都正确，但被这个字段名错误完全架空</b>——这是第 5~8 轮"删除无效"的终极根因。<b>修复</b>：删书签 ConfirmBox 的 OK 动作字段由 <code>callback</code> 改为 <code>ok_callback</code>（与 koreader 一致）；全仓 grep 其余 5 处 ConfirmBox（1236/5433/5661/5676/6855）均正确，仅此一处误用。<b>复验</b>：长按书签→「删除书签」→确认框→「删除」→<b>立即退出 KOReader</b>→读该书 <code>.sdr/metadata.*.lua</code> 时间戳应更新、annotations 已不含该书签（落盘闭环）；若仍异常，过滤 <code>[ArtGallery]</code> 看 DEL_CONFIRM / CALLED / flush ok= 是否出现。
+  </div>
+
+  <h2>〇、装载红线（必须满足）</h2>
+  <ul>
+    <li><span class="tag req">硬性</span>目标设备<b>只装 artgallery</b>，确认 <code>glimpse.koplugin</code> 与 <code>illustrations.koplugin</code> 未同时启用（关掉或移除）。三者同装会重复注册菜单、重复占内存，违反"单入口/更省资源"。</li>
+    <li><span class="tag req">硬性</span>设备现有 artgallery 已为 v1.0.19（含阶段三八书签代码）。可在插件菜单「关于」或图库「⋯」查看版本/说明核对。</li>
+  </ul>
+
+  <h2>一、基础三验（验收 SOP）</h2>
+  <ul>
+    <li><span class="tag req">必验</span><b>中文源</b>：用中文界面打开一本含书签的书 → 进入「图库」→ 分段切换器可见「书签」文字标签；界面所有可见串为中文，无 <code>ArtGallery_*</code> 这类 gettext key 泄漏。</li>
+    <li><span class="tag req">必验</span><b>切英文全英文</b>：设置 → 语言切到 English → 重启 KOReader 后，插件自身界面串应尽可能全英文。<br>
+      <span class="warnv">已知现状</span>：artgallery 是合并插件，<b>目录内无 l10n 翻译文件</b>（无 <code>l10n/*.po</code>），因此切英文后插件界面串仍多显示原始中文——这是合并插件的<b>固有现状，非本次书签功能引入</b>。验收时请区分：<u>残留中文属于全插件 l10n 缺失，不计入书签功能缺陷</u>；若某串在中文下就显示异常（如乱码/空白）才记为缺陷。</li>
+    <li><span class="tag req">必验</span><b>框架串正常</b>：分段切换器各段（全部 / 收藏 / 书签 / 忽略）标签、菜单项、按钮文案均正常显示，无未翻译 key、无 <code>nil</code> 文本、无方块乱码。</li>
+  </ul>
+
+  <h2>二、书签四点硬性要求（核心验收）</h2>
+  <ul>
+    <li><span class="tag req">要求①</span><b>独立「书签N」段</b>：打开有书签的书，分段切换器出现「书签」段且带计数（如「书签 3」）；该计数<b>不并入</b>「全部[N]」。</li>
+    <li><span class="tag req">要求①</span><b>无书签时不可见</b>：打开<b>没有任何书签</b>的书 → 分段切换器<b>不应</b>出现「书签」段（与忽略段同处理）。</li>
+    <li><span class="tag req">要求②</span><b>书签永不进忽略池</b>：长按书签缩略图 → 弹出菜单<b>不出现「忽略图片」项</b>（菜单含「跳转到此页」「收藏图片/取消收藏」「删除书签」）；无从把书签移入忽略段。</li>
+    <li><span class="tag req">要求③</span><b>书签可收藏 + 收藏⭐角标</b>：长按书签缩略图 → 菜单含「收藏图片」（可点击）、「取消收藏」（收藏后可用）；收藏后切到「收藏」段应能看到该书签项；「取消收藏」可正常移除。回到「书签（N）」池，<b>已收藏的书签缩略图右下角应出现 ⭐</b>（角点偏暗时自动反白，与「全部」视图一致）；未收藏则无 ⭐。</li>
+    <li><span class="tag req">要求④</span><b>PNG 视作缓存可被清</b>：先收藏/渲染若干书签 → 退出图库 → 图库「⋯」菜单「清除本书图片缓存」→ 确认书签缓存 PNG（位于 <code>koreader/plugins/artgallery.koplugin/artgallery/bookmark_cache/</code>）被清除，且本书书签收藏记录一并剔除（书签是缓存，非永久收藏）。</li>
+    <li><span class="tag kpw3">交互</span><b>轻点书签缩略图 = 全屏看图</b>（glimpse 风 + 高清重渲染）：在「书签」段<b>轻点</b>任一缩略图 → 进入单图全屏态把该书签页当「伪图片」高清查看（初始以缩略图瞬时显示，随后异步拉取屏幕分辨率高清渲染替换；可缩放/切换全屏/三态填充）。<b>跳转</b>与<b>删除</b>放长按菜单：长按书签弹菜单含「跳转到此页」（一键回该书签名页，阅读器全屏呈现）、「收藏图片/取消收藏」（满足要求③）、「删除书签」（经二次确认从书本身移除该狗耳朵书签）；单图全屏态点 ⋮ 亦有「跳转到此页」。<b>删除持久化</b>：确认删除某书签后，该缩略图立即从「书签（N）」池消失；<b>退出本书再重开，该书签仍不在</b>（删除已即时落盘，不再从本书 .sdr 恢复）。</li>
+  </ul>
+
+  <h2>三、KPW3 墨水屏专项（流畅 / 稳定 / 续航 / 共存）</h2>
+  <ul>
+    <li><span class="tag kpw3">流畅</span>切到「书签」段时，缩略图<b>异步</b>渲染（委托 KOReader 内置 <code>ReaderThumbnail</code> 子进程，主线程仅读小 PNG）。首次进入允许短暂"占位→逐步填充"，<b>不应卡死 UI 或触看门狗复位</b>（约 200ms 以上阻塞应被拆离）。</li>
+    <li><span class="tag kpw3">稳定</span>反复进出图库、切换「全部↔书签↔收藏↔忽略」多轮后，<b>无崩溃、无花屏、无触摸坐标偏移</b>。</li>
+    <li><span class="tag kpw3">稳定</span>退出图库（关闭 viewer）后，书签内存缓存与在途渲染<b>应释放</b>——连续多次开关图库，设备内存（可用 RAM≈380MB）不应持续下降（用 <code>/proc/meminfo</code> 或 crash.log 中 OOM 痕迹佐证更佳）。</li>
+    <li><span class="tag kpw3">续航</span>书签功能默认 <b>OFF</b>（设置项「图库包含书签页」默认关）→ 不开此开关时<b>零额外开销</b>；开启后按需渲染，不常驻高 CPU、不频繁全刷空耗电。</li>
+    <li><span class="tag kpw3">共存</span>与设备上其他插件（coverbrowser、autoturn 等）同开时，图库交互、手势、刷新互不干扰；书签渲染不应抢占全局 gesture 或焦点。</li>
+  </ul>
+
+  <h2>四、crash.log 取证（出问题时必做）</h2>
+  <div class="note">
+    KOReader 运行日志在 <code>G:/koreader/crash.log</code>。若实机出现异常（崩溃/花屏/卡死），请：<br>
+    1. 拔线前先<b>安全弹出</b> G 盘，重启 KOReader 复现一次；<br>
+    2. 把 <code>G:/koreader/crash.log</code> 复制出来交回（可放 <code>D:/Download/</code> 或项目目录）；<br>
+    3. 我按 <code>[ArtGallery]</code> 等 LOG_TAG 过滤定位插件级错误（典型路径：设备运行目录根 crash.log）。<br>
+    <span class="okt">本次部署前静态自检已排除内存/句柄泄漏、缓存命名错位、收藏键错位等 3 处缺陷，并核实 KOReader 书签数据模型成立；crash.log 主要用于捕捉真机集成层（如 <code>getPageThumbnail</code> 回调时序、夜间模式反相）的意外。</span>
+  </div>
+
+  <h2>五、反馈方式</h2>
+  <ul>
+    <li><span class="tag opt">回报</span>请在 KPW3 上逐项勾选上面清单，把<b>通过 / 失败</b>结果（尤其书签四点 + 墨水屏流畅/稳定）反馈给我。</li>
+    <li><span class="tag opt">回报</span>若某项失败或崩，附 crash.log + 复现步骤；我会据此定位修复，并<b>重新部署 + 复验</b>。</li>
+    <li><span class="tag opt">待定</span>全部通过且您确认稳定后，<b>由您拍板</b>是否发 v1.0.x Release（我不会擅自发布）。</li>
+  </ul>
+
+  <footer>
+    静态自检（验收技能 + 两轮复检）已通过：LuaJIT 语法 OK、v1.0.19 未升版、工作副本 ≡ 干净 GitHub 副本 ≡ G 盘设备代码（cmp IDENTICAL）。<br>
+    本清单随代码同一轮归档于 <code>audit/KPW3_VERIFY.html</code>。
+  </footer>
+</div>
+</body>
+</html>

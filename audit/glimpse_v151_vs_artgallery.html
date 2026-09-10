@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Glimpse v1.5.1 vs ArtGallery v1.0.21 · 差异与可吸收项报告</title>
+<style>
+  :root{
+    --bg:#1a1d23; --panel:#252a33; --line:#3a4150;
+    --ink:#e6e8eb; --mute:#9aa3b2; --hi:#ffd400; --accent:#7ec8f7;
+    --ok:#7be07b; --warn:#ffb454; --bad:#ff7b7b;
+    --code-bg:#181c22; --code-fg:#d9e0e8;
+  }
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.65; margin:0; padding:28px 18px 60px;
+  }
+  .wrap{max-width:1080px; margin:0 auto}
+  h1{font-size:24px; margin:0 0 6px; letter-spacing:.5px}
+  h2{font-size:19px; margin:36px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line); color:var(--hi)}
+  h3{font-size:16px; margin:22px 0 8px; color:var(--accent)}
+  h4{font-size:14px; margin:18px 0 6px; color:var(--mute)}
+  p{margin:8px 0}
+  .meta{color:var(--mute); font-size:13px; margin-bottom:18px}
+  .badge{display:inline-block; padding:2px 8px; border-radius:10px; font-size:12px;
+    background:#333; color:var(--ink); margin-right:6px; border:1px solid var(--line)}
+  .badge.hi{background:#3a2f00; color:var(--hi); border-color:#5b4800}
+  .badge.ok{background:#1f3a23; color:var(--ok); border-color:#2e5734}
+  .badge.warn{background:#3a2a17; color:var(--warn); border-color:#5a401d}
+  .badge.bad{background:#3a1a1a; color:var(--bad); border-color:#5b2929}
+  .badge.mute{background:#262a31; color:var(--mute)}
+  .hero{
+    background:linear-gradient(180deg,#2a313d 0%,var(--panel) 100%);
+    border:1px solid var(--line); border-radius:10px;
+    padding:18px 22px; margin-bottom:22px;
+  }
+  .hero .lede{font-size:14px; color:var(--mute); margin-top:6px}
+  table{width:100%; border-collapse:collapse; margin:12px 0 18px; font-size:13px}
+  th,td{border:1px solid var(--line); padding:8px 10px; vertical-align:top; text-align:left}
+  th{background:#2c313a; color:var(--hi); font-weight:600}
+  tr:nth-child(even) td{background:#1f232a}
+  td.num,th.num{text-align:center; font-family:"JetBrains Mono",Consolas,monospace}
+  td.mono{font-family:"JetBrains Mono",Consolas,monospace; font-size:12px}
+  pre{background:var(--code-bg); color:var(--code-fg); padding:10px 12px; border-radius:6px;
+    overflow-x:auto; font-size:12.5px; line-height:1.55; border:1px solid var(--line);
+    font-family:"JetBrains Mono",Consolas,monospace; margin:6px 0 12px}
+  code{background:#1d2128; padding:1px 5px; border-radius:3px; font-size:12.5px;
+    font-family:"JetBrains Mono",Consolas,monospace}
+  .okbox{background:#15281b; border-left:3px solid var(--ok); padding:10px 14px; border-radius:4px; margin:10px 0}
+  .warnbox{background:#2c2210; border-left:3px solid var(--warn); padding:10px 14px; border-radius:4px; margin:10px 0}
+  .badbox{background:#2b1414; border-left:3px solid var(--bad); padding:10px 14px; border-radius:4px; margin:10px 0}
+  .infobox{background:#1a2533; border-left:3px solid var(--accent); padding:10px 14px; border-radius:4px; margin:10px 0}
+  .bar{font-family:"JetBrains Mono",Consolas,monospace; font-size:13.5px; line-height:1.5}
+  .bar .full{color:var(--hi)}
+  .bar .half{color:#aa7e00}
+  .bar .empty{color:#3a4150}
+  .summary-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:10px; margin:14px 0 4px
+  }
+  .summary-grid > div{background:#1f232a; border:1px solid var(--line); border-radius:6px; padding:10px 14px}
+  .summary-grid .label{color:var(--mute); font-size:12px}
+  .summary-grid .value{font-size:22px; font-weight:600; color:var(--ink)}
+  .summary-grid .v2{color:var(--accent)}
+  .summary-grid .v1{color:var(--hi)}
+  .summary-grid .v0{color:var(--ok)}
+  .priority-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:12px; margin:14px 0
+  }
+  .card{background:#1f232a; border:1px solid var(--line); border-radius:8px; padding:14px 16px}
+  .card .tag{display:inline-block; font-size:11px; padding:1px 7px; border-radius:8px; margin-right:6px; border:1px solid}
+  .card.P0 .tag{color:var(--bad); border-color:var(--bad); background:#2b1414}
+  .card.P1 .tag{color:var(--warn); border-color:var(--warn); background:#2c2210}
+  .card.P2 .tag{color:var(--accent); border-color:var(--accent); background:#16222e}
+  .card.P-SKIP .tag{color:var(--mute); border-color:var(--mute); background:#21252c}
+  .card .title{font-size:15px; font-weight:600; margin:6px 0 4px}
+  .card .meta{font-size:12px; color:var(--mute); margin-bottom:6px}
+  .card .body{font-size:13px}
+  .small{font-size:12px; color:var(--mute)}
+  .line{font-family:"JetBrains Mono",Consolas,monospace; color:var(--accent)}
+  .footer{margin-top:40px; padding-top:14px; border-top:1px dashed var(--line); color:var(--mute); font-size:12px}
+  ul{margin:6px 0 6px 22px; padding:0}
+  li{margin:2px 0}
+  .src-tag{float:right; font-size:11px; padding:1px 7px; border:1px solid var(--line); border-radius:8px;
+    background:#262a31; color:var(--mute)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Glimpse v1.5.1 vs ArtGallery v1.0.21 · 差异与可吸收项报告</h1>
+
+<div class="meta">
+  <span class="badge hi">v1.5.1 / 2026-08-29</span>
+  <span class="badge">基准源 <span class="line">plugin/main.lua</span> @ github.com/<code>Fank1/glimpse</code></span>
+  <span class="badge">对照源 <span class="line">main.lua</span> @ E:\Download\AIWorkshop\koreader\plugins\artgallery.koplugin</span>
+  <span class="badge ok">报告写于 2026-08-29（v1.5.1 发布当日）</span><br>
+  报告作者：WorkBuddy · 仅按 GitHub 真实源码逐行核对，非凭记忆杜撰
+</div>
+
+<div class="hero">
+  <strong>结论速读（TL;DR）</strong>
+  <div class="lede">
+    Glimpse v1.5.1 的「Since 1.5.0」CHANGELOG 只列出了 6 项可见变化（4 列宽版图库、缩略图左对齐、页码变醒目标签、迷你地图不再越界、新增「数字指示器」开关、尊重 KOReader 顶部菜单手势、设置项重整）。
+    我把每一项都和 artgallery 真实源码做了逐行比对：<strong>其中 1 项是真 bug 缺漏（「尊重 KOReader 顶部菜单」未检查 KOReader 自身的 <code>activate_menu</code> 设置，可能与用户意图冲突），1 项是清晰 UX 改进（页码标签 + 缩略图左对齐，更贴墨水屏），1 项是简单设置新增（数字指示器强制开关），1 项是简单视觉调整（4 列宽版）。</strong>
+    其他 1 项（迷你地图）是 Glimpse 的新特性，artgallery 本来没有，不算差距而是「可选引入」。
+    设置项重整属纯展示维护，不影响行为。
+  </div>
+</div>
+
+<h2>一 · 双方基本盘</h2>
+
+<div class="summary-grid">
+  <div><div class="label">Glimpse v1.5.1 发布</div><div class="value v1">2026-08-29</div></div>
+  <div><div class="label">artgallery 当前版本</div><div class="value v2">v1.0.21</div></div>
+  <div><div class="label">主程序字节数</div><div class="value v2">335.6 KB</div><div class="small">Glimpse · v1.3.0 时 ~265 KB，v1.5.1 涨 ~70 KB</div></div>
+  <div><div class="label">artgallery main.lua</div><div class="value v0">319.6 KB</div><div class="small">E 副本 LF / 干净副本 CRLF 334 KB</div></div>
+  <div><div class="label">l10n 区域数</div><div class="value v1">50+ 区域 × 双文件</div><div class="small">Glimpse 自带多语翻译对（每次升级自动扩）</div></div>
+  <div><div class="label">artgallery l10n</div><div class="value v2">无内嵌 l10n/</div><div class="small">靠 KOReader 全局 gettext；UI 主用 `_("中文")` 直出</div></div>
+</div>
+
+<h2>二 · v1.5.1「Since 1.5.0」全部改动逐条对照</h2>
+
+<div class="infobox">
+  <strong>核查方法</strong>：把 v1.5.1 发行说明中的 6 项都在 Glimpse 真实源码里 grep 出对应行号，再到 artgallery 同一位置的源码里 grep 出对应行号；行为差异以代码为准。
+  <br><strong>不查项</strong>：本地化 po 文件（artgallery 不维护 l10n/，自动跳过）；assets/*.svg（仅图标差异，新图易临时增补，不影响行为）。
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>#</th><th>v1.5.1 改动</th>
+      <th>Glimpse 真实行号</th>
+      <th>artgallery 真实行号</th>
+      <th class="num">差异类型</th>
+      <th class="num">优先级</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="num">1</td>
+      <td><strong>图库宽版（顶部/底部）显示 4 列</strong>，侧边仍是 3 列</td>
+      <td class="mono">plugin/main.lua:3403<br><code>local cols = self._horizontal and 4 or self.gallery_cols</code></td>
+      <td class="mono">main.lua:2840<br><code>local cols = self.gallery_cols</code></td>
+      <td class="num"><span class="badge warn">GAP</span></td>
+      <td class="num"><span class="badge mute">P2</span></td>
+    </tr>
+    <tr>
+      <td class="num">2</td>
+      <td><strong>缩略图左对齐</strong>列宽左侧 + 页码作为醒目标签（图片数移到副标题）</td>
+      <td class="mono">:3683-3693（页码）<br>:3718 <code>LeftContainer</code></td>
+      <td class="mono">:3057-3070（页码在 line-1 副灰色）<br>:3092 <code>CenterContainer</code></td>
+      <td class="num"><span class="badge warn">GAP</span></td>
+      <td class="num"><span class="badge warn">P1</span></td>
+    </tr>
+    <tr>
+      <td class="num">3</td>
+      <td><strong>迷你地图不再越界</strong>宽图 letterbox 到 bounded box</td>
+      <td class="mono">:4745-4752 <code>max_aspect</code> 截断</td>
+      <td class="mono">— 无迷你地图功能 —</td>
+      <td class="num"><span class="badge mute">NEW 特性</span></td>
+      <td class="num"><span class="badge mute">SKIP</span></td>
+    </tr>
+    <tr>
+      <td class="num">4</td>
+      <td><strong>新增设置：数字指示器代替圆点</strong>（<code>3 / 42</code> 而非一排点）</td>
+      <td class="mono">:98 <code>NUMERIC_PILL_KEY</code><br>:3163 <code>"%d / %d"</code></td>
+      <td class="mono">:2289-2309 自动 fallback，但无强制开关</td>
+      <td class="num"><span class="badge warn">GAP</span></td>
+      <td class="num"><span class="badge mute">P2</span></td>
+    </tr>
+    <tr>
+      <td class="num">5</td>
+      <td><strong>尊重 KOReader 顶部菜单激活方式</strong>改名为「Respect KOReader top menu activation」，移入 Advanced；并新增检查 KOReader 的 <code>activate_menu</code> 设置</td>
+      <td class="mono">:7266-7277 设置项移入 Advanced<br>:4201-4206 运行时检查<br><code>G_reader_settings:readSetting("activate_menu") ~= "swipe"</code></td>
+      <td class="mono">:6828-6837 已在「高级」<br>:3703-3708 <strong>未检查 <code>activate_menu</code></strong></td>
+      <td class="num"><span class="badge bad">BUG</span></td>
+      <td class="num"><span class="badge bad">P0</span></td>
+    </tr>
+    <tr>
+      <td class="num">6</td>
+      <td><strong>设置项重整</strong>为更清晰的分组（含「Settings」子组）</td>
+      <td class="mono">:7097+ Settings 子组</td>
+      <td class="mono">:6802+ 已有「高级」分组</td>
+      <td class="num"><span class="badge mute">展示性</span></td>
+      <td class="num"><span class="badge mute">P2</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="bar">
+  优先级分布：<span class="full">█</span><span class="full">█</span><span class="full">█</span> P0(1)　
+  <span class="half">█</span><span class="half">█</span><span class="half">█</span> P1(1)　
+  <span class="empty">█</span><span class="empty">█</span><span class="empty">█</span><span class="empty">█</span> P2(3)　
+  <span class="empty">█</span> SKIP(1)
+</div>
+
+<h2>三 · 关键差异代码实证</h2>
+
+<h3>3.1 【P0】顶部菜单未尊重 KOReader 自身手势设置（真 bug 缺漏）</h3>
+
+<div class="badbox">
+  <strong>影响</strong>：用户在 KOReader「设置 → 点按与手势 → 手势管理」中把顶部菜单激活改为「下滑」后，artgallery 打开时顶部区域**仍然**唤起 KOReader 顶部菜单（违背用户对 KOReader 的全局意图）。Glimpse v1.5.1 修了此点；artgallery 未修。
+  <br><strong>风险评估</strong>：低（只新增一个条件判断；行为更收敛，不会变奇怪）；<strong>ROI</strong>：纯收益，10 行内修复，无视觉副作用。
+</div>
+
+<h4>Glimpse v1.5.1 main.lua:4201-4206</h4>
+<pre>if self.on_show_menu and G_reader_settings:nilOrTrue(TOP_MENU_KEY)
+   <mark>and G_reader_settings:readSetting("activate_menu") ~= "swipe"</mark>
+   and self:_inTopMenuZone(ges.pos) then
+    self.on_show_menu()
+    return true
+end</pre>
+
+<h4>artgallery main.lua:3703-3708（缺漏的那一行）</h4>
+<pre>if self.on_show_menu and G_reader_settings:nilOrTrue(TOP_MENU_KEY)
+   <mark>-- artgallery 未检查 KOReader 自身的 activate_menu →「下滑」用户会被「点按顶部」抢回菜单</mark>
+   and not (self._fullscreen and self._chrome_hidden)
+   and self:_inTopMenuZone(ges.pos) then
+    self.on_show_menu()
+    return true
+end</pre>
+
+<h3>3.2 【P1】图库标题区：页码不醒目 + 缩略图不左对齐（UX 改进）</h3>
+
+<div class="warnbox">
+  <strong>影响</strong>：v1.5.1 把「第 X 页 / 共 Y 页」作为黑体大号醒目标签放 line-2 左；把「N 张图片」字数变副标题灰字小号放 line-1 右；同时缩略图改 <code>LeftContainer</code>（左对齐与标题基线一致）。artgallery 是「page 在 line-1 右侧灰字小号、副标题在 line-2 左」「缩略图 <code>CenterContainer</code>」，e-ink 扫一眼难以瞄到「第几页」。
+  <br><strong>风险评估</strong>：低（仅布局参数微调 + 容器替换；不动逻辑、不动触摸区）；<strong>ROI</strong>：墨水屏可读性提升明显。
+</div>
+
+<h4>Glimpse v1.5.1 main.lua:3683-3693（页码醒目化）</h4>
+<pre>-- Line 2, left: "Page X of Y" in full black, when paged.
+if pages > 1 then
+    local page_wg = TextWidget:new{
+        text = T(_("Page %1 of %2"), self._gallery_page or 1, pages),
+        face = Font:getFace("cfont", 13),
+        bold = true,
+        fgcolor = Blitbuffer.COLOR_BLACK,        <mark>-- 全黑醒目（v1.5.1 新行为）</mark>
+        max_width = m.area_w - 2 * m.pad,
+    }
+    page_wg.overlap_offset = { m.pad, band_top + th1 + self:_headMetrics().gap }
+    addHead(page_wg)
+end</pre>
+
+<h4>Glimpse v1.5.1 main.lua:3713-3718（缩略图左对齐）</h4>
+<pre><mark>-- Left-align (not centre) the thumbnail in its column</mark>
+local cell = LeftContainer:new{           <mark>-- v1.5.1 由 CenterContainer 改 LeftContainer</mark>
+    dimen = Geom:new{ w = c.w, h = c.h },
+    FrameContainer:new{ ... },
+}</pre>
+
+<h4>artgallery main.lua:3057-3078（对比基线）</h4>
+<pre>if pages > 1 then
+    local page_wg = TextWidget:new{
+        text = T(_("第 %1 页，共 %2 页"), self._gallery_page or 1, pages),
+        face = Font:getFace("cfont", 13),
+        bold = true,
+        fgcolor = Blitbuffer.COLOR_DARK_GRAY,    <mark>-- 现在是 DARK_GRAY 不醒目</mark>
+    }
+    ...
+end
+-- line-2 left 用作「N 张图片」副标题
+sub_wg.overlap_offset = { m.pad, band_top + th1 + self:_headMetrics().gap }
+-- 缩略图容器
+local cell = CenterContainer:new{             <mark>-- 现在是居中而非左对齐</mark>
+    dimen = Geom:new{ w = c.w, h = c.h },
+    FrameContainer:new{ ... },
+}</pre>
+
+<h3>3.3 【P2】宽版图库 4 列（视觉调整）</h3>
+
+<h4>Glimpse v1.5.1 main.lua:3403</h4>
+<pre>-- A top/bottom band is full screen width but short, so 3 columns leave few
+-- rows visible. Use 4 columns there; side panels keep 3.
+local cols = self._horizontal and 4 or self.gallery_cols</pre>
+
+<h4>artgallery main.lua:2840</h4>
+<pre>local cols = self.gallery_cols              <mark>-- 永远是单一值，未按横向/顶底切换</mark></pre>
+
+<div class="infobox">
+  artgallery 没有「图库顶/底布局」概念（默认侧拉 + 顶拉才支持），只有 side/portrait_pos 两种摆放方式（参见 <code>PORTRAIT_POS_KEY = "artgallery_portrait_pos"</code>）。如要吸收，须先确认是否要打开「顶部 / 底部横带」布局。
+  <br><strong>ROI</strong>：偏低——artgallery 已经有「列数」设置，再加「横带 4 列」只是 4–6 行分支修改，且只在本来就少见的顶/底布局下生效。视觉收益有限。
+</div>
+
+<h3>3.4 【P2】数字指示器开关（设置新增）</h3>
+
+<h4>Glimpse v1.5.1 main.lua:98</h4>
+<pre>local NUMERIC_PILL_KEY = "glimpse_numeric_pill"
+    -- always show the "n / N" counter instead of dots, OFF by default</pre>
+
+<h4>Glimpse v1.5.1 main.lua:3135-3136</h4>
+<pre>if pitch >= min_pitch
+   <mark>and not G_reader_settings:isTrue(NUMERIC_PILL_KEY) then</mark>      <mark>-- 用户开关优先于尺寸判断</mark></pre>
+
+<h4>artgallery main.lua:2289-2309</h4>
+<pre>if pitch >= min_pitch then
+    -- 够宽 → 画一排圆点
+    local inner = ArtGalleryDots:new{ ... }
+    self._pill_dots = inner
+    self._pill_frame = ArtGalleryPill:new{ inner = inner }
+else
+    -- 不够宽才退到 "n / N"
+    self._pill_frame = ArtGalleryPill:new{
+        inverted = true,
+        inner = TextWidget:new{ text = string.format("%d / %d", ...), ... },
+    }
+end</pre>
+
+<div class="infobox">
+  artgallery <strong>已经有</strong>自动 fallback 到 <code>"%d / %d"</code> 的逻辑（这正是 Glimpse 想要的视觉效果）。所缺的仅是「用户主动强制选数字」这一个开关。实现成本 1 个设置 key + 一个条件判断 + 一个菜单项。
+</div>
+
+<h3>3.5 【SKIP】迷你地图 letterbox 截断 — artgallery 本就无此特性</h3>
+
+<div class="infobox">
+  Glimpse 的迷你地图（GlimpseMiniMap）是它独有的「放大查看时显示缩略鸟瞰图」功能。artgallery 从未引入迷你地图，只用「双击↔最大放大」+「双指捏合」就够看了。
+  <br><strong>不吸收的理由</strong>：
+  <ol>
+    <li>这是「可加可不加的新特性」，不是「必须修的差距」；</li>
+    <li>KPW3 屏小（1072 行），双击 + 捏合已覆盖缩放场景；</li>
+    <li>新增迷你地图会显著增大代码量（V1.5.1 用了约 200+ 行），背离我们对真实 bug 修复+小优化的克制路线。</li>
+  </ol>
+  如你确实想要迷你地图，可单独讨论——这就不是「吸收差距」而是「新增特性」。
+</div>
+
+<h3>3.6 【P2】设置项重整 — 纯展示维护</h3>
+
+<div class="infobox">
+  Glimpse v1.5.1 把零散选项归入「Settings」子组 + 「Advanced」子组。artgallery 当前是平铺列表 + 仅一个「高级」分组。
+  <br><strong>建议</strong>：等真正要做设置重整时再做（届时一并把 P0/P1/P2 一并吸收）。现阶段不单独排期。
+</div>
+
+<h2>四 · 可吸收项总览（按 ROI 排序）</h2>
+
+<div class="priority-grid">
+
+<div class="card P0">
+  <div><span class="tag">P0 必做</span><span class="src-tag">约 2 行真改 + 1 行帮助文本</span></div>
+  <div class="title">顶部菜单：尊重 KOReader 自身 <code>activate_menu</code></div>
+  <div class="meta">Glimpse v1.5.1 main.lua:4202 | artgallery main.lua:3703</div>
+  <div class="body">
+    修复用户 KOReader 设成「下滑」手势时，artgallery 仍按顶部点按打开菜单的不一致。
+    <br><br><strong>实现</strong>：在 <code>main.lua:3703</code> 那个 <code>if</code> 里追加一行：
+    <pre>and G_reader_settings:readSetting("activate_menu") ~= "swipe"</pre>
+    并把设置项标题从「启用顶部菜单触摸区」（在 高级 段）改成「<strong>尊重 KOReader 顶部菜单手势</strong>」（与 Glimpse 命名对齐）。
+  </div>
+</div>
+
+<div class="card P1">
+  <div><span class="tag">P1 应做</span><span class="src-tag">约 8–12 行修改</span></div>
+  <div class="title">图库标题区改版：页码醒目 + 缩略图左对齐</div>
+  <div class="meta">Glimpse v1.5.1 main.lua:3683-3693, 3718 | artgallery main.lua:3057-3100</div>
+  <div class="body">
+    <ul>
+      <li>页码从 line-1 右侧暗灰小字 → 升为 line-2 左侧<strong>全黑醒目</strong>（位置略下；与「N 张图片」副标题位置对调）</li>
+      <li>缩略图容器 <code>CenterContainer</code> → <code>LeftContainer</code></li>
+    </ul>
+    注意：缩略图旁还有 ⭐/👁 角标（artgallery 独有），左对齐后位置需复核，不能挡住角标。
+  </div>
+</div>
+
+<div class="card P2">
+  <div><span class="tag">P2 可做</span><span class="src-tag">约 6 行</span></div>
+  <div class="title">数字指示器强制开关 <code>artgallery_numeric_pill</code></div>
+  <div class="meta">Glimpse v1.5.1 main.lua:98,3136 | artgallery main.lua:2289-2309</div>
+  <div class="body">
+    在 artgallery <code>main.lua:2289</code> 的 <code>if pitch &gt;= min_pitch then</code> 后追加条件 <code>and not G_reader_settings:isTrue("artgallery_numeric_pill")</code>；并在「高级」组加一个开关项。
+    <br><br><strong>提醒</strong>：artgallery 已有自动 fallback，本项只是「让用户主动强制」，边际收益小。
+  </div>
+</div>
+
+<div class="card P2">
+  <div><span class="tag">P2 可做</span><span class="src-tag">约 4 行</span></div>
+  <div class="title">宽版图库 4 列</div>
+  <div class="meta">Glimpse v1.5.1 main.lua:3403 | artgallery main.lua:2840</div>
+  <div class="body">
+    如果决定打开「顶部 / 底部横带」布局（artgallery 还没有），才值得做。否则本项 ROI 偏低，搁置。
+  </div>
+</div>
+
+<div class="card P2">
+  <div><span class="tag">P2 可做</span><span class="src-tag">约 30+ 行 + 自检</span></div>
+  <div class="title">设置项重整（高级独立分组）</div>
+  <div class="meta">Glimpse v1.5.1 main.lua:7097+ | artgallery main.lua:6802+</div>
+  <div class="body">
+    平铺列表改为「Settings」+「Advanced」子组，需要重新审阅每条设置项的 help_text 和位置。
+    建议等 P0/P1 完成后一次性整理。
+  </div>
+</div>
+
+<div class="card P-SKIP">
+  <div><span class="tag">SKIP 不做</span><span class="src-tag">约 200+ 行</span></div>
+  <div class="title">迷你地图 letterbox 截断</div>
+  <div class="meta">Glimpse v1.5.1 main.lua:4745+ | artgallery 无</div>
+  <div class="body">
+    新特性引入而非「差距修复」。与 v1.0.13 已确立的「双击↔最大 + 捏合」设计哲学冲突。如确实想要，另立专题讨论。
+  </div>
+</div>
+
+</div>
+
+<div class="bar">
+  ROI 排序：<span class="full">█</span><span class="full">█</span><span class="full">█</span><span class="full">█</span><span class="full">█</span><span class="full">█</span> P0(1)　
+  <span class="half">█</span><span class="half">█</span><span class="half">█</span><span class="half">█</span> P1(1)　
+  <span class="half">█</span><span class="half">█</span> P2(3)　
+  <span class="empty">█</span> SKIP(1)
+</div>
+
+<h2>五 · 建议执行顺序（与硬纪律一致）</h2>
+
+<div class="okbox">
+  <ol>
+    <li><strong>阶段四七 · 顶部菜单尊重 KOReader（仅 P0）</strong>：约 2 行真改 + 设置项文案对齐 → 同步工作副本 → koplugin-selfcheck → 真机复测「设置 → KOReader 顶部菜单 → 改下滑」行为。</li>
+    <li><strong>阶段四八 · 图库标题区改版（P1）</strong>：页码醒目 + 缩略图左对齐 + 角标位置复核 → selfcheck → 真机复测图库在「全部 / 收藏 / 忽略 / 书签」四个视图均无视觉错位。</li>
+    <li><strong>阶段四九 · 数字指示器强制开关（P2）</strong>：1 个 setting key + 1 个 if 判断 + 1 个菜单项 → selfcheck → 真机复测。</li>
+    <li><strong>（可选）阶段五十 · 4 列宽版 + 设置重整</strong>：仅在你确认想打开顶/底横带布局时做；否则搁置。</li>
+  </ol>
+  每一阶段都按之前纪律执行：<strong>改前先读真实源码（已完成本报告）→ 最小化修改 → LuaJIT 语法检查 → 三副本同步 → koplugin-selfcheck PASS → 真机测试 → CHANGELOG 同步更新 → 待你授权再 push GitHub / 升版 / 部署 G</strong>。
+  <br><br><strong>本报告仅作分析结论，未改任何代码。</strong>改动前需你明确授权。
+</div>
+
+<h2>六 · 一致性核对（你定的三版统一纪律）</h2>
+
+<div class="warnbox">
+  <strong>警告</strong>：若任何一项被采纳并最终发版，必须同步更新以下三份文档（不能漏改任一只脚）：
+  <ul>
+    <li><code>README.md</code> §相比上游的改进（中/英两段）；</li>
+    <li><code>audit/artgallery_vs_glimpse_compare.html</code>（独立对比件）；</li>
+    <li>插件内「关于 美术馆」对话框 (<code>main.lua:~6938</code>) 归属块。</li>
+  </ul>
+  另外：v1.0.21 发布时 GitHub Release zip 已固化，发新版前需先按你立的「发版须经明确同意」纪律取得拍板。
+</div>
+
+<div class="footer">
+  报告生成 2026-08-29 · 基于 Glimpse v1.5.1 (2026-08-29T10:19:16Z 发布的 commit
+  <code>55168f45</code>) 的 <code>plugin/main.lua</code> 逐行核对 ·
+  对照 artgallery v1.0.21 E 副本（main.lua 327240B LF / 干净副本 334255B CRLF，内容一致）
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美术馆 v1.0.22-rc · G 盘部署报告</title>
+<style>
+  :root{--bg:#0f1115;--card:#171a21;--card2:#1d212b;--line:#2a2f3a;
+    --fg:#e6e9ef;--dim:#9aa3b2;--accent:#5b9dff;--ok:#43c98a;
+    --warn:#f5b955;--na:#6b7280;--bad:#ff6b6b;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.65;padding:28px 18px 60px}
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-size:23px;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:20px}
+  .verdict{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--ok);
+    border-radius:10px;padding:16px 20px;margin-bottom:22px}
+  h2{font-size:17px;margin:26px 0 10px;border-left:3px solid var(--accent);padding-left:10px}
+  table{width:100%;border-collapse:collapse;background:var(--card);
+    border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:8px}
+  th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:13px}
+  th{background:var(--card2);color:var(--dim);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--card2);padding:1px 5px;border-radius:4px;font-size:12px;
+    font-family:Consolas,Monaco,monospace}
+  pre{background:var(--card2);border:1px solid var(--line);border-radius:8px;
+    padding:12px 14px;overflow-x:auto;font-size:12px;line-height:1.5;
+    font-family:Consolas,Monaco,monospace}
+  .tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600}
+  .t-ok{background:rgba(67,201,138,.15);color:var(--ok)}
+  .t-warn{background:rgba(245,185,85,.15);color:var(--warn)}
+  .t-na{background:rgba(107,114,128,.18);color:var(--na)}
+  .t-lead{background:rgba(91,157,255,.15);color:var(--accent)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+  .chip{padding:5px 11px;border-radius:14px;font-size:12px;
+    background:var(--card2);border:1px solid var(--line)}
+  .chip.ok{border-color:rgba(67,201,138,.4);color:var(--ok)}
+  .chip.warn{border-color:rgba(245,185,85,.4);color:var(--warn)}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:14px 18px;margin:12px 0}
+  .box.absorb{border-left:3px solid var(--ok)}
+  ol,ul{margin:8px 0;padding-left:22px}
+  li{margin:4px 0;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>美术馆 v1.0.22-rc · G 盘部署报告</h1>
+  <div class="sub">2026-08-29 19:54 · 用户明确授权部署 · 部署前已备份 · 部署后自检全绿</div>
+
+  <div class="verdict">
+    <b>结论：部署成功。</b>仅覆盖运行核心 2 个文件（<code>main.lua</code> + <code>_meta.lua</code>），
+    <code>artgallery_scanner.lua</code> 与 <code>assets/</code> 内容本就一致、不动；
+    <code>CHANGELOG/README/audit/Backup</code> 按纪律不部署。
+    三副本内容哈希完全一致（行尾归一化后 <code>sha256:7b35eba9d14dfcc0</code>），
+    自检循环 <b>PASS=17 / FAIL=0 / WARN=0 → 自检通过</b>。
+  </div>
+
+  <div class="chips">
+    <span class="chip ok">✓ 备份完成并校验</span>
+    <span class="chip ok">✓ 语法 SYNTAX_OK ×3</span>
+    <span class="chip ok">✓ LOAD_OK</span>
+    <span class="chip ok">✓ 类顺序 / local-underscore OK</span>
+    <span class="chip ok">✓ 三副本内容一致</span>
+    <span class="chip warn">⚠ 待真机功能验证</span>
+  </div>
+
+  <h2>一、部署清单</h2>
+  <table>
+    <thead><tr><th>文件</th><th>部署前 (G:)</th><th>部署后 (G:)</th><th>动作</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>main.lua</code></td>
+        <td>327,240 B · LF · 7015 行 · v1.0.21</td>
+        <td>340,801 B · LF · 7274 行 · v1.0.22-rc</td>
+        <td><span class="tag t-ok">覆盖</span>（源 CRLF 348,075 B → 转 LF 写入）</td>
+      </tr>
+      <tr>
+        <td><code>_meta.lua</code></td>
+        <td>623 B · <code>version = "1.0.21"</code></td>
+        <td>623 B · <code>version = "1.0.22"</code></td>
+        <td><span class="tag t-ok">覆盖</span></td>
+      </tr>
+      <tr>
+        <td><code>artgallery_scanner.lua</code></td>
+        <td>43,939 B · LF</td>
+        <td>43,939 B · LF（未动）</td>
+        <td><span class="tag t-na">跳过</span> 内容哈希 <code>f1c09d2e</code> 与源一致，仅行尾不同</td>
+      </tr>
+      <tr>
+        <td><code>assets/</code></td>
+        <td colspan="2"><code>diff -rq</code> 无差异</td>
+        <td><span class="tag t-na">跳过</span> 本轮无资源改动</td>
+      </tr>
+      <tr>
+        <td><code>CHANGELOG/README/audit/Backup</code></td>
+        <td colspan="2">未触碰</td>
+        <td><span class="tag t-na">不部署</span> 依「部署只同步运行核心」纪律</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>二、回滚备份</h2>
+  <table>
+    <thead><tr><th>备份文件（D 盘）</th><th>大小</th><th>校验</th></tr></thead>
+    <tbody>
+      <tr><td><code>D:\backup\artgallery_G_main_before_v1.0.22_20260829_195410.lua</code></td><td>327,240 B</td><td><span class="tag t-ok">cmp 与部署前 G: 一致</span></td></tr>
+      <tr><td><code>D:\backup\artgallery_G_meta_before_v1.0.22_20260829_195410.lua</code></td><td>623 B</td><td><span class="tag t-ok">cmp 与部署前 G: 一致</span></td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:13px;color:var(--dim)">
+  回滚方式：把上面两个文件复制回 <code>G:\koreader\plugins\artgallery.koplugin\</code>
+  并还原文件名即可（<code>main.lua</code> / <code>_meta.lua</code>）。
+  用户自己在部署前也另有一份备份。</p>
+
+  <h2>三、行尾处理（本轮关键细节）</h2>
+  <div class="box">
+    <p style="margin:0 0 8px">设备 G 盘长期是 <b>LF</b>，Windows 侧 E 副本长期是 <b>CRLF</b>，
+    两者内容本就相同、只差 <code>\r</code>。本轮：</p>
+    <ul>
+      <li>部署时把源文件的 CRLF <b>转成 LF</b> 再写入，保持设备侧行尾风格统一，
+        避免同一文件内混用。</li>
+      <li>修了 <code>koplugin-selfcheck</code> 的 B1/B2：裸 <code>cmp -s</code> 字节比对
+        会把行尾差异恒定报成「三副本不一致」的<b>伪 FAIL</b>。改为行尾归一化比对
+        （<code>cmp -s &lt;(tr -d '\r' &lt;A) &lt;(tr -d '\r' &lt;B)</code>）——
+        真实代码差异照旧检出，行尾噪声不再误报。</li>
+    </ul>
+  </div>
+
+  <h2>四、部署后校验结果</h2>
+  <pre>=== 三副本内容哈希（LF 归一化后）===
+  clean  (E:/Download/AIWorkshop/artgallery.koplugin/)        7b35eba9d14dfcc0  340801B
+  work   (E:/Download/AIWorkshop/koreader/plugins/)           7b35eba9d14dfcc0  340801B
+  device (G:/koreader/plugins/)                               7b35eba9d14dfcc0  340801B
+  ALL IDENTICAL (content): YES
+
+=== G 盘文件本体校验 ===
+  main.lua      SYNTAX_OK
+  _meta.lua     SYNTAX_OK
+  scanner       SYNTAX_OK
+  load-test     LOAD_OK
+  class-order   OK class-order / OK local-underscore
+
+=== 自检 harness ===
+  A 代码完整性   7/7 PASS
+  B 三副本一致   3/3 PASS（含归一化后的 B2）
+  C 装载红线     1/1 PASS
+  D 文档一致     2/2 PASS
+  E 专案不变量   4/4 PASS
+  结果: PASS=17  FAIL=0  WARN=0  >>> 自检通过 <<<</pre>
+
+  <h2>五、本轮随部署上机的改动</h2>
+  <table>
+    <thead><tr><th>阶段</th><th>改动</th><th>用户可见</th></tr></thead>
+    <tbody>
+      <tr><td>四七</td><td>通用位图缓存 LRU <code>_bbCacheGet/Put/Free</code>（max=3）</td>
+        <td><span class="tag t-na">否</span> 切图/邻居预取更快</td></tr>
+      <tr><td>四八</td><td>选择性圆角 <code>make_corner_stencil</code></td>
+        <td><span class="tag t-na">否</span> 内部工具，现有调用方未切</td></tr>
+      <tr><td>四八</td><td>长按释放抑制全屏闪 <code>onHoldRelease</code></td>
+        <td><span class="tag t-ok">是</span> 长按图片不移动，不再闪整屏</td></tr>
+      <tr><td>四九</td><td>缩放/切图轻更新 <code>_updateImageOnly</code>/<code>_repaintOverlayFast</code></td>
+        <td><span class="tag t-ok">是</span> 缩放与切图更快、更少闪烁</td></tr>
+      <tr><td>四九</td><td>菜单开关「快速切图（无闪刷新）」默认开</td>
+        <td><span class="tag t-ok">是</span> 插件菜单可切，OFF 回退 GC16 全清</td></tr>
+      <tr><td>五十</td><td>核对书签缩略图缓存 / 最大缩放 1.5–4.0×</td>
+        <td><span class="tag t-na">否</span> 早已覆盖，未重写</td></tr>
+      <tr><td>五一</td><td>「关于 美术馆」文本 + footer 升级到 v1.5.1 表述</td>
+        <td><span class="tag t-ok">是</span> 对话框内容更贴合现版本</td></tr>
+    </tbody>
+  </table>
+
+  <h2>六、真机验证清单（请逐项过一遍）</h2>
+  <div class="box absorb">
+    <ol>
+      <li><b>缩放轻路径</b>：双击放大 / 滚轮 / 双指捏合 —— 应比之前更跟手，
+        chrome（按钮、页码圆点、标题）不重建、不错位，缩放过程无闪烁。</li>
+      <li><b>切图轻路径</b>：左右滑动翻页 + 翻页键 —— 切图无闪，
+        <b>重点看前一张图会不会鬼影穿透到下一张</b>（详图/地图类最明显）。</li>
+      <li><b>长按抑制</b>：长按图片后不移动直接松开 —— <b>不应闪整屏</b>；
+        长按并拖动 —— 应仍可平移（缩放态下）。</li>
+      <li><b>快速切图开关</b>：插件菜单切到 OFF —— 切图应变成 GC16 全清
+        （能看到一次清场闪烁），用于对比确认开关真的生效。</li>
+      <li><b>图库模式</b>：进图库、切换「全部/收藏/书签/忽略」段、点缩略图回单图 —— 回归验证无异常。</li>
+      <li><b>「关于 美术馆」</b>：打开对话框，确认功能介绍与底部归属块已更新为 v1.5.1 表述。</li>
+      <li><b>版本显示</b>：插件菜单应显示 <code>1.0.22</code>。</li>
+    </ol>
+  </div>
+
+  <h2>七、下一步（均需另行授权）</h2>
+  <ul>
+    <li>真机验证通过后 → <b>commit + push</b> 到 <code>ksaMask123/artgallery.koplugin</code> main 分支（同步 audit 文档）。</li>
+    <li>构建 Release zip（根 <code>artgallery.koplugin/</code>，不含 <code>.git</code>/<code>Backup</code>）+ 三副本 <code>cmp</code> 校验。</li>
+    <li>创建 <b>GitHub Release v1.0.22</b>（latest）。</li>
+    <li>若真机发现问题 → 用第二节备份回滚，或直接在 E 副本改完重跑自检循环再部署。</li>
+  </ul>
+
+</div>
+</body>
+</html>
